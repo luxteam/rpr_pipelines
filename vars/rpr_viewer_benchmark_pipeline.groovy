@@ -348,7 +348,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
                          alwaysLinkToLastBuild: false,
                          keepAll: true,
                          reportDir: 'summaryTestResults',
-                         reportFiles: 'summary_report.html, performance_report.html, compare_report.html', 'render_temp.html'
+                         reportFiles: 'summary_report.html, performance_report.html, compare_report.html, render_temp.html',
                          reportName: 'Test Report',
                          reportTitles: 'Summary Report, Performance Report, Compare Report', 'Benchmarks Report'])
         }

@@ -350,7 +350,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
                          reportDir: 'summaryTestResults',
                          reportFiles: 'summary_report.html, performance_report.html, compare_report.html, render_temp.html',
                          reportName: 'Test Report',
-                         reportTitles: 'Summary Report, Performance Report, Compare Report', 'Benchmarks Report'])
+                         reportTitles: 'Summary Report, Performance Report, Compare Report, Benchmarks Report'])
         }
     }
     catch(e)

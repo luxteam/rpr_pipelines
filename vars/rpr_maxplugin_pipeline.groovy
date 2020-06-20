@@ -113,7 +113,10 @@ def executeTests(String osName, String asicName, Map options)
             }
         }
 
-        downloadAssets("${options.PRJ_ROOT}/${options.PRJ_NAME}/MaxAssets/", 'MaxAssets')
+        dir("c:/TestResources/MaxAssets")
+        {
+            checkOutBranchOrScm(options['autotest_assets'], "https://gitlab.cts.luxoft.com/autotest_assets/rpr_max_autotests.git", true, false, true, 'radeonprorender-gitlab', true)
+        }
 
         try {
             Boolean newPluginInstalled = false

@@ -868,7 +868,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
     String customBuildLinkWindows = "",
     String customBuildLinkLinux = "",
     String customBuildLinkOSX = "",
-    String engine = "1.0")
+    String engine = "1.0",
+    String autotest_assets = 'master')
 {
     resX = (resX == 'Default') ? '0' : resX
     resY = (resY == 'Default') ? '0' : resY
@@ -965,7 +966,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                                 customBuildLinkWindows: customBuildLinkWindows,
                                 customBuildLinkLinux: customBuildLinkLinux,
                                 customBuildLinkOSX: customBuildLinkOSX,
-                                engine: engine
+                                engine: engine,
+                                autotest_assets: autotest_assets
                                 ])
     }
     catch(e)

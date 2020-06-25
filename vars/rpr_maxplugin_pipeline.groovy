@@ -717,6 +717,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                                [projectRepo:projectRepo,
                                 projectBranch:projectBranch,
                                 testsBranch:testsBranch,
+                                autotest_assets: autotest_assets,
                                 updateRefs:updateRefs,
                                 enableNotifications:enableNotifications,
                                 PRJ_NAME:PRJ_NAME,
@@ -742,8 +743,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                                 SPU: SPU,
                                 iter: iter,
                                 theshold: theshold,
-                                customBuildLinkWindows: customBuildLinkWindows,
-                                autotest_assets: autotest_assets
+                                customBuildLinkWindows: customBuildLinkWindows
                                 ])
         }
         catch (e) {

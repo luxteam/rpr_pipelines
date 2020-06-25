@@ -49,7 +49,7 @@ def executeCheckout(String branchName, String repoName, Boolean disableSubmodule
     if (wipeWorkspace) checkoutExtensions.add([$class: 'WipeWorkspace'])
 
     // !branchName need for ignore merging testing repos (jobs_test_*) 
-    if (env.CHANGE_ID) {
+   if (!branchName && env.BRANCH_NAME && env.BRANCH_NAME.startsWith("PR-")) {
 
         // TODO: adapt scm options for PR
         checkout scm

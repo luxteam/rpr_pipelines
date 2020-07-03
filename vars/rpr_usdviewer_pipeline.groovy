@@ -1,13 +1,11 @@
 import groovy.json.JsonOutput
 
-+
+
 def executeTests(String osName, String asicName, Map options)
 {}
 
-//TODO
 def executeBuildWindows(Map options)
-{
-}
+{}
 
 def executeBuild(String osName, Map options)
 {

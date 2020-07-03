@@ -5,40 +5,60 @@ def executeTests(String osName, String asicName, Map options)
 {}
 
 def executeBuildWindows(Map options)
-{}
+{
+    withEnv(["PATH=c:\\python366\\;c:\\python366\\scripts\\;${PATH}"]) {
+        bat """
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" amd64
+        
+        python USDPixar/build_scripts/build_usd.py ^
+        --build ../RPRViewer/build ^
+        --src ../RPRViewer/deps ^
+        ../RPRViewer/inst ^
+        --build-args "USD,-DRPR_LOCATION=../RadeonProRenderSDK -DVID_WRAPPERS_DIR=../RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.USD.log 2>&1
+        
+        set PATH="${WORKSPACE}\\RPRViewer\\inst\\bin;${WORKSPACE}\\RPRViewer\\inst\\lib;%PATH%"
+        set PYTHONPATH="${WORKSPACE}\\RPRViewer\\inst\\lib\\python;%PYTHONPATH%"
+        
+        pushd USDPixar
+        git apply ../usd_dev.patch 
+        """
+    }
+}
 
 def executeBuild(String osName, Map options)
 {
-    dir("dependencies") {
-        dir("RadeonProVulkanWrapper") {
-            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonImageFilter.git")
+    dir("RadeonProVulkanWrapper") {
+        checkOutBranchOrScm("master", "git@github.com:Radeon-Pro/RadeonProVulkanWrapper.git")
 
-            bat """mkdir build
-            cd build
-            cmake ${options['cmakeKeysVulkanWrapper']} -G "Visual Studio 15 2017 Win64" .. >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1
-            cmake --build . --config Release >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1"""
-        }
-        dir("RadeonImageFilter") {
-            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonImageFilter.git")
-        }
-        dir("RadeonProRenderSDK") {
-            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderSDK.git")
-        }
+        //FIXME: temp solution
+        bat """mkdir build
+        cd build
+        cmake ${options['cmakeKeysVulkanWrapper']} -G "Visual Studio 15 2017 Win64" .. >> ..\\${STAGE_NAME}.VulkanWrapper.log 2>&1
+        cmake --build . --config Release >> ..\\${STAGE_NAME}.VulkanWrapper.log 2>&1"""
+    }
+    dir("RadeonImageFilter") {
+        checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonImageFilter.git")
+    }
+    dir("RadeonProRenderSDK") {
+        checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderSDK.git")
     }
 
     try {
-        checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
-        outputEnvironmentInfo(osName)
+        dir("RPRViewer") {
+            checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
 
-        switch(osName) {
-            case 'Windows':
-                executeBuildWindows(options);
-                break;
-            case 'OSX':
-                println "OS isn't supported."
-                break;
-            default:
-                println "OS isn't supported."
+            outputEnvironmentInfo(osName)
+
+            switch (osName) {
+                case 'Windows':
+                    executeBuildWindows(options);
+                    break;
+                case 'OSX':
+                    println "OS isn't supported."
+                    break;
+                default:
+                    println "OS isn't supported."
+            }
         }
     }
     catch (e) {

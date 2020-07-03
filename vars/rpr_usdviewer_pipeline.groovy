@@ -1,6 +1,6 @@
 import groovy.json.JsonOutput
-import radeonpro_vulkanwrapper_pipeline;
 
++
 def executeTests(String osName, String asicName, Map options)
 {}
 
@@ -13,10 +13,12 @@ def executeBuild(String osName, Map options)
 {
     dir("dependencies") {
         dir("RadeonProVulkanWrapper") {
-            Map vulkanOptions = options.clone()
-            options.projectBranch = "master"
-            options.projectRepo = "git@github.com:Radeon-Pro/RadeonProVulkanWrapper.git"
-            radeonpro_vulkanwrapper_pipeline.executeBuild(osName, vulkanOptions)
+            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonImageFilter.git")
+
+            bat """mkdir build
+            cd build
+            cmake ${options['cmakeKeysVulkanWrapper']} -G "Visual Studio 15 2017 Win64" .. >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1
+            cmake --build . --config Release >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1"""
         }
         dir("RadeonImageFilter") {
             checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonImageFilter.git")
@@ -111,5 +113,6 @@ def call(String projectBranch = "",
                             executeTests:true,
                             BUILD_TIMEOUT:90,
                             DEPLOY_TIMEOUT:45,
+                            cmakeKeysVulkanWrapper:"-DCMAKE_BUILD_TYPE=Release",
                             nodeRetry: nodeRetry])
 }

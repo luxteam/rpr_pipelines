@@ -14,7 +14,7 @@ def executeBuildWindows(Map options)
         --build ../RPRViewer/build ^
         --src ../RPRViewer/deps ^
         ../RPRViewer/inst ^
-        --build-args "USD,-DRPR_LOCATION=../RadeonProRenderSDK -DVID_WRAPPERS_DIR=../RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.preUSD.log 2>&1
+        --build-args "USD,-DRPR_LOCATION=../RadeonProRenderSDK -DVID_WRAPPERS_DIR=../RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.USD.log 2>&1
         
         set PATH="${WORKSPACE}\\RPRViewer\\inst\\bin;${WORKSPACE}\\RPRViewer\\inst\\lib;%PATH%"
         set PYTHONPATH="${WORKSPACE}\\RPRViewer\\inst\\lib\\python;%PYTHONPATH%"
@@ -50,7 +50,7 @@ def executeBuild(String osName, Map options)
         dir("RPRViewer") {
             checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
 
-            outputEnvironmentInfo(osName)
+            outputEnvironmentInfo(osName, "..\\${STAGE_NAME}.initEnv")
 
             switch (osName) {
                 case 'Windows':
@@ -119,7 +119,7 @@ def call(String projectBranch = "",
     def nodeRetry = []
     String PRJ_ROOT='rpr-core'
     String PRJ_NAME='USDViewer'
-    String projectRepo='git@github.com:Radeon-Pro/RadeonProViewer.git'
+    String projectRepo='git@github.com:Radeon-Pro/RPRViewer.git'
 
     multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, null, null,
                            [projectBranch:projectBranch,

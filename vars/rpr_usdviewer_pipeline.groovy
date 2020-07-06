@@ -8,7 +8,7 @@ def executeBuildWindows(Map options)
 {
     withEnv(["PATH=c:\\python366\\;c:\\python366\\scripts\\;${PATH}"]) {
         bat """
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" amd64 >> ..\\${STAGE_NAME}.USD.log 2>&1
+        call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" amd64 >> ..\\${STAGE_NAME}.USD.log 2>&1
         
         python USDPixar/build_scripts/build_usd.py ^
         --build ../USD/build ^
@@ -16,8 +16,8 @@ def executeBuildWindows(Map options)
         ../USD/inst ^
         --build-args "USD,-DRPR_LOCATION=../RadeonProRenderSDK -DVID_WRAPPERS_DIR=../RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.preUSD.log 2>&1
         
-        set PATH="${WORKSPACE}\\USD\\inst\\bin;${WORKSPACE}\\USD\\inst\\lib;%PATH%"
-        set PYTHONPATH="${WORKSPACE}\\USD\\inst\\lib\\python;%PYTHONPATH%"
+        set PATH="${env.WORKSPACE}\\USD\\inst\\bin;${env.WORKSPACE}\\USD\\inst\\lib;%PATH%"
+        set PYTHONPATH="${env.WORKSPACE}\\USD\\inst\\lib\\python;%PYTHONPATH%"
         
         pushd USDPixar
         git apply ../usd_dev.patch >> ..\\..\\${STAGE_NAME}.USD.log 2>&1
@@ -137,7 +137,7 @@ def call(String projectBranch = "",
     def nodeRetry = []
     String PRJ_ROOT='rpr-core'
     String PRJ_NAME='USDViewer'
-    String projectRepo='git@github.com:Radeon-Pro/RadeonProViewer.git'
+    String projectRepo='git@github.com:Radeon-Pro/RPRViewer.git'
 
     multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, null, null,
                            [projectBranch:projectBranch,

@@ -11,25 +11,43 @@ def executeBuildWindows(Map options)
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" amd64 >> ..\\${STAGE_NAME}.USD.log 2>&1
         
         python USDPixar/build_scripts/build_usd.py ^
-        --build ../RPRViewer/build ^
-        --src ../RPRViewer/deps ^
-        ../RPRViewer/inst ^
-        --build-args "USD,-DRPR_LOCATION=../RadeonProRenderSDK -DVID_WRAPPERS_DIR=../RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.USD.log 2>&1
+        --build ../USD/build ^
+        --src ../USD/deps ^
+        ../USD/inst ^
+        --build-args "USD,-DRPR_LOCATION=../RadeonProRenderSDK -DVID_WRAPPERS_DIR=../RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.preUSD.log 2>&1
         
-        set PATH="${WORKSPACE}\\RPRViewer\\inst\\bin;${WORKSPACE}\\RPRViewer\\inst\\lib;%PATH%"
-        set PYTHONPATH="${WORKSPACE}\\RPRViewer\\inst\\lib\\python;%PYTHONPATH%"
+        set PATH="${WORKSPACE}\\USD\\inst\\bin;${WORKSPACE}\\USD\\inst\\lib;%PATH%"
+        set PYTHONPATH="${WORKSPACE}\\USD\\inst\\lib\\python;%PYTHONPATH%"
         
         pushd USDPixar
         git apply ../usd_dev.patch >> ..\\..\\${STAGE_NAME}.USD.log 2>&1
         popd
         
-        msbuild /t:Build /p:Configuration=RelWithDebInfo build\\USDPixar\\usd.sln >> ..\\${STAGE_NAME}.USD.log 2>&1
+        msbuild /t:Build /p:Configuration=RelWithDebInfo ..\\build\\USDPixar\\usd.sln >> ..\\${STAGE_NAME}.USD.log 2>&1
+
+        pushd HdRPRPlugin
+        mkdir build
+        pushd build
+        
+        cmake ^
+        -G "Visual Studio 15 2017 Win64" ^
+        -DUSD_ROOT=../../../USD/inst ^
+        -DRPR_LOCATION=../../../RadeonProRenderSDK/RadeonProRender ^
+        -DRIF_LOCATION_INCLUDE=../../../RadeonImageFilter/radeonimagefilters-1.4.4_visualize-778df0-Windows-rel/include ^
+        -DRIF_LOCATION_LIB=../../../RadeonImageFilter/radeonimagefilters-1.4.4_visualize-778df0-Windows-rel/bin ^
+        -DRIF_LIBRARY=../../../RadeonImageFilter/radeonimagefilters-1.4.4_visualize-778df0-Windows-rel/bin/RadeonImageFilters64.lib ^
+        -RIF_MODELS_DIR=../../../RadeonImageFilter/models/ ^
+        -DCMAKE_INSTALL_PREFIX=../../../USD/inst ^
+        -DPXR_USE_PYTHON_3=ON ^
+        .. >> ../../../${STAGE_NAME}.HdRPRPlugin.log 2>&1
         """
     }
 }
 
 def executeBuild(String osName, Map options)
 {
+    bat """del *.log"""
+
     dir("RadeonProVulkanWrapper") {
         checkOutBranchOrScm("master", "git@github.com:Radeon-Pro/RadeonProVulkanWrapper.git")
 
@@ -119,7 +137,7 @@ def call(String projectBranch = "",
     def nodeRetry = []
     String PRJ_ROOT='rpr-core'
     String PRJ_NAME='USDViewer'
-    String projectRepo='git@github.com:Radeon-Pro/RPRViewer.git'
+    String projectRepo='git@github.com:Radeon-Pro/RadeonProViewer.git'
 
     multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, null, null,
                            [projectBranch:projectBranch,

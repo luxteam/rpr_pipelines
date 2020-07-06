@@ -6,7 +6,7 @@ def executeTests(String osName, String asicName, Map options)
 
 def executeBuildWindows(Map options)
 {
-    withEnv(["PATH=c:\\python366\\;c:\\python366\\scripts\\;${PATH}"]) {
+    withEnv(["PATH=c:\\python366\\;c:\\python366\\scripts\\;${PATH}", "WORKSPACE=${env.WORKSPACE.toString().replace('\\', '/')}"]) {
         bat """
         call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" amd64 >> ..\\${STAGE_NAME}.USD.log 2>&1
         
@@ -14,16 +14,16 @@ def executeBuildWindows(Map options)
         --build ../USD/build ^
         --src ../USD/deps ^
         ../USD/inst ^
-        --build-args "USD,-DRPR_LOCATION=../RadeonProRenderSDK -DVID_WRAPPERS_DIR=../RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.preUSD.log 2>&1
+        --build-args "USD,-DRPR_LOCATION=../RadeonProRenderSDK -DVID_WRAPPERS_DIR=../RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.USD.log 2>&1
         
-        set PATH="${env.WORKSPACE}\\USD\\inst\\bin;${env.WORKSPACE}\\USD\\inst\\lib;%PATH%"
-        set PYTHONPATH="${env.WORKSPACE}\\USD\\inst\\lib\\python;%PYTHONPATH%"
+        set PATH=${WORKSPACE}\\USD\\inst\\bin;${WORKSPACE}\\USD\\inst\\lib;%PATH%
+        set PYTHONPATH=${WORKSPACE}\\USD\\inst\\lib\\python;%PYTHONPATH%
         
         pushd USDPixar
         git apply ../usd_dev.patch >> ..\\..\\${STAGE_NAME}.USD.log 2>&1
         popd
         
-        msbuild /t:Build /p:Configuration=RelWithDebInfo ..\\build\\USDPixar\\usd.sln >> ..\\${STAGE_NAME}.USD.log 2>&1
+        msbuild /t:Build /p:Configuration=RelWithDebInfo USDPixar\\build\\USDPixar\\usd.sln >> ..\\${STAGE_NAME}.USD.log 2>&1
 
         pushd HdRPRPlugin
         mkdir build

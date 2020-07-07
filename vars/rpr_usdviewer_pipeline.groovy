@@ -10,36 +10,33 @@ def executeBuildWindows(Map options)
         bat """
         call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" amd64 >> ..\\${STAGE_NAME}.USD.log 2>&1
         
-        python USDPixar/build_scripts/build_usd.py ^
-        --build ../USD/build ^
-        --src ../USD/deps ^
-        ../USD/inst ^
-        --build-args "USD,-DRPR_LOCATION=../RadeonProRenderSDK -DVID_WRAPPERS_DIR=../RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.USD.log 2>&1
+        python USDPixar/build_scripts/build_usd.py --build ../USD/build --src ../USD/deps ../USD/inst ^
+        --build-args "USD,-DRPR_LOCATION=${WORKSPACE}/RadeonProRenderSDK/RadeonProRender -DVID_WRAPPERS_DIR=${WORKSPACE}/RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.USD.log 2>&1
         
         set PATH=${WORKSPACE}\\USD\\inst\\bin;${WORKSPACE}\\USD\\inst\\lib;%PATH%
         set PYTHONPATH=${WORKSPACE}\\USD\\inst\\lib\\python;%PYTHONPATH%
+
+        set >> ..\\${STAGE_NAME}.USD.log 2>&1
         
         pushd USDPixar
-        git apply ../usd_dev.patch >> ..\\..\\${STAGE_NAME}.USD.log 2>&1
+        git apply ..\\usd_dev.patch >> ..\\..\\${STAGE_NAME}.USD.log 2>&1
         popd
         
-        msbuild /t:Build /p:Configuration=RelWithDebInfo USDPixar\\build\\USDPixar\\usd.sln >> ..\\${STAGE_NAME}.USD.log 2>&1
+        msbuild /t:Build /p:Configuration=RelWithDebInfo ..\\USD\\build\\USDPixar\\usd.sln >> ..\\${STAGE_NAME}.USD.log 2>&1
 
         pushd HdRPRPlugin
         mkdir build
         pushd build
         
-        cmake ^
-        -G "Visual Studio 15 2017 Win64" ^
-        -DUSD_ROOT=../../../USD/inst ^
-        -DRPR_LOCATION=../../../RadeonProRenderSDK/RadeonProRender ^
-        -DRIF_LOCATION_INCLUDE=../../../RadeonImageFilter/radeonimagefilters-1.4.4_visualize-778df0-Windows-rel/include ^
-        -DRIF_LOCATION_LIB=../../../RadeonImageFilter/radeonimagefilters-1.4.4_visualize-778df0-Windows-rel/bin ^
-        -DRIF_LIBRARY=../../../RadeonImageFilter/radeonimagefilters-1.4.4_visualize-778df0-Windows-rel/bin/RadeonImageFilters64.lib ^
-        -RIF_MODELS_DIR=../../../RadeonImageFilter/models/ ^
-        -DCMAKE_INSTALL_PREFIX=../../../USD/inst ^
+        cmake -G "Visual Studio 15 2017 Win64" -DUSD_ROOT=${WORKSPACE}USD/inst ^
+        -DRPR_LOCATION=${WORKSPACE}RadeonProRenderSDK/RadeonProRender ^
+        -DRIF_LOCATION_INCLUDE=${WORKSPACE}RadeonImageFilter/radeonimagefilters-1.4.4_visualize-778df0-Windows-rel/include ^
+        -DRIF_LOCATION_LIB=${WORKSPACE}RadeonImageFilter/radeonimagefilters-1.4.4_visualize-778df0-Windows-rel/bin ^
+        -DRIF_LIBRARY=${WORKSPACE}RadeonImageFilter/radeonimagefilters-1.4.4_visualize-778df0-Windows-rel/bin/RadeonImageFilters64.lib ^
+        -RIF_MODELS_DIR=${WORKSPACE}RadeonImageFilter/models/ ^
+        -DCMAKE_INSTALL_PREFIX=${WORKSPACE}USD/inst ^
         -DPXR_USE_PYTHON_3=ON ^
-        .. >> ../../../${STAGE_NAME}.HdRPRPlugin.log 2>&1
+        .. >> ..\\..\\..\\${STAGE_NAME}.HdRPRPlugin.log 2>&1
         """
     }
 }

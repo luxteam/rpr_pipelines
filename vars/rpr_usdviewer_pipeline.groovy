@@ -6,77 +6,85 @@ def executeTests(String osName, String asicName, Map options)
 
 def executeBuildWindows(Map options)
 {
+    bat "del *.log"
     withEnv(["PATH=c:\\python366\\;c:\\python366\\scripts\\;${PATH}", "WORKSPACE=${env.WORKSPACE.toString().replace('\\', '/')}"]) {
-        bat """
-        call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" amd64 >> ..\\${STAGE_NAME}.USD.log 2>&1
-        
-        python USDPixar/build_scripts/build_usd.py --build ../USD/build --src ../USD/deps ../USD/inst ^
-        --build-args "USD,-DRPR_LOCATION=${WORKSPACE}/RadeonProRenderSDK/RadeonProRender -DVID_WRAPPERS_DIR=${WORKSPACE}/RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.USD.log 2>&1
-        
-        set PATH=${WORKSPACE}\\USD\\inst\\bin;${WORKSPACE}\\USD\\inst\\lib;%PATH%
-        set PYTHONPATH=${WORKSPACE}\\USD\\inst\\lib\\python;%PYTHONPATH%
+        outputEnvironmentInfo("Windows", "${STAGE_NAME}.initEnv")
 
-        set >> ..\\${STAGE_NAME}.USD.log 2>&1
-        
-        pushd USDPixar
-        git apply ..\\usd_dev.patch >> ..\\..\\${STAGE_NAME}.USD.log 2>&1
-        popd
-        
-        msbuild /t:Build /p:Configuration=RelWithDebInfo ..\\USD\\build\\USDPixar\\usd.sln >> ..\\${STAGE_NAME}.USD.log 2>&1
+        dir("RadeonProVulkanWrapper") {
+            checkOutBranchOrScm("db51573e1b65ff5f343f691bc95f7bc5400ef94d", "git@github.com:Radeon-Pro/RadeonProVulkanWrapper.git")
 
-        pushd HdRPRPlugin
-        mkdir build
-        pushd build
-        
-        cmake -G "Visual Studio 15 2017 Win64" -DUSD_ROOT=${WORKSPACE}USD/inst ^
-        -DRPR_LOCATION=${WORKSPACE}RadeonProRenderSDK/RadeonProRender ^
-        -DRIF_LOCATION_INCLUDE=${WORKSPACE}RadeonImageFilter/radeonimagefilters-1.4.4_visualize-778df0-Windows-rel/include ^
-        -DRIF_LOCATION_LIB=${WORKSPACE}RadeonImageFilter/radeonimagefilters-1.4.4_visualize-778df0-Windows-rel/bin ^
-        -DRIF_LIBRARY=${WORKSPACE}RadeonImageFilter/radeonimagefilters-1.4.4_visualize-778df0-Windows-rel/bin/RadeonImageFilters64.lib ^
-        -RIF_MODELS_DIR=${WORKSPACE}RadeonImageFilter/models/ ^
-        -DCMAKE_INSTALL_PREFIX=${WORKSPACE}USD/inst ^
-        -DPXR_USE_PYTHON_3=ON ^
-        .. >> ..\\..\\..\\${STAGE_NAME}.HdRPRPlugin.log 2>&1
-        """
+            bat """mkdir build
+            cd build
+            cmake ${options['cmakeKeysVulkanWrapper']} -G "Visual Studio 15 2017 Win64" .. >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1
+            cmake --build . --config Release >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1"""
+        }
+        dir("RadeonImageFilter") {
+            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonImageFilter.git")
+        }
+        dir("RadeonProRenderSDK") {
+            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderSDK.git")
+        }
+        dir("RPRViewer") {
+            checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
+
+
+            bat """
+            call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" amd64 >> ..\\${STAGE_NAME}.USD.log 2>&1
+            
+            python USDPixar/build_scripts/build_usd.py --build RPRViewer/build --src RPRViewer/deps RPRViewer/inst ^
+            --build-args "USD,-DRPR_LOCATION=${WORKSPACE}/RadeonProRenderSDK/RadeonProRender -DVID_WRAPPERS_DIR=${WORKSPACE}/RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.USD.log 2>&1
+            """
+
+            bat"""
+            set PATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\bin;${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib;%PATH%
+            set PYTHONPATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib\\python;%PYTHONPATH%
+    
+            pushd USDPixar
+            git apply ..\\usd_dev.patch >> ..\\..\\${STAGE_NAME}.USD.log 2>&1
+            popd
+            
+            cd RPRViewer\\build\\USDPixar
+            cmake --build . --config Release --target INSTALL >> ..\\..\\..\\${STAGE_NAME}.USD.log 2>&1 
+            
+            rem msbuild /t:Build /p:Configuration=RelWithDebInfo /m RPRViewer\\build\\USDPixar\\usd.sln >> ..\\${STAGE_NAME}.USD.log 2>&1
+    
+            pushd HdRPRPlugin
+            mkdir build
+            pushd build
+            
+            cmake -G "Visual Studio 15 2017 Win64" -DUSD_ROOT=${WORKSPACE}/RPRViewer/RPRViewer/inst ^
+            -DRPR_LOCATION=${WORKSPACE}/RadeonProRenderSDK/RadeonProRender ^
+            -DRIF_LOCATION_INCLUDE=${WORKSPACE}/RadeonImageFilter/include ^
+            -DRIF_LOCATION_LIB=${WORKSPACE}/RadeonImageFilter/Windows ^
+            -DRIF_LIBRARY=${WORKSPACE}/RadeonImageFilter/Windows/RadeonImageFilters.lib ^
+            -RIF_MODELS_DIR=${WORKSPACE}/RadeonImageFilter/models/ ^
+            -DCMAKE_INSTALL_PREFIX=${WORKSPACE}/RPRViewer/RPRViewer/inst ^
+            -DPXR_USE_PYTHON_3=ON ^
+            .. >> ..\\..\\..\\${STAGE_NAME}.HdRPRPlugin.log 2>&1
+
+            cmake --build . --config Release --target INSTALL >> ..\\..\\..\\${STAGE_NAME}.USD.log 2>&1 
+
+            rem msbuild /t:Build /p:Configuration=RelWithDebInfo /m hdRpr.sln >> ..\\..\\..\\${STAGE_NAME}.USD.log 2>&1
+            """
+
+        }
     }
 }
 
 def executeBuild(String osName, Map options)
 {
-    bat """del *.log"""
-
-    dir("RadeonProVulkanWrapper") {
-        checkOutBranchOrScm("master", "git@github.com:Radeon-Pro/RadeonProVulkanWrapper.git")
-
-        //FIXME: temp solution
-        bat """mkdir build
-        cd build
-        cmake ${options['cmakeKeysVulkanWrapper']} -G "Visual Studio 15 2017 Win64" .. >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1
-        cmake --build . --config Release >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1"""
-    }
-    dir("RadeonImageFilter") {
-        checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonImageFilter.git")
-    }
-    dir("RadeonProRenderSDK") {
-        checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderSDK.git")
-    }
+    //cleanWS()
 
     try {
-        dir("RPRViewer") {
-            checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
-
-            outputEnvironmentInfo(osName, "..\\${STAGE_NAME}.initEnv")
-
-            switch (osName) {
-                case 'Windows':
-                    executeBuildWindows(options);
-                    break;
-                case 'OSX':
-                    println "OS isn't supported."
-                    break;
-                default:
-                    println "OS isn't supported."
-            }
+        switch (osName) {
+            case 'Windows':
+                executeBuildWindows(options);
+                break;
+            case 'OSX':
+                println "OS isn't supported."
+                break;
+            default:
+                println "OS isn't supported."
         }
     }
     catch (e) {
@@ -149,6 +157,6 @@ def call(String projectBranch = "",
                             executeTests:true,
                             BUILD_TIMEOUT:90,
                             DEPLOY_TIMEOUT:45,
-                            cmakeKeysVulkanWrapper:"-DCMAKE_BUILD_TYPE=Release",
+                            cmakeKeysVulkanWrapper:"-DCMAKE_BUILD_TYPE=Release -DVW_ENABLE_RRNEXT=OFF",
                             nodeRetry: nodeRetry])
 }

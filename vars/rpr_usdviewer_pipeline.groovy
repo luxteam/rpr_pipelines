@@ -27,26 +27,22 @@ def executeBuildWindows(Map options)
         dir("RPRViewer") {
             checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
 
-
             bat """
-            call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" amd64 >> ..\\${STAGE_NAME}.USD.log 2>&1
+            call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" >> ..\\${STAGE_NAME}.USD.log 2>&1
             
             python USDPixar/build_scripts/build_usd.py --build RPRViewer/build --src RPRViewer/deps RPRViewer/inst ^
             --build-args "USD,-DRPR_LOCATION=${WORKSPACE}/RadeonProRenderSDK/RadeonProRender -DVID_WRAPPERS_DIR=${WORKSPACE}/RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.USD.log 2>&1
-            """
-
-            bat"""
+            
             set PATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\bin;${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib;%PATH%
             set PYTHONPATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib\\python;%PYTHONPATH%
-    
+            
             pushd USDPixar
             git apply ..\\usd_dev.patch >> ..\\..\\${STAGE_NAME}.USD.log 2>&1
             popd
             
-            cd RPRViewer\\build\\USDPixar
-            cmake --build . --config Release --target INSTALL >> ..\\..\\..\\${STAGE_NAME}.USD.log 2>&1 
-            
-            rem msbuild /t:Build /p:Configuration=RelWithDebInfo /m RPRViewer\\build\\USDPixar\\usd.sln >> ..\\${STAGE_NAME}.USD.log 2>&1
+            pushd RPRViewer\\build\\USDPixar
+            cmake --build . --config RelWithDebInfo --target INSTALL >> ..\\..\\..\\..\\${STAGE_NAME}.USDPixar.log 2>&1 
+            popd
     
             pushd HdRPRPlugin
             mkdir build
@@ -62,9 +58,7 @@ def executeBuildWindows(Map options)
             -DPXR_USE_PYTHON_3=ON ^
             .. >> ..\\..\\..\\${STAGE_NAME}.HdRPRPlugin.log 2>&1
 
-            cmake --build . --config Release --target INSTALL >> ..\\..\\..\\${STAGE_NAME}.USD.log 2>&1 
-
-            rem msbuild /t:Build /p:Configuration=RelWithDebInfo /m hdRpr.sln >> ..\\..\\..\\${STAGE_NAME}.USD.log 2>&1
+            cmake --build . --config RelWithDebInfo --target INSTALL >> ..\\..\\..\\${STAGE_NAME}.HdRPRPlugin.log 2>&1 
             """
 
         }
@@ -73,7 +67,7 @@ def executeBuildWindows(Map options)
 
 def executeBuild(String osName, Map options)
 {
-    //cleanWS()
+    cleanWS()
 
     try {
         switch (osName) {
@@ -135,7 +129,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
 def call(String projectBranch = "",
          String testsBranch = "master",
-         String platforms = 'Windows:AMD_RadeonVII;Ubuntu18:AMD_RadeonVII',
+         String platforms = 'Windows',
          Boolean updateRefs = false,
          Boolean enableNotifications = true)
 {
@@ -145,18 +139,18 @@ def call(String projectBranch = "",
     String projectRepo='git@github.com:Radeon-Pro/RPRViewer.git'
 
     multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, null, null,
-                           [projectBranch:projectBranch,
-                            testsBranch:testsBranch,
-                            updateRefs:updateRefs,
-                            enableNotifications:enableNotifications,
-                            PRJ_NAME:PRJ_NAME,
-                            PRJ_ROOT:PRJ_ROOT,
-                            projectRepo:projectRepo,
-                            BUILDER_TAG:'RPRUSDVIEWER',
-                            executeBuild:true,
-                            executeTests:true,
-                            BUILD_TIMEOUT:90,
-                            DEPLOY_TIMEOUT:45,
-                            cmakeKeysVulkanWrapper:"-DCMAKE_BUILD_TYPE=Release -DVW_ENABLE_RRNEXT=OFF",
-                            nodeRetry: nodeRetry])
+            [projectBranch:projectBranch,
+             testsBranch:testsBranch,
+             updateRefs:updateRefs,
+             enableNotifications:enableNotifications,
+             PRJ_NAME:PRJ_NAME,
+             PRJ_ROOT:PRJ_ROOT,
+             projectRepo:projectRepo,
+             BUILDER_TAG:'RPRUSDVIEWER',
+             executeBuild:true,
+             executeTests:true,
+             BUILD_TIMEOUT:90,
+             DEPLOY_TIMEOUT:45,
+             cmakeKeysVulkanWrapper:"-DCMAKE_BUILD_TYPE=Release -DVW_ENABLE_RRNEXT=OFF",
+             nodeRetry: nodeRetry])
 }

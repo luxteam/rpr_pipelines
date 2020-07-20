@@ -237,18 +237,32 @@ def executeTests(String osName, String asicName, Map options)
         }
         else
         {
-            try 
-            {
-                println "[INFO] Downloading reference images for ${options.tests}"
-                receiveFiles("${REF_PATH_PROFILE}/baseline_manifest.json", './Work/Baseline/')
-                options.tests.split(" ").each() {
-                    receiveFiles("${REF_PATH_PROFILE}/${it}", './Work/Baseline/')
+            if (options.northStartPerformance) {
+                executeTestCommand(osName, options)
+                dir('Work') {
+                    if(isUnix()) {
+                        sh "mv Work Baseline"
+                    }
+                    else {
+                        bat "rename Work Baseline"
+                    }
                 }
-            } catch (e) {
-                println("[WARNING] Baseline doesn't exist.")
+                options.engine = "2"
+                executeTestCommand(osName, options)
             }
+            else {
+                try {
+                    println "[INFO] Downloading reference images for ${options.tests}"
+                    receiveFiles("${REF_PATH_PROFILE}/baseline_manifest.json", './Work/Baseline/')
+                    options.tests.split(" ").each() {
+                        receiveFiles("${REF_PATH_PROFILE}/${it}", './Work/Baseline/')
+                    }
+                } catch (e) {
+                    println("[WARNING] Baseline doesn't exist.")
+                }
 
-            executeTestCommand(osName, asicName, options)
+                executeTestCommand(osName, asicName, options)
+            }
         }
     } catch (e) {
         if (options.currentTry < options.nodeReallocateTries) {
@@ -794,7 +808,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
         String theshold = '0.05',
         String customBuildLinkWindows = "",
         String customBuildLinkOSX = "",
-        String engine = "1.0")
+        String engine = "1.0",
+        Boolean northStartPerformance = false)
 {
     resX = (resX == 'Default') ? '0' : resX
     resY = (resY == 'Default') ? '0' : resY
@@ -896,7 +911,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                                 customBuildLinkWindows: customBuildLinkWindows,
                                 customBuildLinkOSX: customBuildLinkOSX,
                                 engine: engine,
-                                nodeRetry: nodeRetry
+                                nodeRetry: nodeRetry,
+                                northStartPerformance:northStartPerformance
                                 ])
     }
     catch(e) {

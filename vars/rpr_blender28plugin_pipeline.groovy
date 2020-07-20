@@ -285,7 +285,7 @@ def executeTests(String osName, String asicName, Map options)
                         sh "mv Results Baseline"
                     }
                     else {
-                        bat "rename Results Baseline"
+                        sh "xcopy Results Baseline /si"
                     }
                 }
                 options.engine = "2"

@@ -241,10 +241,10 @@ def executeTests(String osName, String asicName, Map options)
                 executeTestCommand(osName, asicName, options)
                 dir('Work') {
                     if(isUnix()) {
-                        sh "mv Work Baseline"
+                        sh "mv Results Baseline"
                     }
                     else {
-                        bat "rename Work Baseline"
+                        bat "rename Results Baseline"
                     }
                 }
                 options.engine = "2"

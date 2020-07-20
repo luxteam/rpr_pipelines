@@ -239,12 +239,19 @@ def executeTests(String osName, String asicName, Map options)
         {
             if (options.northStartPerformance) {
                 executeTestCommand(osName, asicName, options)
-                dir('Work') {
-                    if(isUnix()) {
-                        sh "mv Results Baseline"
-                    }
-                    else {
-                        bat "xcopy Results Baseline /siy"
+                dir('scripts') {
+                    switch(osName) {
+                        case 'Windows':
+                            bat """
+                            make_results_baseline.bat
+                            """
+                            break;
+                        // OSX
+                        default:
+                            sh """
+                            ./make_results_baseline.sh
+                            """
+                            break;
                     }
                 }
                 options.engine = "2"

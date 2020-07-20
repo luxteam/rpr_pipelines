@@ -27,11 +27,13 @@ def executeBuildWindows(Map options)
         dir("RPRViewer") {
             checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
 
+            powershell """(Get-Content USDPixar/build_scripts/build_usd.py) -replace '-DCMAKE_PREFIX_PATH="{depsInstDir}" ', '-DCMAKE_PREFIX_PATH="{depsInstDir};C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/PySide2-5.14.2.3;C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/Shiboken2-5.14.2.3" ' | Out-File -encoding ASCII USDPixar/build_scripts/build_usd.py"""
+            
             bat """
             call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" >> ..\\${STAGE_NAME}.USD.log 2>&1
             
             python USDPixar/build_scripts/build_usd.py --build RPRViewer/build --src RPRViewer/deps RPRViewer/inst ^
-            --build-args "USD,-DRPR_LOCATION=${WORKSPACE}/RadeonProRenderSDK/RadeonProRender -DVID_WRAPPERS_DIR=${WORKSPACE}/RadeonProVulkanWrapper" >> ..\\${STAGE_NAME}.USD.log 2>&1
+            --build-args "USD,-DRPR_LOCATION=${WORKSPACE}/RadeonProRenderSDK/RadeonProRender -DVID_WRAPPERS_DIR=${WORKSPACE}/RadeonProVulkanWrapper" -DSHIBOKEN_BINARY=C:/Python366/Lib/site-packages/shiboken2 >> ..\\${STAGE_NAME}.USD.log 2>&1
             
             set PATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\bin;${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib;%PATH%
             set PYTHONPATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib\\python;%PYTHONPATH%

@@ -238,7 +238,7 @@ def executeTests(String osName, String asicName, Map options)
         else
         {
             if (options.northStartPerformance) {
-                executeTestCommand(osName, options)
+                executeTestCommand(osName, asicName, options)
                 dir('Work') {
                     if(isUnix()) {
                         sh "mv Work Baseline"
@@ -248,7 +248,7 @@ def executeTests(String osName, String asicName, Map options)
                     }
                 }
                 options.engine = "2"
-                executeTestCommand(osName, options)
+                executeTestCommand(osName, asicName, options)
             }
             else {
                 try {

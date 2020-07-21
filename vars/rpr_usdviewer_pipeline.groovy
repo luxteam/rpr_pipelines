@@ -11,11 +11,12 @@ def executeBuildWindows(Map options)
         outputEnvironmentInfo("Windows", "${STAGE_NAME}.initEnv")
 
         dir("RadeonProVulkanWrapper") {
-            checkOutBranchOrScm("db51573e1b65ff5f343f691bc95f7bc5400ef94d", "git@github.com:Radeon-Pro/RadeonProVulkanWrapper.git")
+            checkOutBranchOrScm("${options.vulkanWrappersBranch}", "git@github.com:Radeon-Pro/RadeonProVulkanWrapper.git")
 
             bat """mkdir build
             cd build
-            cmake ${options['cmakeKeysVulkanWrapper']} -G "Visual Studio 15 2017 Win64" .. >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1
+            cmake 
+            ${options['cmakeKeysVulkanWrapper']} -G "Visual Studio 15 2017 Win64" .. >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1
             cmake --build . --config Release >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1"""
         }
         dir("RadeonImageFilter") {
@@ -130,6 +131,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 {}
 
 def call(String projectBranch = "",
+        String vulkanWrappersBranch = "db51573e1b65ff5f343f691bc95f7bc5400ef94d",
          String testsBranch = "master",
          String platforms = 'Windows',
          Boolean updateRefs = false,
@@ -142,6 +144,7 @@ def call(String projectBranch = "",
 
     multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, null, null,
             [projectBranch:projectBranch,
+             vulkanWrappersBranch:vulkanWrappersBranch,
              testsBranch:testsBranch,
              updateRefs:updateRefs,
              enableNotifications:enableNotifications,

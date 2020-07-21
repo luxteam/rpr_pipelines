@@ -15,8 +15,7 @@ def executeBuildWindows(Map options)
 
             bat """mkdir build
             cd build
-            cmake 
-            ${options['cmakeKeysVulkanWrapper']} -G "Visual Studio 15 2017 Win64" .. >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1
+            cmake ${options['cmakeKeysVulkanWrapper']} -G "Visual Studio 15 2017 Win64" .. >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1
             cmake --build . --config Release >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1"""
         }
         dir("RadeonImageFilter") {

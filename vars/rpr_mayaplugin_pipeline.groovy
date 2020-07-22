@@ -254,6 +254,21 @@ def executeTests(String osName, String asicName, Map options)
                             break;
                     }
                 }
+                if (fileExists("Work/Results/Maya/session_report.json")) {
+                    switch(osName) {
+                        case 'Windows':
+                            bat """
+                            xcopy Work\\Results\\Maya\\session_report.json Work\\session_report_ENGINE.json* 
+                            """
+                            break;
+                    // OSX
+                        default:
+                            sh """
+                            cp Work/Results/Maya/session_report.json Work/session_report_ENGINE.json
+                            """
+                            break;
+                    }
+                }
                 options.engine = "2"
                 executeTestCommand(osName, asicName, options)
             }
@@ -686,7 +701,11 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
             try
             {
-                withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"])
+                def envVars = ["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"]
+                if (options.northStartPerformance) {
+                    envVars.add("JL_ENGINES_COMPARE=True")
+                }
+                withEnv(envVars)
                 {
                     dir("jobs_launcher") {
                         def retryInfo = JsonOutput.toJson(options.nodeRetry)

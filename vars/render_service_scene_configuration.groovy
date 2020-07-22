@@ -78,6 +78,7 @@ def executeConfiguration(osName, attemptNum, Map options) {
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
 								python3("launch_blender.py --tool \"2.83\" --django_ip \"${options.django_url}/\" --scene_name \"${scene_name}\" --id ${id} --login %DJANGO_USER% --password %DJANGO_PASSWORD% --action \"${options.Action}\" --options \"${options.Options}\" ")
 							}
+							throw new Exception('Test')
 							break;
 					}
 
@@ -112,7 +113,7 @@ def main(Map options) {
 		options['PRJ_PATH']="${PRJ_PATH}"
 		options['JOB_PATH']="${JOB_PATH}"
 
-		options['django_url'] = "https://render.cis.luxoft.com/project/jenkins/"
+		options['django_url'] = "http://172.26.157.251:81/project/jenkins/"
 		options['scripts_branch'] = "master"
 
 		String osName = 'Windows'

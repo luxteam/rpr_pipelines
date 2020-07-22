@@ -280,12 +280,33 @@ def executeTests(String osName, String asicName, Map options)
             // TODO: receivebaseline for json suite
             if (options.northStartPerformance) {
                 executeTestCommand(osName, asicName, options)
-                dir('Work') {
-                    if(isUnix()) {
-                        sh "mv Results Baseline"
+                dir('scripts') {
+                    switch(osName) {
+                        case 'Windows':
+                            bat """
+                            make_results_baseline.bat
+                            """
+                            break;
+                        default:
+                            sh """
+                            ./make_results_baseline.sh
+                            """
+                            break;
                     }
-                    else {
-                        bat "xcopy Results Baseline /siy"
+                }
+                if (fileExists("Work/Results/Blender28/session_report.json")) {
+                    switch(osName) {
+                        case 'Windows':
+                            bat """
+                            xcopy Work\\Results\\Blender28\\session_report.json Work\\session_report_ENGINE.json* 
+                            """
+                            break;
+                    // OSX
+                        default:
+                            sh """
+                            cp Work/Results/Blender28/session_report.json Work/session_report_ENGINE.json
+                            """
+                            break;
                     }
                 }
                 options.engine = "2"
@@ -768,8 +789,13 @@ def executeDeploy(Map options, List platformList, List testResultList)
             }
 
             String branchName = env.BRANCH_NAME ?: options.projectBranch
-            try {
-                withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"])
+            try
+            {
+                def envVars = ["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"]
+                if (options.northStartPerformance) {
+                    envVars.add("JL_ENGINES_COMPARE=True")
+                }
+                withEnv(envVars)
                 {
                     dir("jobs_launcher") {
                         def retryInfo = JsonOutput.toJson(options.nodeRetry)

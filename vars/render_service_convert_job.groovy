@@ -34,23 +34,25 @@ def executeConvert(osName, gpuName, attemptNum, Map options) {
 
 				// download and install plugin
 				if (options["PluginLink"]) {
-					render_service_install_plugin(options["PluginLink"], tool, version, options.id, options.django_url)
+					render_service_install_plugin(options["PluginLink"], options["pluginHash"], tool, version, options.id, options.django_url)
 				}
 
 				// download scene, check if it is already downloaded
 				try {
 					// initialize directory RenderServiceStorage
+					render_service_send_render_status("Downloading scene", options.id, options.django_url)
 					bat """
 						if not exist "..\\..\\RenderServiceStorage" mkdir "..\\..\\RenderServiceStorage"
 					"""
-					render_service_send_render_status("Downloading scene", options.id, options.django_url)
-					def exists = fileExists "..\\..\\RenderServiceStorage\\${scene_user}\\${scene_name}"
-					if (exists) {
-						print("Scene is copying from Render Service Storage on this PC")
+					render_service_clear_scenes(osName)
+					Boolean sceneExists = fileExists "..\\..\\RenderServiceStorage\\${scene_user}\\${options.sceneHash}"
+					if (sceneExists) {
+						print("[INFO] Scene is copying from Render Service Storage on this PC")
 						bat """
-							copy "..\\..\\RenderServiceStorage\\${scene_user}\\${scene_name}" "${scene_name}"
+							copy "..\\..\\RenderServiceStorage\\${scene_user}\\${options.sceneHash}" "${scene_name}"
 						"""
 					} else {
+						print("[INFO] Scene wasn't found in Render Service Storage on this PC. Downloading it.")
 						withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
 							bat """
 								curl -o "${scene_name}" -u %DJANGO_USER%:%DJANGO_PASSWORD% "${options.Scene}"
@@ -59,8 +61,7 @@ def executeConvert(osName, gpuName, attemptNum, Map options) {
 
 						bat """
 							if not exist "..\\..\\RenderServiceStorage\\${scene_user}\\" mkdir "..\\..\\RenderServiceStorage\\${scene_user}"
-							copy "${scene_name}" "..\\..\\RenderServiceStorage\\${scene_user}"
-							copy "${scene_name}" "..\\..\\RenderServiceStorage\\${scene_user}\\${scene_name}"
+							copy "${scene_name}" "..\\..\\RenderServiceStorage\\${scene_user}\\${options.sceneHash}"
 						"""
 					}
 				} catch(FlowInterruptedException e) {
@@ -265,7 +266,9 @@ def call(String Tool = '',
 	String sceneName = '',
 	String sceneUser = '',
 	String maxAttempts = '',
-	String timeout = ''
+	String timeout = '',
+	String sceneHash = '',
+	String pluginHash = ''
 	) {
 	String PRJ_ROOT='RenderServiceConvertJob'
 	String PRJ_NAME='RenderServiceConvertJob'  
@@ -280,6 +283,8 @@ def call(String Tool = '',
 		sceneName:sceneName,
 		sceneUser:sceneUser,
 		maxAttempts:maxAttempts,
-		timeout:timeout
+		timeout:timeout,
+		sceneHash:sceneHash,
+		pluginHash:pluginHash
 		])
 	}

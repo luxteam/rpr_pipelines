@@ -3,7 +3,8 @@ import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException
 def executeBuildViewer(osName, gpuName, attemptNum, isLastAttempt, Map options) {
 	currentBuild.result = 'SUCCESS'
    
-	String scene_name = options['scene_name']
+	String scene_name = options['sceneName']
+	String scene_user = options['sceneUser']
 	String fail_reason = "Unknown"
 	echo "Options: ${options}"
 	
@@ -38,7 +39,7 @@ def executeBuildViewer(osName, gpuName, attemptNum, isLastAttempt, Map options) 
 				render_service_send_render_status("Downloading viewer", options.id, options.django_url)
 				withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'jenkinsCredentials', usernameVariable: 'JENKINS_USERNAME', passwordVariable: 'JENKINS_PASSWORD']]) {
 					bat """
-						curl --retry 3 -L -O -J -u %JENKINS_USERNAME%:%JENKINS_PASSWORD% "${options.viewer_url}"
+						curl --retry 3 -L -O -J -u %JENKINS_USERNAME%:%JENKINS_PASSWORD% "${options.ViewerUrl}"
 					"""
 				}
 			} catch(FlowInterruptedException e) {
@@ -48,11 +49,31 @@ def executeBuildViewer(osName, gpuName, attemptNum, isLastAttempt, Map options) 
 				throw e
 			}
 
+			// download scene, check if it is already downloaded
 			try {
+				// initialize directory RenderServiceStorage
 				render_service_send_render_status("Downloading scene", options.id, options.django_url)
-				withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
+				bat """
+					if not exist "..\\..\\RenderServiceStorage" mkdir "..\\..\\RenderServiceStorage"
+				"""
+				render_service_clear_scenes(osName)
+				Boolean sceneExists = fileExists "..\\..\\RenderServiceStorage\\${scene_user}\\${options.sceneHash}"
+				if (sceneExists) {
+					print("[INFO] Scene is copying from Render Service Storage on this PC")
 					bat """
-						curl --retry 3 -o "${scene_name}" -u %DJANGO_USER%:%DJANGO_PASSWORD% "${options.scene_link}"
+						copy "..\\..\\RenderServiceStorage\\${scene_user}\\${options.sceneHash}" "${scene_name}"
+					"""
+				} else {
+					print("[INFO] Scene wasn't found in Render Service Storage on this PC. Downloading it.")
+					withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
+						bat """
+							curl --retry 3 -o "${scene_name}" -u %DJANGO_USER%:%DJANGO_PASSWORD% "${options.Scene}"
+						"""
+					}
+
+					bat """
+						if not exist "..\\..\\RenderServiceStorage\\${scene_user}\\" mkdir "..\\..\\RenderServiceStorage\\${scene_user}"
+						copy "${scene_name}" "..\\..\\RenderServiceStorage\\${scene_user}\\${options.sceneHash}"
 					"""
 				}
 			} catch(FlowInterruptedException e) {
@@ -70,7 +91,7 @@ def executeBuildViewer(osName, gpuName, attemptNum, isLastAttempt, Map options) 
 
 			render_service_send_render_status("Building RPRViewer Package", options.id, options.django_url)
 			withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
-				python3("configure_viewer.py --version ${options.viewer_version} --id ${id} --django_ip \"${options.django_url}/\" --width ${options.width} --height ${options.height} --engine ${options.engine} --iterations ${options.iterations} --scene_name \"${options.scene_name}\" --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} ").split('\r\n')[-1].trim()
+				python3("configure_viewer.py --version ${options.viewerVersion} --id ${id} --django_ip \"${options.django_url}/\" --width ${options.width} --height ${options.height} --engine ${options.engine} --iterations ${options.iterations} --scene_name \"${options.scene_name}\" --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} ").split('\r\n')[-1].trim()
 				print("Preparing results")
 			}
 			render_service_send_render_status("Completed", options.id, options.django_url)
@@ -159,8 +180,8 @@ def startRender(osName, deviceName, renderDevice, options) {
 	def nodesCount = getNodesCount(labels)
 	boolean successfullyDone = false
 
-	print("Max attempts: ${options.max_attempts}")
-	def maxAttempts = "${options.max_attempts}".toInteger()
+	print("Max attempts: ${options.maxAttempts}")
+	def maxAttempts = "${options.maxAttempts}".toInteger()
 	def testTasks = [:]
 	def currentLabels = labels
 	for (int attemptNum = 1; attemptNum <= maxAttempts && attemptNum <= nodesCount; attemptNum++) {
@@ -224,39 +245,43 @@ def getNodesCount(labels) {
 }
 	
 def call(
-	String scene_link = '',  
+	String Scene = '',  
 	String platforms = '',
-	String viewer_url = '',
+	String ViewerUrl = '',
 	String id = '',
 	String width = '',
 	String height = '',
 	String engine = '',
 	String iterations = '',
-	String scene_name = '',
-	String max_attempts = '',
-	String timeout
+	String sceneName = '',
+	String sceneUser = '',
+	String maxAttempts = '',
+	String timeout,
+	String pluginHash = ''
 	) {
 	String PRJ_ROOT='RenderServiceViewerJob'
 	String PRJ_NAME='RenderServiceViewerJob'  
 
 	// protocol://domain/job/job_name/job/branch/version/artifacts/actifact_name
-	def viewer_version = viewer_url.split('/')[5]
+	def viewerVersion = ViewerUrl.split('/')[5]
 
 	main(platforms,[
 		enableNotifications:false,
 		PRJ_NAME:PRJ_NAME,
 		PRJ_ROOT:PRJ_ROOT,
-		scene_link:scene_link,
-		viewer_url:viewer_url,
-		viewer_version:viewer_version,
+		Scene:Scene,
+		ViewerUrl:ViewerUrl,
+		viewerVersion:viewerVersion,
 		id:id,
 		width:width,
 		height:height,
 		engine:engine,
 		iterations:iterations,
-		scene_name:scene_name,
-		max_attempts:max_attempts,
-		timeout:timeout
+		sceneName:sceneName,
+		sceneUser:sceneUser,
+		maxAttempts:maxAttempts,
+		timeout:timeout,
+		sceneHash:sceneHash
 		])
 	}
 

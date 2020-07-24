@@ -257,7 +257,7 @@ def call(
 	String sceneUser = '',
 	String maxAttempts = '',
 	String timeout,
-	String pluginHash = ''
+	String sceneHash = ''
 	) {
 	String PRJ_ROOT='RenderServiceViewerJob'
 	String PRJ_NAME='RenderServiceViewerJob'  

@@ -141,16 +141,16 @@ def main(String platforms, Map options) {
 		options['PRJ_PATH']="${PRJ_PATH}"
 		options['JOB_PATH']="${JOB_PATH}"
 
-		boolean PRODUCTION = true
+		boolean PRODUCTION = false
 
 		if (PRODUCTION) {
-			options['django_url'] = "https://render.cis.luxoft.com/viewer/jenkins/"
+			options['django_url'] = "https://render.cis.luxoft.com/render/jenkins/"
 			options['plugin_storage'] = "https://render.cis.luxoft.com/media/plugins/"
 			options['scripts_branch'] = "master"
 		} else {
-			options['django_url'] = "https://testrender.cis.luxoft.com/viewer/jenkins/"
+			options['django_url'] = "https://testrender.cis.luxoft.com/render/jenkins/"
 			options['plugin_storage'] = "https://testrender.cis.luxoft.com/media/plugins/"
-			options['scripts_branch'] = "develop"
+			options['scripts_branch'] = "inemankov/rs_test_domain"
 		}
 
 		List tokens = platforms.tokenize(':')

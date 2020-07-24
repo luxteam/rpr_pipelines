@@ -121,8 +121,17 @@ def main(Map options) {
 		options['PRJ_PATH']="${PRJ_PATH}"
 		options['JOB_PATH']="${JOB_PATH}"
 
-		options['django_url'] = "http://172.26.157.251:81/project/jenkins/"
-		options['scripts_branch'] = "master"
+		boolean PRODUCTION = false
+
+		if (PRODUCTION) {
+			options['django_url'] = "https://render.cis.luxoft.com/render/jenkins/"
+			options['plugin_storage'] = "https://render.cis.luxoft.com/media/plugins/"
+			options['scripts_branch'] = "master"
+		} else {
+			options['django_url'] = "https://testrender.cis.luxoft.com/render/jenkins/"
+			options['plugin_storage'] = "https://testrender.cis.luxoft.com/media/plugins/"
+			options['scripts_branch'] = "inemankov/rs_test_domain"
+		}
 
 		String osName = 'Windows'
 		

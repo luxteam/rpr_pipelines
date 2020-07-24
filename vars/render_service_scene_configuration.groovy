@@ -28,6 +28,11 @@ def executeConfiguration(osName, attemptNum, Map options) {
 					throw e
 				}
 
+				// download and install plugin
+				if (options["PluginLink"]) {
+					render_service_install_plugin(options["PluginLink"], tool, "2.83", options.id, options.django_url)
+				}
+
 				// download scene, check if it is already downloaded
 				try {
 					// initialize directory RenderServiceStorage
@@ -181,6 +186,7 @@ def getNodesCount(labels) {
 def call(String id = '',
 	String Tool = '',
 	String Scene = '',
+	String PluginLink = '',
 	String sceneName = '',
 	String sceneUser = '',
 	String maxAttempts = '',
@@ -198,6 +204,7 @@ def call(String id = '',
 		PRJ_ROOT:PRJ_ROOT,
 		Tool:Tool,
 		Scene:Scene,
+		PluginLink:PluginLink,
 		sceneName:sceneName,
 		sceneUser:sceneUser,
 		maxAttempts:maxAttempts,

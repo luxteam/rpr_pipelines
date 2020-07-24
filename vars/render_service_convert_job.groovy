@@ -31,6 +31,12 @@ def executeConvert(osName, gpuName, attemptNum, Map options) {
 					fail_reason = "Downloading scripts failed"
 					throw e
 				}
+
+				// download and install plugin
+				if (options["PluginLink"]) {
+					render_service_install_plugin(options["PluginLink"], tool, version, options.id, options.django_url)
+				}
+
 				// download scene, check if it is already downloaded
 				try {
 					// initialize directory RenderServiceStorage
@@ -252,7 +258,8 @@ def getNodesCount(labels) {
 }
 	
 def call(String Tool = '',
-	String Scene = '',  
+	String Scene = '',
+	String PluginLink = '',  
 	String PCs = '',
 	String id = '',
 	String sceneName = '',
@@ -268,6 +275,7 @@ def call(String Tool = '',
 		PRJ_ROOT:PRJ_ROOT,
 		Tool:Tool,
 		Scene:Scene,
+		PluginLink:PluginLink,
 		id:id,
 		sceneName:sceneName,
 		sceneUser:sceneUser,

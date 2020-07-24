@@ -232,7 +232,7 @@ def call(String id = '',
 		maxAttempts:maxAttempts,
 		Action:Action,
 		sceneHash:sceneHash,
-		pluginHash:pluginHash
+		pluginHash:pluginHash,
 		ConfigurationOptions:ConfigurationOptions,
 		OptionsStructure:OptionsStructure
 		])

@@ -78,7 +78,7 @@ def executeConfiguration(osName, attemptNum, Map options) {
 							"""
 							// Launch render
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
-								python3("launch_blender.py --tool \"2.83\" --django_ip \"${options.django_url}/\" --scene_name \"${scene_name}\" --id ${id} --login %DJANGO_USER% --password %DJANGO_PASSWORD% --action \"${options.Action}\" --options \"${options.Options}\" ")
+								python3("launch_blender.py --tool \"2.83\" --django_ip \"${options.django_url}/\" --scene_name \"${scene_name}\" --id ${id} --login %DJANGO_USER% --password %DJANGO_PASSWORD% --action \"${options.Action}\" --configuration_options \"${options.ConfigurationOptions}\" --options_structure \"${options.OptionsStructure}\" ")
 							}
 							if (options['Action'] == 'Write') {
 								String updatedSceneHash = sha1 scene_name
@@ -209,14 +209,16 @@ def call(String id = '',
 	String sceneUser = '',
 	String maxAttempts = '',
 	String Action = '',
-	String Options = '',
 	String sceneHash = '',
-	String pluginHash = ''
+	String pluginHash = '',
+	String ConfigurationOptions = '',
+	String OptionsStructure = ''
 	) {
 	String PRJ_ROOT='RenderServiceSceneConfiguration'
 	String PRJ_NAME='RenderServiceSceneConfiguration' 
 
-	Options = Options.replace('\"', '\"\"')
+	ConfigurationOptions = ConfigurationOptions.replace('\"', '\"\"')
+	OptionsStructure = OptionsStructure.replace('\"', '\"\"')
 
 	main([
 		id:id,
@@ -229,8 +231,9 @@ def call(String id = '',
 		sceneUser:sceneUser,
 		maxAttempts:maxAttempts,
 		Action:Action,
-		Options:Options,
 		sceneHash:sceneHash,
 		pluginHash:pluginHash
+		ConfigurationOptions:ConfigurationOptions,
+		OptionsStructure:OptionsStructure
 		])
 	}

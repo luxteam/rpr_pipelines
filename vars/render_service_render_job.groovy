@@ -188,18 +188,6 @@ def main(String PCs, Map options) {
 		options['PRJ_PATH']="${PRJ_PATH}"
 		options['JOB_PATH']="${JOB_PATH}"
 
-		boolean PRODUCTION = false
-
-		if (PRODUCTION) {
-			options['django_url'] = "https://render.cis.luxoft.com/render/jenkins/"
-			options['plugin_storage'] = "https://render.cis.luxoft.com/media/plugins/"
-			options['scripts_branch'] = "master"
-		} else {
-			options['django_url'] = "https://testrender.cis.luxoft.com/render/jenkins/"
-			options['plugin_storage'] = "https://testrender.cis.luxoft.com/media/plugins/"
-			options['scripts_branch'] = "inemankov/rs_test_domain"
-		}
-
 		List tokens = PCs.tokenize(':')
 		String osName = tokens.get(0)
 		String deviceName = tokens.get(1)
@@ -309,7 +297,9 @@ def call(String PCs = '',
 	String Options = '',
 	String timeout = '',
 	String sceneHash = '',
-	String pluginHash = ''
+	String pluginHash = '',
+	String djangoUrl = '',
+	String scriptsBranch = ''
 	) {
 	String PRJ_ROOT='RenderServiceRenderJob'
 	String PRJ_NAME='RenderServiceRenderJob' 
@@ -339,6 +329,8 @@ def call(String PCs = '',
 		batchRender:OptionsMap.batch_render,
 		timeout:timeout,
 		sceneHash:sceneHash,
-		pluginHash:pluginHash
+		pluginHash:pluginHash,
+		django_url:djangoUrl,
+		scripts_branch:scriptsBranch
 		])
 	}

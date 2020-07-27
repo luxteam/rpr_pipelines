@@ -77,7 +77,7 @@ def executeConvert(osName, gpuName, attemptNum, Map options) {
 						case 'Maya (Redshift)':
 
 							dir("RS2RPRConvertTool"){
-								checkOutBranchOrScm(options['convert_branch'], 'git@github.com:luxteam/RS2RPRConvertTool.git')
+								checkOutBranchOrScm(options['converter_branch'], 'git@github.com:luxteam/RS2RPRConvertTool.git')
 							}
 							// copy necessary scripts for render
 							bat """
@@ -94,7 +94,7 @@ def executeConvert(osName, gpuName, attemptNum, Map options) {
 						case 'Maya (Vray)':
 
 							dir("Vray2RPRConvertTool"){
-								checkOutBranchOrScm(options['convert_branch'], 'git@github.com:luxteam/Vray2RPRConvertTool-Maya.git')
+								checkOutBranchOrScm(options['converter_branch'], 'git@github.com:luxteam/Vray2RPRConvertTool-Maya.git')
 							}
 							// copy necessary scripts for render
 							bat """
@@ -150,20 +150,6 @@ def main(String PCs, Map options) {
 		String JOB_PATH="${PRJ_PATH}/${JOB_NAME}/Build-${BUILD_ID}".replace('%2F', '_')
 		options['PRJ_PATH']="${PRJ_PATH}"
 		options['JOB_PATH']="${JOB_PATH}"
-
-		boolean PRODUCTION = false
-
-		if (PRODUCTION) {
-			options['django_url'] = "https://render.cis.luxoft.com/convert/jenkins/"
-			options['plugin_storage'] = "https://render.cis.luxoft.com/media/plugins/"
-			options['scripts_branch'] = "master"
-			options['convert_branch'] = "master"
-		} else {
-			options['django_url'] = "https://testrender.cis.luxoft.com/convert/jenkins/"
-			options['plugin_storage'] = "https://testrender.cis.luxoft.com/media/plugins/"
-			options['scripts_branch'] = "inemankov/rs_test_domain"
-			options['convert_branch'] = "master"
-		}
 
 		List tokens = PCs.tokenize(':')
 		String osName = tokens.get(0)
@@ -268,7 +254,10 @@ def call(String Tool = '',
 	String maxAttempts = '',
 	String timeout = '',
 	String sceneHash = '',
-	String pluginHash = ''
+	String pluginHash = '',
+	String djangoUrl = '',
+	String scriptsBranch = '',
+	String converterBranch = ''
 	) {
 	String PRJ_ROOT='RenderServiceConvertJob'
 	String PRJ_NAME='RenderServiceConvertJob'  
@@ -285,6 +274,9 @@ def call(String Tool = '',
 		maxAttempts:maxAttempts,
 		timeout:timeout,
 		sceneHash:sceneHash,
-		pluginHash:pluginHash
+		pluginHash:pluginHash,
+		django_url:djangoUrl,
+		scripts_branch:scriptsBranch,
+		converter_branch:converterBranch
 		])
 	}

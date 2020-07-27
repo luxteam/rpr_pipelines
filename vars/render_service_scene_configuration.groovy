@@ -121,18 +121,6 @@ def main(Map options) {
 		options['PRJ_PATH']="${PRJ_PATH}"
 		options['JOB_PATH']="${JOB_PATH}"
 
-		boolean PRODUCTION = false
-
-		if (PRODUCTION) {
-			options['django_url'] = "https://render.cis.luxoft.com/project/jenkins/"
-			options['plugin_storage'] = "https://render.cis.luxoft.com/media/plugins/"
-			options['scripts_branch'] = "master"
-		} else {
-			options['django_url'] = "https://testrender.cis.luxoft.com/project/jenkins/"
-			options['plugin_storage'] = "https://testrender.cis.luxoft.com/media/plugins/"
-			options['scripts_branch'] = "inemankov/rs_test_domain"
-		}
-
 		String osName = 'Windows'
 		
 		startConfiguration(osName, options)
@@ -212,7 +200,9 @@ def call(String id = '',
 	String sceneHash = '',
 	String pluginHash = '',
 	String ConfigurationOptions = '',
-	String OptionsStructure = ''
+	String OptionsStructure = '',
+	String djangoUrl = '',
+	String scriptsBranch = ''
 	) {
 	String PRJ_ROOT='RenderServiceSceneConfiguration'
 	String PRJ_NAME='RenderServiceSceneConfiguration' 
@@ -234,6 +224,8 @@ def call(String id = '',
 		sceneHash:sceneHash,
 		pluginHash:pluginHash,
 		ConfigurationOptions:ConfigurationOptions,
-		OptionsStructure:OptionsStructure
+		OptionsStructure:OptionsStructure,
+		django_url:djangoUrl,
+		scripts_branch:scriptsBranch
 		])
 	}

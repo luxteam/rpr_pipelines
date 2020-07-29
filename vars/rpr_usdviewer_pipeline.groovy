@@ -51,11 +51,8 @@ def executeBuildWindows(Map options)
             pushd build
             
             cmake -G "Visual Studio 15 2017 Win64" -DUSD_ROOT=${WORKSPACE}/RPRViewer/RPRViewer/inst ^
-            -DRPR_LOCATION=${WORKSPACE}/RadeonProRenderSDK/RadeonProRender ^
-            -DRIF_LOCATION_INCLUDE=${WORKSPACE}/RadeonImageFilter/include ^
-            -DRIF_LOCATION_LIB=${WORKSPACE}/RadeonImageFilter/Windows ^
-            -DRIF_LIBRARY=${WORKSPACE}/RadeonImageFilter/Windows/RadeonImageFilters.lib ^
-            -RIF_MODELS_DIR=${WORKSPACE}/RadeonImageFilter/models/ ^
+            -Dpxr_DIR=${WORKSPACE}/RPRViewer/USDPixar ^
+            -DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE ^
             -DCMAKE_INSTALL_PREFIX=${WORKSPACE}/RPRViewer/RPRViewer/inst ^
             -DPXR_USE_PYTHON_3=ON ^
             .. >> ..\\..\\..\\${STAGE_NAME}.HdRPRPlugin.log 2>&1

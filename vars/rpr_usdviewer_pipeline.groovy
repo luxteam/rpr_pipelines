@@ -28,12 +28,6 @@ def executeBuildWindows(Map options)
             checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
 
             powershell """(Get-Content USDPixar/build_scripts/build_usd.py) -replace '-DCMAKE_PREFIX_PATH="{depsInstDir}" ', '-DCMAKE_PREFIX_PATH="{depsInstDir};C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/PySide2-5.14.2.3;C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/Shiboken2-5.14.2.3" ' | Out-File -encoding ASCII USDPixar/build_scripts/build_usd.py"""
-            powershell '''$fileContent = (Get-Content USDPixar/pxr/pxrConfig.cmake.in)
-            $injectText = "include(`"`${PXR_CMAKE_DIR}/cmake/ZeroMQTargets.cmake`")`r`ninclude(`"`${PXR_CMAKE_DIR}/share/cmake/cppzmq/cppzmqTargets.cmake`")"
-            $fileContent[8] = "{0}`r`n{1}" -f $injectText, $fileContent[8]   
-            
-            $fileContent | Set-Content USDPixar/build_scripts/build_usd.py
-            '''
 
             bat """
             call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" >> ..\\${STAGE_NAME}.USD.log 2>&1
@@ -136,7 +130,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 {}
 
 def call(String projectBranch = "",
-        String vulkanWrappersBranch = "db51573e1b65ff5f343f691bc95f7bc5400ef94d",
+         String vulkanWrappersBranch = "db51573e1b65ff5f343f691bc95f7bc5400ef94d",
          String testsBranch = "master",
          String platforms = 'Windows',
          Boolean updateRefs = false,

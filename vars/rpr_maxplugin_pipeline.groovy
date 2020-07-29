@@ -1,4 +1,9 @@
-import RBSProduction
+import groovy.transform.Field
+import UniverseClient
+import groovy.json.JsonOutput;
+
+@Field UniverseClient universeClient = new UniverseClient(this, "https://umsapi.cis.luxoft.com", env, "https://imgs.cis.luxoft.com", "AMD%20Radeon™%20ProRender%20for%203ds%20Max")
+
 
 def getMaxPluginInstaller(String osName, Map options)
 {
@@ -75,19 +80,37 @@ def executeGenTestRefCommand(String osName, Map options)
 }
 
 
-def executeTestCommand(String osName, Map options)
+def executeTestCommand(String osName, String asicName, Map options)
 {
-    dir('scripts')
+    build_id = "none"
+    job_id = "none"
+    if (options.sendToUMS && universeClient.build != null){
+        build_id = universeClient.build["id"]
+        job_id = universeClient.build["job_id"]
+    }
+    withCredentials([usernamePassword(credentialsId: 'image_service', usernameVariable: 'IS_USER', passwordVariable: 'IS_PASSWORD'),
+        usernamePassword(credentialsId: 'universeMonitoringSystem', usernameVariable: 'UMS_USER', passwordVariable: 'UMS_PASSWORD')])
     {
-        bat"""
-        run.bat ${options.renderDevice} ${options.testsPackage} \"${options.tests}\" ${options.toolVersion} ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} >> ../${options.stageName}.log  2>&1
-        """
+        withEnv(["UMS_USE=${options.sendToUMS}", "UMS_BUILD_ID=${build_id}", "UMS_JOB_ID=${job_id}",
+            "UMS_URL=${universeClient.url}", "UMS_ENV_LABEL=${osName}-${asicName}", "IS_URL=${universeClient.is_url}",
+            "UMS_LOGIN=${UMS_USER}", "UMS_PASSWORD=${UMS_PASSWORD}", "IS_LOGIN=${IS_USER}", "IS_PASSWORD=${IS_PASSWORD}"])
+        {
+            dir('scripts')
+            {
+                bat"""
+                run.bat ${options.renderDevice} ${options.testsPackage} \"${options.tests}\" ${options.toolVersion} ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} >> ../${options.stageName}.log  2>&1
+                """
+            }
+        }
     }
 }
 
 
 def executeTests(String osName, String asicName, Map options)
 {
+    if (options.sendToUMS){
+        universeClient.stage("Tests-${osName}-${asicName}", "begin")
+    }
     // used for mark stash results or not. It needed for not stashing failed tasks which will be retried.
     Boolean stashResults = true
     
@@ -99,11 +122,6 @@ def executeTests(String osName, String asicName, Map options)
 
                 checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_max.git')
 
-                // setTester in rbs
-                if (options.sendToRBS) {
-                    options.rbs_prod.setTester(options)
-                }
-
                 println "[INFO] Preparing successfully finished."
 
             } catch(e) {
@@ -113,10 +131,7 @@ def executeTests(String osName, String asicName, Map options)
             }
         }
 
-        dir("c:/TestResources/MaxAssets")
-        {
-            checkOutBranchOrScm(options['autotest_assets'], "https://gitlab.cts.luxoft.com/autotest_assets/rpr_max_autotests.git", true, false, true, 'radeonprorender-gitlab', true, false)
-        }
+        downloadAssets("${options.PRJ_ROOT}/${options.PRJ_NAME}/MaxAssets/", 'MaxAssets')
 
         try {
             Boolean newPluginInstalled = false
@@ -140,7 +155,7 @@ def executeTests(String osName, String asicName, Map options)
 
         if(options['updateRefs'])
         {
-            executeTestCommand(osName, options)
+            executeTestCommand(osName, asicName, options)
             executeGenTestRefCommand(osName, options)
             sendFiles('./Work/Baseline/', REF_PATH_PROFILE)
         }
@@ -155,7 +170,7 @@ def executeTests(String osName, String asicName, Map options)
             } catch (e) {
                 println("[WARNING] Baseline doesn't exist.")
             }
-            executeTestCommand(osName, options)
+            executeTestCommand(osName, asicName, options)
         }
     } catch (e) {
         if (options.currentTry < options.nodeReallocateTries) {
@@ -184,9 +199,9 @@ def executeTests(String osName, String asicName, Map options)
                         currentBuild.result = "FAILED"
                     }
 
-                    if (options.sendToRBS)
+                    if (options.sendToUMS)
                     {
-                        options.rbs_prod.sendSuiteResult(sessionReport, options)
+                        universeClient.stage("Tests-${osName}-${asicName}", "end")
                     }
 
                     echo "Stashing test results to : ${options.testResultsName}"
@@ -194,9 +209,12 @@ def executeTests(String osName, String asicName, Map options)
 
                     // deinstalling broken addon & reallocate node if there are still attempts
                     if (sessionReport.summary.total == sessionReport.summary.error + sessionReport.summary.skipped) {
-                        installMSIPlugin(osName, "Max", options, false, true)
-                        if (options.currentTry < options.nodeReallocateTries) {
-                            throw new Exception("All tests crashed")
+                        if (sessionReport.summary.total != sessionReport.summary.skipped){
+                            collectCrashInfo(osName, options)
+                            installMSIPlugin(osName, "Max", options, false, true)
+                            if (options.currentTry < options.nodeReallocateTries) {
+                                throw new Exception("All tests crashed")
+                            }
                         }
                     }
                 }
@@ -249,6 +267,10 @@ def executeBuildWindows(Map options)
 
 def executeBuild(String osName, Map options)
 {
+    cleanWS(osName)
+    if (options.sendToUMS){
+        universeClient.stage("Build-" + osName , "begin")
+    }
     try {
         dir('RadeonProRenderMaxPlugin')
         {
@@ -284,18 +306,13 @@ def executeBuild(String osName, Map options)
     }
     catch (e) {
         currentBuild.result = "FAILED"
-        if (options.sendToRBS)
-        {
-            try {
-                options.rbs_prod.setFailureStatus()
-            } catch (err) {
-                println(err)
-            }
-        }
         throw e
     }
     finally {
         archiveArtifacts artifacts: "*.log", allowEmptyArchive: true
+    }
+    if (options.sendToUMS){
+        universeClient.stage("Build-" + osName, "end")
     }
 }
 
@@ -337,7 +354,7 @@ def executePreBuild(Map options)
         checkOutBranchOrScm(options.projectBranch, options.projectRepo, true)
 
         options.commitAuthor = bat (script: "git show -s --format=%%an HEAD ",returnStdout: true).split('\r\n')[2].trim()
-        options.commitMessage = bat (script: "git log --format=%%B -n 1", returnStdout: true).split('\r\n')[2].trim()
+        options.commitMessage = bat (script: "git log --format=%%s -n 1", returnStdout: true).split('\r\n')[2].trim().replace('\n', '')
         options.commitSHA = bat (script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
         options.commitShortSHA = options.commitSHA[0..6]
 
@@ -363,7 +380,7 @@ def executePreBuild(Map options)
                 def new_version = version_inc(options.pluginVersion, 3)
                 println "[INFO] New build version: ${new_version}"
                 version_write("${env.WORKSPACE}\\RadeonProRenderMaxPlugin\\version.h", '#define VERSION_STR', new_version)
-                
+
                 options.pluginVersion = version_read("${env.WORKSPACE}\\RadeonProRenderMaxPlugin\\version.h", '#define VERSION_STR')
                 println "[INFO] Updated build version: ${options.pluginVersion}"
 
@@ -418,7 +435,7 @@ def executePreBuild(Map options)
     }
 
     def tests = []
-    options.groupsRBS = []
+    options.groupsUMS = []
 
     if(options.testsPackage != "none")
     {
@@ -430,7 +447,7 @@ def executePreBuild(Map options)
             {
                 def testsByJson = readJSON file: "jobs/${options.testsPackage}"
                 testsByJson.each() {
-                    options.groupsRBS << "${it.key}"
+                    options.groupsUMS << "${it.key}"
                 }
                 options.splitTestsExecution = false
             }
@@ -442,7 +459,7 @@ def executePreBuild(Map options)
                 }
                 options.tests = tests
                 options.testsPackage = "none"
-                options.groupsRBS = tests
+                options.groupsUMS = tests
             }
         }
     }
@@ -453,10 +470,10 @@ def executePreBuild(Map options)
             tests << "${it}"
         }
         options.tests = tests
-        options.groupsRBS = tests
+        options.groupsUMS = tests
     }
 
-    println(options.groupsRBS)
+    println(options.groupsUMS)
 
     if(options.splitTestsExecution) {
         options.testsList = options.tests
@@ -466,11 +483,16 @@ def executePreBuild(Map options)
         options.tests = tests.join(" ")
     }
 
-    if (options.sendToRBS)
+    if (options.sendToUMS)
     {
         try
         {
-            options.rbs_prod.startBuild(options)
+            // Universe : auth because now we in node
+            // If use httpRequest in master slave will catch 408 error
+            universeClient.tokenSetup()
+
+            // create build ([OS-1:GPU-1, ... OS-N:GPU-N], ['Suite1', 'Suite2', ..., 'SuiteN'])
+            universeClient.createBuild(options.universePlatforms, options.groupsUMS)
         }
         catch (e)
         {
@@ -491,6 +513,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
             dir("summaryTestResults")
             {
+                unstashCrashInfo(options['nodeRetry'])
                 testResultList.each()
                 {
                     dir("$it".replace("testResult-", ""))
@@ -536,16 +559,17 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"])
                 {
                     dir("jobs_launcher") {
+                        def retryInfo = JsonOutput.toJson(options.nodeRetry)
                         if (options['isPreBuilt'])
                         {
                             bat """
-                            build_reports.bat ..\\summaryTestResults "${escapeCharsByUnicode('3ds Max')}" "PreBuilt" "PreBuilt" "PreBuilt"
+                            build_reports.bat ..\\summaryTestResults ${escapeCharsByUnicode("3ds Max")} "PreBuilt" "PreBuilt" "PreBuilt" \"${escapeCharsByUnicode(retryInfo.toString())}\"
                             """
                         }
                         else
                         {
                             bat """
-                            build_reports.bat ..\\summaryTestResults "${escapeCharsByUnicode('3ds Max')}" ${options.commitSHA} ${branchName} \"${escapeCharsByUnicode(options.commitMessage)}\"
+                            build_reports.bat ..\\summaryTestResults ${escapeCharsByUnicode("3ds Max")} ${options.commitSHA} ${branchName} \"${escapeCharsByUnicode(options.commitMessage)}\" \"${escapeCharsByUnicode(retryInfo.toString())}\"
                             """
                         }
                     }
@@ -565,6 +589,19 @@ def executeDeploy(Map options, List platformList, List testResultList)
             catch(e)
             {
                 println("ERROR during slack status generation")
+                println(e.toString())
+                println(e.getMessage())
+            }
+
+            try
+            {
+                dir("jobs_launcher") {
+                    archiveArtifacts "launcher.engine.log"
+                }
+            }
+            catch(e)
+            {
+                println("ERROR during archiving launcher.engine.log")
                 println(e.toString())
                 println(e.getMessage())
             }
@@ -607,10 +644,10 @@ def executeDeploy(Map options, List platformList, List testResultList)
                          reportName: 'Test Report',
                          reportTitles: 'Summary Report, Performance Report, Compare Report'])
 
-            if (options.sendToRBS) {
+            if (options.sendToUMS) {
                 try {
                     String status = currentBuild.result ?: 'SUCCESSFUL'
-                    options.rbs_prod.finishBuild(options, status)
+                    universeClient.changeStatus(status)
                 } catch (e) {
                     println(e.getMessage())
                 }
@@ -651,20 +688,21 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
         String toolVersion = "2021",
         Boolean forceBuild = false,
         Boolean splitTestsExecution = true,
-        Boolean sendToRBS = true,
+        Boolean sendToUMS = true,
         String resX = '0',
         String resY = '0',
         String SPU = '25',
         String iter = '50',
         String theshold = '0.05',
         String customBuildLinkWindows = "",
-        String autotest_assets = 'master')
+        String tester_tag = 'Max')
 {
     resX = (resX == 'Default') ? '0' : resX
     resY = (resY == 'Default') ? '0' : resY
     SPU = (SPU == 'Default') ? '60' : SPU
     iter = (iter == 'Default') ? '120' : iter
     theshold = (theshold == 'Default') ? '0.01' : theshold
+    def nodeRetry = []
     try
     {
         Boolean isPreBuilt = customBuildLinkWindows.length() > 0
@@ -711,13 +749,18 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
             }
         }
 
-        rbs_prod = new RBSProduction(this, "Max", env.JOB_NAME, env)
+        def universePlatforms = convertPlatforms(platforms);
+
+        println "Platforms: ${platforms}"
+        println "Tests: ${tests}"
+        println "Tests package: ${testsPackage}"
+        println "Split tests execution: ${splitTestsExecution}"
+        println "UMS platforms: ${universePlatforms}"
 
         multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy,
                                [projectRepo:projectRepo,
                                 projectBranch:projectBranch,
                                 testsBranch:testsBranch,
-                                autotest_assets: autotest_assets,
                                 updateRefs:updateRefs,
                                 enableNotifications:enableNotifications,
                                 PRJ_NAME:PRJ_NAME,
@@ -733,21 +776,25 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                                 forceBuild:forceBuild,
                                 reportName:'Test_20Report',
                                 splitTestsExecution:splitTestsExecution,
-                                sendToRBS: sendToRBS,
+                                sendToUMS: sendToUMS,
                                 gpusCount:gpusCount,
                                 TEST_TIMEOUT:180,
-                                TESTER_TAG:'Max',
-                                rbs_prod: rbs_prod,
+                                TESTER_TAG:tester_tag,
+                                universePlatforms: universePlatforms,
                                 resX: resX,
                                 resY: resY,
                                 SPU: SPU,
                                 iter: iter,
                                 theshold: theshold,
-                                customBuildLinkWindows: customBuildLinkWindows
+                                customBuildLinkWindows: customBuildLinkWindows,
+                                nodeRetry: nodeRetry
                                 ])
         }
         catch (e) {
             currentBuild.result = "FAILED"
+            if (sendToUMS){
+                universeClient.changeStatus(currentBuild.result)
+            }
             println(e.toString());
             println(e.getMessage());
 

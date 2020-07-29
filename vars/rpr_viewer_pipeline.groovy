@@ -1,3 +1,8 @@
+import UniverseClient
+import groovy.transform.Field
+
+@Field UniverseClient universeClient = new UniverseClient(this, "https://umsapi.cis.luxoft.com", env, "https://imgs.cis.luxoft.com", "AMD%20Radeon™%20ProRender%20Viewer")
+import groovy.json.JsonOutput;
 
 def getViewerTool(String osName, Map options)
 {
@@ -95,32 +100,47 @@ def executeGenTestRefCommand(String osName, Map options)
     }
 }
 
-def executeTestCommand(String osName, Map options)
+def executeTestCommand(String osName, String asicName, Map options)
 {
-    switch(osName)
+    build_id = "none"
+    job_id = "none"
+    if (options.sendToUMS && universeClient.build != null){
+        build_id = universeClient.build["id"]
+        job_id = universeClient.build["job_id"]
+    }
+    withCredentials([usernamePassword(credentialsId: 'image_service', usernameVariable: 'IS_USER', passwordVariable: 'IS_PASSWORD'),
+        usernamePassword(credentialsId: 'universeMonitoringSystem', usernameVariable: 'UMS_USER', passwordVariable: 'UMS_PASSWORD')])
     {
-    case 'Windows':
-        dir('scripts')
+        withEnv(["UMS_USE=${options.sendToUMS}", "UMS_BUILD_ID=${build_id}", "UMS_JOB_ID=${job_id}",
+            "UMS_URL=${universeClient.url}", "UMS_ENV_LABEL=${osName}-${asicName}", "IS_URL=${universeClient.is_url}",
+            "UMS_LOGIN=${UMS_USER}", "UMS_PASSWORD=${UMS_PASSWORD}", "IS_LOGIN=${IS_USER}", "IS_PASSWORD=${IS_PASSWORD}"])
         {
-            bat """
-            run.bat ${options.testsPackage} \"${options.tests}\">> ../${STAGE_NAME}.log  2>&1
-            """
-        }
-        break;
+            switch(osName)
+            {
+            case 'Windows':
+                dir('scripts')
+                {
+                    bat """
+                    run.bat ${options.testsPackage} \"${options.tests}\" >> ../${options.stageName}.log  2>&1
+                    """
+                }
+                break;
 
-    case 'OSX':
-        echo "OSX is not supported"
-        break;
+            case 'OSX':
+                echo "OSX is not supported"
+                break;
 
-    default:
-        dir('scripts')
-        {
-            withEnv(["LD_LIBRARY_PATH=../RprViewer/engines/hybrid:\$LD_LIBRARY_PATH"]) {
-                sh """
-                chmod +x ../RprViewer/RadeonProViewer
-                chmod +x run.sh
-                ./run.sh ${options.testsPackage} \"${options.tests}\">> ../${options.stageName}.log  2>&1
-                """
+            default:
+                dir('scripts')
+                {
+                    withEnv(["LD_LIBRARY_PATH=../RprViewer/engines/hybrid:\$LD_LIBRARY_PATH"]) {
+                        sh """
+                        chmod +x ../RprViewer/RadeonProViewer
+                        chmod +x run.sh
+                        ./run.sh ${options.testsPackage} \"${options.tests}\" >> ../${options.stageName}.log  2>&1
+                        """
+                    }
+                }
             }
         }
     }
@@ -128,6 +148,9 @@ def executeTestCommand(String osName, Map options)
 
 def executeTests(String osName, String asicName, Map options)
 {
+    if (options.sendToUMS){
+        universeClient.stage("Tests-${osName}-${asicName}", "begin")
+    }
     // used for mark stash results or not. It needed for not stashing failed tasks which will be retried.
     Boolean stashResults = true
 
@@ -137,9 +160,6 @@ def executeTests(String osName, String asicName, Map options)
             try {
                 cleanWS(osName)
                 checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_rprviewer.git')
-                if (options.sendToRBS) {
-                    options.rbs_prod.setTester(options)
-                }
                 getViewerTool(osName, options)
             } catch(e) {
                 println("[ERROR] Failed to prepare test group on ${env.NODE_NAME}")
@@ -158,31 +178,22 @@ def executeTests(String osName, String asicName, Map options)
         outputEnvironmentInfo(osName)
 
         if(options['updateRefs']) {
-            executeTestCommand(osName, options)
+            executeTestCommand(osName, asicName, options)
             executeGenTestRefCommand(osName, options)
             sendFiles('./Work/Baseline/', REF_PATH_PROFILE)
         } else {
             try {
-                if(options.testsPackage != "none" && !options.testsPackage.endsWith('.json')) {
-                    def tests = []
-                    String tempTests = readFile("jobs/${options.testsPackage}")
-                    tempTests.split("\n").each {
-                        // TODO: fix: duck tape - error with line ending
-                        tests << "${it.replaceAll("[^a-zA-Z0-9_]+","")}"
-                    }
-                    options.tests = tests.join(" ")
-                    options.testsPackage = "none"
-                }
+                println "[INFO] Downloading reference images for ${options.tests}"
                 receiveFiles("${REF_PATH_PROFILE}/baseline_manifest.json", './Work/Baseline/')
                 options.tests.split(" ").each() {
                     receiveFiles("${REF_PATH_PROFILE}/${it}", './Work/Baseline/')
                 }
             } 
-            catch (e) 
+            catch (e)
             {
                 println("Baseline doesn't exist.")
             }
-            executeTestCommand(osName, options)
+            executeTestCommand(osName, asicName, options)
         }
     } catch (e) {
         if (options.currentTry < options.nodeReallocateTries) {
@@ -211,13 +222,19 @@ def executeTests(String osName, String asicName, Map options)
                         currentBuild.result = "FAILED"
                     }
 
+                    if (options.sendToUMS)
+                    {
+                        universeClient.stage("Tests-${osName}-${asicName}", "end")
+                    }
+
                     echo "Stashing test results to : ${options.testResultsName}"
                     stash includes: '**/*', name: "${options.testResultsName}", allowEmpty: true
 
                     // reallocate node if there are still attempts
                     if (sessionReport.summary.total == sessionReport.summary.error + sessionReport.summary.skipped) {
-                        if (options.currentTry < options.nodeReallocateTries) {
-                            if (osName == "Ubuntu18") {
+                        if (sessionReport.summary.total != sessionReport.summary.skipped){
+                            collectCrashInfo(osName, options)
+                            if (osName == "Ubuntu18"){
                                 sh """
                                     echo "Restarting Unix Machine...."
                                     hostname
@@ -225,8 +242,10 @@ def executeTests(String osName, String asicName, Map options)
                                 """
                                 sleep(60)
                             }
-                            throw new Exception("All tests crashed")
-                        } 
+                            if (options.currentTry < options.nodeReallocateTries) {
+                                throw new Exception("All tests crashed")
+                            }
+                        }
                     }
                 }
             }
@@ -308,6 +327,10 @@ def executeBuildLinux(Map options)
 
 def executeBuild(String osName, Map options)
 {
+    if (options.sendToUMS){
+        universeClient.stage("Build-" + osName , "begin")
+    }
+
     try {
         checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
         outputEnvironmentInfo(osName)
@@ -331,30 +354,27 @@ def executeBuild(String osName, Map options)
     finally {
         archiveArtifacts artifacts: "*.log", allowEmptyArchive: true
     }
+    if (options.sendToUMS){
+        universeClient.stage("Build-" + osName, "end")
+    }
 }
 
 def executePreBuild(Map options)
 {
     checkOutBranchOrScm(options['projectBranch'], options['projectRepo'], true)
 
-    AUTHOR_NAME = bat (
-            script: "git show -s --format=%%an HEAD ",
-            returnStdout: true
-            ).split('\r\n')[2].trim()
+    options.commitAuthor = bat (script: "git show -s --format=%%an HEAD ",returnStdout: true).split('\r\n')[2].trim()
+    options.commitMessage = bat (script: "git log --format=%%s -n 1", returnStdout: true).split('\r\n')[2].trim().replace('\n', '')
+    options.commitSHA = bat (script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
 
-    echo "The last commit was written by ${AUTHOR_NAME}."
-    options.AUTHOR_NAME = AUTHOR_NAME
-
-    commitMessage = bat ( script: "git log --format=%%B -n 1", returnStdout: true ).split('\r\n')[2].trim()
-    echo "Commit message: ${commitMessage}"
-    options.commitMessage = commitMessage
-
-    options['commitSHA'] = bat(script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
+    println "The last commit was written by ${options.commitAuthor}."
+    println "Commit message: ${options.commitMessage}"
+    println "Commit SHA: ${options.commitSHA}"
 
     if (env.CHANGE_URL) {
         echo "branch was detected as Pull Request"
         options['isPR'] = true
-        options.testsPackage = "PR" 
+        options.testsPackage = "PR"
     }
     else if(env.BRANCH_NAME && env.BRANCH_NAME == "master") {
         options.testsPackage = "master"
@@ -376,6 +396,76 @@ def executePreBuild(Map options)
                          [$class: 'LogRotator', artifactDaysToKeepStr: '',
                           artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '50']]]);
     }
+
+    def tests = []
+    options.groupsUMS = []
+
+    if(options.testsPackage != "none")
+    {
+        dir('jobs_test_rprviewer')
+        {
+            checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_rprviewer.git')
+            // json means custom test suite. Split doesn't supported
+            if(options.testsPackage.endsWith('.json'))
+            {
+                def testsByJson = readJSON file: "jobs/${options.testsPackage}"
+                testsByJson.each() {
+                    options.groupsUMS << "${it.key}"
+                }
+                options.splitTestsExecution = false
+            }
+            else
+            {
+                String tempTests = readFile("jobs/${options.testsPackage}")
+                tempTests.split("\n").each {
+                    // TODO: fix: duck tape - error with line ending
+                    tests << "${it.replaceAll("[^a-zA-Z0-9_]+","")}"
+                }
+                options.tests = tests
+                options.testsPackage = "none"
+                options.groupsUMS = tests
+            }
+        }
+    }
+    else
+    {
+        options.tests.split(" ").each()
+        {
+            tests << "${it}"
+        }
+        options.tests = tests
+        options.groupsUMS = tests
+    }
+
+    if(options.splitTestsExecution)
+    {
+        options.testsList = options.tests
+    }
+    else
+    {
+        options.testsList = ['']
+        options.tests = tests.join(" ")
+    }
+
+    if (options.sendToUMS)
+    {
+        try
+        {
+            // Universe : auth because now we in node
+            // If use httpRequest in master slave will catch 408 error
+            universeClient.tokenSetup()
+
+            println("Test groups:")
+            println(options.groupsUMS)
+
+            // create build ([OS-1:GPU-1, ... OS-N:GPU-N], ['Suite1', 'Suite2', ..., 'SuiteN'])
+            universeClient.createBuild(options.universePlatforms, options.groupsUMS)
+        }
+        catch (e)
+        {
+            println(e.toString())
+        }
+    }
 }
 
 def executeDeploy(Map options, List platformList, List testResultList)
@@ -390,6 +480,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
             dir("summaryTestResults")
             {
+                unstashCrashInfo(options['nodeRetry'])
                 testResultList.each()
                 {
                     dir("$it".replace("testResult-", ""))
@@ -410,25 +501,33 @@ def executeDeploy(Map options, List platformList, List testResultList)
             }
 
             try {
-                Boolean isRegression = options.testsPackage.endsWith('.json')
+                String executionType
+                if (options.testsPackage.endsWith('.json')) {
+                    executionType = 'regression'
+                } else if (options.splitTestsExecution) {
+                    executionType = 'split_execution'
+                } else {
+                    executionType = 'default'
+                }
 
-                //dir("jobs_launcher") {
-                //    bat """
-                //    count_lost_tests.bat \"${lostStashes}\" .. ..\\summaryTestResults ${isRegression}
-                //    """
-                //}
-                
+                dir("jobs_launcher") {
+                    bat """
+                    count_lost_tests.bat \"${lostStashes}\" .. ..\\summaryTestResults ${executionType} \"${options.tests}\"
+                    """
+                }
             } catch (e) {
                 println("[ERROR] Can't generate number of lost tests")
             }
+            
             String branchName = env.BRANCH_NAME ?: options.projectBranch
 
             try {
                 withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"])
                 {
                     dir("jobs_launcher") {
+                        def retryInfo = JsonOutput.toJson(options.nodeRetry)
                         bat """
-                        build_reports.bat ..\\summaryTestResults "${escapeCharsByUnicode('RprViewer')}" ${options.commitSHA} ${branchName} \"${escapeCharsByUnicode(options.commitMessage)}\"
+                        build_reports.bat ..\\summaryTestResults "RprViewer" ${options.commitSHA} ${branchName} \"${escapeCharsByUnicode(options.commitMessage)}\" \"${escapeCharsByUnicode(retryInfo.toString())}\"
                         """
                     }
                 }
@@ -447,6 +546,19 @@ def executeDeploy(Map options, List platformList, List testResultList)
             catch(e)
             {
                 println("ERROR during slack status generation")
+                println(e.toString())
+                println(e.getMessage())
+            }
+
+            try
+            {
+                dir("jobs_launcher") {
+                    archiveArtifacts "launcher.engine.log"
+                }
+            }
+            catch(e)
+            {
+                println("ERROR during archiving launcher.engine.log")
                 println(e.toString())
                 println(e.getMessage())
             }
@@ -488,6 +600,16 @@ def executeDeploy(Map options, List platformList, List testResultList)
                          reportFiles: 'summary_report.html, performance_report.html, compare_report.html',
                          reportName: 'Test Report',
                          reportTitles: 'Summary Report, Performance Report, Compare Report'])
+
+            if (options.sendToUMS) {
+                try {
+                    String status = currentBuild.result ?: 'SUCCESSFUL'
+                    universeClient.changeStatus(status)
+                }
+                catch (e){
+                    println(e.getMessage())
+                }
+            }
         }
     }
     catch(e)
@@ -502,11 +624,23 @@ def call(String projectBranch = "",
          Boolean updateRefs = false,
          Boolean enableNotifications = true,
          String testsPackage = "",
-         String tests = "") {
+         String tests = "",
+         Boolean splitTestsExecution = true,
+         Boolean sendToUMS = true,
+         String tester_tag = 'RprViewer') {
+
+    def nodeRetry = []
 
     String PRJ_ROOT='rpr-core'
     String PRJ_NAME='RadeonProViewer'
     String projectRepo='git@github.com:Radeon-Pro/RadeonProViewer.git'
+
+    def universePlatforms = convertPlatforms(platforms);
+
+    println "Platforms: ${platforms}"
+    println "Tests: ${tests}"
+    println "Tests package: ${testsPackage}"
+    println "UMS platforms: ${universePlatforms}"
 
     multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy,
                            [projectBranch:projectBranch,
@@ -517,14 +651,16 @@ def call(String projectBranch = "",
                             PRJ_ROOT:PRJ_ROOT,
                             projectRepo:projectRepo,
                             BUILDER_TAG:'BuilderViewer',
-                            TESTER_TAG:'RprViewer',
+                            TESTER_TAG:tester_tag,
                             executeBuild:true,
                             executeTests:true,
+                            splitTestsExecution:splitTestsExecution,
                             DEPLOY_FOLDER:"RprViewer",
                             testsPackage:testsPackage,
-                            // TODO: rollback after split implementation
-                            //TEST_TIMEOUT:40,
-                            TEST_TIMEOUT:120,
+                            TEST_TIMEOUT:40,
                             DEPLOY_TIMEOUT:45,
-                            tests:tests])
+                            tests:tests,
+                            nodeRetry: nodeRetry,
+                            sendToUMS:sendToUMS,
+                            universePlatforms: universePlatforms])
 }

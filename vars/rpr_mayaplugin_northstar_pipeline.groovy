@@ -1,9 +1,5 @@
-import groovy.transform.Field
-import UniverseClient
+import RBSProduction;
 import groovy.json.JsonOutput;
-
-@Field UniverseClient universeClient = new UniverseClient(this, "https://umsapi.cis.luxoft.com", env, "https://imgs.cis.luxoft.com/", "AMD%20Radeon™%20ProRender%20for%20Maya")
-
 
 def getMayaPluginInstaller(String osName, Map options)
 {
@@ -15,7 +11,6 @@ def getMayaPluginInstaller(String osName, Map options)
                 if (options.pluginWinSha) {
                     win_addon_name = options.pluginWinSha
                 } else {
-                    // FIXME: fix plugin name for testing pre builded installer
                     win_addon_name = "unknown"
                 }
             } else {
@@ -131,52 +126,33 @@ def buildRenderCache(String osName, String toolVersion, String log_name)
     }
 }
 
-def executeTestCommand(String osName, String asicName, Map options)
+def executeTestCommand(String osName, Map options)
 {
-    build_id = "none"
-    job_id = "none"
-    if (options.sendToUMS && universeClient.build != null){
-        build_id = universeClient.build["id"]
-        job_id = universeClient.build["job_id"]
-    }
-    withCredentials([usernamePassword(credentialsId: 'image_service', usernameVariable: 'IS_USER', passwordVariable: 'IS_PASSWORD'),
-        usernamePassword(credentialsId: 'universeMonitoringSystem', usernameVariable: 'UMS_USER', passwordVariable: 'UMS_PASSWORD')])
+    switch(osName)
     {
-        withEnv(["UMS_USE=${options.sendToUMS}", "UMS_BUILD_ID=${build_id}", "UMS_JOB_ID=${job_id}",
-            "UMS_URL=${universeClient.url}", "UMS_ENV_LABEL=${osName}-${asicName}", "IS_URL=${universeClient.is_url}",
-            "UMS_LOGIN=${UMS_USER}", "UMS_PASSWORD=${UMS_PASSWORD}", "IS_LOGIN=${IS_USER}", "IS_PASSWORD=${IS_PASSWORD}"])
-        {
-            switch(osName)
+        case 'Windows':
+            dir('scripts')
             {
-                case 'Windows':
-                    dir('scripts')
-                    {
-                        bat """
-                            run.bat ${options.renderDevice} ${options.testsPackage} \"${options.tests}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.toolVersion} ${options.engine} >> ../${options.stageName}.log  2>&1
-                        """
-                    }
-                    break;
-                case 'OSX':
-                    dir('scripts')
-                    {
-                        sh """
-                            ./run.sh ${options.renderDevice} ${options.testsPackage} \"${options.tests}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.toolVersion} ${options.engine} >> ../${options.stageName}.log 2>&1
-                        """
-                    }
-                    break;
-                default:
-                    echo "[WARNING] ${osName} is not supported"
+                bat """
+                    run.bat ${options.renderDevice} ${options.testsPackage} \"${options.tests}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.toolVersion} ${options.engine} >> ../${options.stageName}.log  2>&1
+                """
             }
-        }
+            break;
+        case 'OSX':
+            dir('scripts')
+            {
+                sh """
+                    ./run.sh ${options.renderDevice} ${options.testsPackage} \"${options.tests}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.toolVersion} ${options.engine} >> ../${options.stageName}.log 2>&1
+                """
+            }
+            break;
+        default:
+            echo "[WARNING] ${osName} is not supported"
     }
 }
 
 def executeTests(String osName, String asicName, Map options)
 {
-    if (options.sendToUMS){
-        universeClient.stage("Tests-${osName}-${asicName}", "begin")
-    }
-
     // used for mark stash results or not. It needed for not stashing failed tasks which will be retried.
     Boolean stashResults = true
     
@@ -184,8 +160,18 @@ def executeTests(String osName, String asicName, Map options)
 
         timeout(time: "5", unit: 'MINUTES') {
             try {
+
                 cleanWS(osName)
                 checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_maya.git')
+
+                writeFile file: 'local_config.py', text: """original_render = 'tahoe'
+                tool_name = 'maya'
+                report_type = 'ct'"""
+
+                // setTester in rbs
+                if (options.sendToRBS) {
+                    options.rbs_prod.setTester(options)
+                }
             } catch(e) {
                 println("[ERROR] Failed to prepare test group on ${env.NODE_NAME}")
                 println(e.toString())
@@ -221,34 +207,38 @@ def executeTests(String osName, String asicName, Map options)
         }
 
         String REF_PATH_PROFILE="${options.REF_PATH}/${asicName}-${osName}"
-        if (options.engine == '2'){
-            REF_PATH_PROFILE="${REF_PATH_PROFILE}-NorthStar"
-        }
-
-        options.REF_PATH_PROFILE = REF_PATH_PROFILE
 
         outputEnvironmentInfo(osName, options.stageName)
 
-        if(options['updateRefs'])
-        {
-            executeTestCommand(osName, asicName, options)
+        if(options['updateRefs']) {
+            executeTestCommand(osName, options)
             executeGenTestRefCommand(osName, options)
             sendFiles('./Work/Baseline/', REF_PATH_PROFILE)
         }
-        else
-        {
-            try 
-            {
-                println "[INFO] Downloading reference images for ${options.tests}"
-                receiveFiles("${REF_PATH_PROFILE}/baseline_manifest.json", './Work/Baseline/')
+        else {
+            // RPR baseline
+            try {
+                println "[INFO] Downloading RPR-Tahoe-1.0 reference images for ${options.tests}"
+                receiveFiles("${REF_PATH_PROFILE}/baseline_manifest.json", './Work/Baseline/first')
                 options.tests.split(" ").each() {
-                    receiveFiles("${REF_PATH_PROFILE}/${it}", './Work/Baseline/')
+                    receiveFiles("${REF_PATH_PROFILE}/${it}", './Work/Baseline/first')
+                }
+            } catch (e) {
+                println("[WARNING] Baseline doesn't exist.")
+            }
+            // Northstar baseline
+            REF_PATH_PROFILE="${REF_PATH_PROFILE}-NorthStar"
+            try {
+                println "[INFO] Downloading RPR-Tahoe-1.0 reference images for ${options.tests}"
+                receiveFiles("${REF_PATH_PROFILE}/baseline_manifest.json", './Work/Baseline/second')
+                options.tests.split(" ").each() {
+                    receiveFiles("${REF_PATH_PROFILE}/${it}", './Work/Baseline/second')
                 }
             } catch (e) {
                 println("[WARNING] Baseline doesn't exist.")
             }
 
-            executeTestCommand(osName, asicName, options)
+            executeTestCommand(osName, options)
         }
     } catch (e) {
         if (options.currentTry < options.nodeReallocateTries) {
@@ -276,9 +266,9 @@ def executeTests(String osName, String asicName, Map options)
                         currentBuild.result = "FAILED"
                     }
 
-                    if (options.sendToUMS)
+                    if (options.sendToRBS)
                     {
-                        universeClient.stage("Tests-${osName}-${asicName}", "end")
+                        options.rbs_prod.sendSuiteResult(sessionReport, options)
                     }
 
                     echo "Stashing test results to : ${options.testResultsName}"
@@ -336,13 +326,10 @@ def executeBuildWindows(Map options)
             echo print(view.Fetch().GetString(1)) >> getMsiProductCode.py
         """
 
-        // FIXME: hot fix for STVCIS-1215
         options.productCode = python3("getMsiProductCode.py").split('\r\n')[2].trim()[1..-2]
 
         println "[INFO] Built MSI product code: ${options.productCode}"
 
-        //options.productCode = "unknown"
-        options.pluginWinSha = sha1 'RadeonProRenderMaya.msi'
         stash includes: 'RadeonProRenderMaya.msi', name: 'appWindows'
     }
 }
@@ -372,7 +359,7 @@ def executeBuildOSX(Map options)
             stash includes: 'RadeonProRenderMaya.dmg', name: "appOSX"
 
             // TODO: detect ID of installed plugin
-            // options.productCode = "unknown"
+            options.productCode = "unknown"
             options.pluginOSXSha = sha1 'RadeonProRenderMaya.dmg'
         }
     }
@@ -381,10 +368,6 @@ def executeBuildOSX(Map options)
 
 def executeBuild(String osName, Map options)
 {
-    if (options.sendToUMS){
-        universeClient.stage("Build-" + osName , "begin")
-    }
-
     try {
         dir('RadeonProRenderMayaPlugin')
         {
@@ -420,13 +403,18 @@ def executeBuild(String osName, Map options)
         }
     } catch (e) {
         currentBuild.result = "FAILED"
+        if (options.sendToRBS)
+        {
+            try {
+                options.rbs_prod.setFailureStatus()
+            } catch (err) {
+                println(err)
+            }
+        }
         throw e
     }
     finally {
         archiveArtifacts "*.log"
-    }
-    if (options.sendToUMS){
-        universeClient.stage("Build-" + osName, "end")
     }
 }
 
@@ -462,7 +450,7 @@ def executePreBuild(Map options)
             options.testsPackage = "smoke"
         }
     }
-
+    
     dir('RadeonProRenderMayaPlugin')
     {
         checkOutBranchOrScm(options.projectBranch, options.projectRepo, true)
@@ -494,7 +482,7 @@ def executePreBuild(Map options)
                 def new_version = version_inc(options.pluginVersion, 3)
                 println "[INFO] New build version: ${new_version}"
                 version_write("${env.WORKSPACE}\\RadeonProRenderMayaPlugin\\version.h", '#define PLUGIN_VERSION', new_version)
-
+                
                 options.pluginVersion = version_read("${env.WORKSPACE}\\RadeonProRenderMayaPlugin\\version.h", '#define PLUGIN_VERSION')
                 println "[INFO] Updated build version: ${options.pluginVersion}"
 
@@ -550,7 +538,7 @@ def executePreBuild(Map options)
     }
     
     def tests = []
-    options.groupsUMS = []
+    options.groupsRBS = []
 
     if(options.testsPackage != "none")
     {
@@ -562,7 +550,7 @@ def executePreBuild(Map options)
             {
                 def testsByJson = readJSON file: "jobs/${options.testsPackage}"
                 testsByJson.each() {
-                    options.groupsUMS << "${it.key}"
+                    options.groupsRBS << "${it.key}"
                 }
                 options.splitTestsExecution = false
             }
@@ -574,7 +562,7 @@ def executePreBuild(Map options)
                 }
                 options.tests = tests
                 options.testsPackage = "none"
-                options.groupsUMS = tests
+                options.groupsRBS = tests
             }
         }
     }
@@ -583,7 +571,7 @@ def executePreBuild(Map options)
             tests << "${it}"
         }
         options.tests = tests
-        options.groupsUMS = tests
+        options.groupsRBS = tests
     }
 
     if(options.splitTestsExecution) {
@@ -594,12 +582,11 @@ def executePreBuild(Map options)
         options.testsList = ['']
     }
 
-    if (options.sendToUMS)
+    if (options.sendToRBS)
     {
         try
         {
-            universeClient.tokenSetup()
-            universeClient.createBuild(options.universePlatforms, options.groupsUMS)
+            options.rbs_prod.startBuild(options)
         }
         catch (e)
         {
@@ -615,6 +602,9 @@ def executeDeploy(Map options, List platformList, List testResultList)
         if(options['executeTests'] && testResultList)
         {
             checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_maya.git')
+            writeFile file: 'local_config.py', text: """original_render = 'tahoe'
+                tool_name = 'maya'
+                report_type = 'ct'"""
 
             List lostStashes = []
 
@@ -704,19 +694,6 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
             try
             {
-                dir("jobs_launcher") {
-                    archiveArtifacts "launcher.engine.log"
-                }
-            }
-            catch(e)
-            {
-                println("ERROR during archiving launcher.engine.log")
-                println(e.toString())
-                println(e.getMessage())
-            }
-
-            try
-            {
                 def summaryReport = readJSON file: 'summaryTestResults/summary_status.json'
                 if (summaryReport.error > 0) {
                     println("Some tests crashed")
@@ -753,10 +730,10 @@ def executeDeploy(Map options, List platformList, List testResultList)
                          reportName: 'Test Report',
                          reportTitles: 'Summary Report, Performance Report, Compare Report'])
 
-            if (options.sendToUMS) {
+            if (options.sendToRBS) {
                 try {
                     String status = currentBuild.result ?: 'SUCCESSFUL'
-                    universeClient.changeStatus(status)
+                    options.rbs_prod.finishBuild(options, status)
                 }
                 catch (e){
                     println(e.getMessage())
@@ -791,31 +768,28 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
         String testsBranch = "master",
         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;OSX:AMD_RXVEGA',
         Boolean updateRefs = false,
-        Boolean enableNotifications = true,
-        Boolean incrementVersion = true,
+        Boolean enableNotifications = false,
+        Boolean incrementVersion = false,
         String renderDevice = "gpu",
         String testsPackage = "",
         String tests = "",
         String toolVersion = "2020",
         Boolean forceBuild = false,
         Boolean splitTestsExecution = true,
-        Boolean sendToUMS = true,
+        Boolean sendToRBS = false,
         String resX = '0',
         String resY = '0',
         String SPU = '25',
         String iter = '50',
         String theshold = '0.05',
         String customBuildLinkWindows = "",
-        String customBuildLinkOSX = "",
-        String engine = "1.0",
-        String tester_tag = 'Maya')
+        String customBuildLinkOSX = "")
 {
     resX = (resX == 'Default') ? '0' : resX
     resY = (resY == 'Default') ? '0' : resY
     SPU = (SPU == 'Default') ? '25' : SPU
     iter = (iter == 'Default') ? '50' : iter
     theshold = (theshold == 'Default') ? '0.05' : theshold
-    engine = (engine == '2.0 (Northstar)') ? '2' : '1'
     def nodeRetry = []
     try
     {
@@ -869,13 +843,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
             }
         }
 
-        def universePlatforms = convertPlatforms(platforms);
-
-        println "Platforms: ${platforms}"
-        println "Tests: ${tests}"
-        println "Tests package: ${testsPackage}"
-        println "Split tests execution: ${splitTestsExecution}"
-        println "UMS platforms: ${universePlatforms}"
+        rbs_prod = new RBSProduction(this, "Maya", env.JOB_NAME, env)
 
         multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy,
                                [projectRepo:projectRepo,
@@ -896,12 +864,12 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                                 forceBuild:forceBuild,
                                 reportName:'Test_20Report',
                                 splitTestsExecution:splitTestsExecution,
-                                sendToUMS:sendToUMS,
+                                sendToRBS:sendToRBS,
                                 gpusCount:gpusCount,
                                 TEST_TIMEOUT:120,
                                 DEPLOY_TIMEOUT:120,
-                                TESTER_TAG:tester_tag,
-                                universePlatforms: universePlatforms,
+                                TESTER_TAG:'Maya',
+                                rbs_prod: rbs_prod,
                                 resX: resX,
                                 resY: resY,
                                 SPU: SPU,
@@ -909,15 +877,12 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                                 theshold: theshold,
                                 customBuildLinkWindows: customBuildLinkWindows,
                                 customBuildLinkOSX: customBuildLinkOSX,
-                                engine: engine,
+                                engine: '2',
                                 nodeRetry: nodeRetry
                                 ])
     }
     catch(e) {
         currentBuild.result = "FAILED"
-        if (sendToUMS){
-            universeClient.changeStatus(currentBuild.result)
-        }
         println(e.toString());
         println(e.getMessage());
         throw e

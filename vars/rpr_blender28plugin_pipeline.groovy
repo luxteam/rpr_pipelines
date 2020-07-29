@@ -1,4 +1,9 @@
-import RBSProduction
+import UniverseClient
+import groovy.transform.Field
+import groovy.json.JsonOutput;
+
+@Field UniverseClient universeClient = new UniverseClient(this, "https://umsapi.cis.luxoft.com", env, "https://imgs.cis.luxoft.com", "AMD%20Radeon™%20ProRender%20for%20Blender")
+
 
 def getBlenderAddonInstaller(String osName, Map options)
 {
@@ -159,31 +164,50 @@ def buildRenderCache(String osName, String toolVersion, String log_name)
     }
 }
 
-def executeTestCommand(String osName, Map options)
+def executeTestCommand(String osName, String asicName, Map options)
 {
-    switch(osName)
+    build_id = "none"
+    job_id = "none"
+    if (options.sendToUMS && universeClient.build != null){
+        build_id = universeClient.build["id"]
+        job_id = universeClient.build["job_id"]
+    }
+    withCredentials([usernamePassword(credentialsId: 'image_service', usernameVariable: 'IS_USER', passwordVariable: 'IS_PASSWORD'),
+        usernamePassword(credentialsId: 'universeMonitoringSystem', usernameVariable: 'UMS_USER', passwordVariable: 'UMS_PASSWORD')])
     {
-    case 'Windows':
-        dir('scripts')
+        withEnv(["UMS_USE=${options.sendToUMS}", "UMS_BUILD_ID=${build_id}", "UMS_JOB_ID=${job_id}",
+            "UMS_URL=${universeClient.url}", "UMS_ENV_LABEL=${osName}-${asicName}", "IS_URL=${universeClient.is_url}",
+            "UMS_LOGIN=${UMS_USER}", "UMS_PASSWORD=${UMS_PASSWORD}", "IS_LOGIN=${IS_USER}", "IS_PASSWORD=${IS_PASSWORD}"])
         {
-            bat """
-            run.bat ${options.renderDevice} ${options.testsPackage} \"${options.tests}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.engine} >> ..\\${options.stageName}.log  2>&1
-            """
-        }
-        break;
-    // OSX & Ubuntu18
-    default:
-        dir("scripts")
-        {
-            sh """
-            ./run.sh ${options.renderDevice} ${options.testsPackage} \"${options.tests}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.engine} >> ../${options.stageName}.log 2>&1
-            """
+            switch(osName)
+            {
+            case 'Windows':
+                dir('scripts')
+                {
+                    bat """
+                    run.bat ${options.renderDevice} ${options.testsPackage} \"${options.tests}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.engine}  >> ..\\${options.stageName}.log  2>&1
+                    """
+                }
+                break;
+            // OSX & Ubuntu18
+            default:
+                dir("scripts")
+                {
+                    sh """
+                    ./run.sh ${options.renderDevice} ${options.testsPackage} \"${options.tests}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.engine} >> ../${options.stageName}.log 2>&1
+                    """
+                }
+            }
         }
     }
 }
 
 def executeTests(String osName, String asicName, Map options)
 {
+    // TODO: improve envs, now working on Windows testers only
+    if (options.sendToUMS){
+        universeClient.stage("Tests-${osName}-${asicName}", "begin")
+    }
     // used for mark stash results or not. It needed for not stashing failed tasks which will be retried.
     Boolean stashResults = true
 
@@ -193,10 +217,6 @@ def executeTests(String osName, String asicName, Map options)
             try {
                 cleanWS(osName)
                 checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_blender.git')
-                // setTester in rbs
-                if (options.sendToRBS) {
-                    options.rbs_prod.setTester(options)
-                }
                 println "[INFO] Preparing on ${env.NODE_NAME} successfully finished."
 
             } catch(e) {
@@ -206,18 +226,7 @@ def executeTests(String osName, String asicName, Map options)
             }
         }
 
-        switch(osName)
-        {
-        case 'Windows':
-            pathToAssets = 'c:/TestResources/Blender2.8Assets'
-            break;
-        default:
-            pathToAssets = "${CIS_TOOLS}/../TestResources/Blender2.8Assets"
-        }
-        dir(pathToAssets)
-        {
-            checkOutBranchOrScm(options['autotest_assets'], "https://gitlab.cts.luxoft.com/autotest_assets/rpr_blender_autotests.git", true, false, true, 'radeonprorender-gitlab', true, false)
-        }
+        downloadAssets("${options.PRJ_ROOT}/${options.PRJ_NAME}/Blender2.8Assets/", 'Blender2.8Assets')
 
         try {
             try {
@@ -264,7 +273,7 @@ def executeTests(String osName, String asicName, Map options)
         outputEnvironmentInfo(osName, options.stageName)
 
         if (options['updateRefs']) {
-            executeTestCommand(osName, options)
+            executeTestCommand(osName, asicName, options)
             executeGenTestRefCommand(osName, options)
             sendFiles('./Work/Baseline/', REF_PATH_PROFILE)
         } else {
@@ -278,13 +287,13 @@ def executeTests(String osName, String asicName, Map options)
             } catch (e) {
                 println("[WARNING] Baseline doesn't exist.")
             }
-            executeTestCommand(osName, options)
+            executeTestCommand(osName, asicName, options)
         }
 
     } catch (e) {
         if (options.currentTry < options.nodeReallocateTries) {
             stashResults = false
-        } 
+        }
         println(e.toString())
         println(e.getMessage())
         options.failureMessage = "Failed during testing: ${asicName}-${osName}"
@@ -296,7 +305,7 @@ def executeTests(String osName, String asicName, Map options)
             dir('Work')
                 {
                     if (fileExists("Results/Blender28/session_report.json")) {
-                        
+
                         def sessionReport = null
                         sessionReport = readJSON file: 'Results/Blender28/session_report.json'
 
@@ -307,9 +316,9 @@ def executeTests(String osName, String asicName, Map options)
                             currentBuild.result = "FAILED"
                         }
 
-                        if (options.sendToRBS)
+                        if (options.sendToUMS)
                         {
-                            options.rbs_prod.sendSuiteResult(sessionReport, options)
+                            universeClient.stage("Tests-${osName}-${asicName}", "end")
                         }
 
                         echo "Stashing test results to : ${options.testResultsName}"
@@ -317,9 +326,12 @@ def executeTests(String osName, String asicName, Map options)
 
                         // deinstalling broken addon & reallocate node if there are still attempts
                         if (sessionReport.summary.total == sessionReport.summary.error + sessionReport.summary.skipped) {
-                            installBlenderAddon(osName, "2.83", options, false, true)
-                            if (options.currentTry < options.nodeReallocateTries) {
-                                throw new Exception("All tests crashed")
+                            if (sessionReport.summary.total != sessionReport.summary.skipped){
+                                collectCrashInfo(osName, options)
+                                installBlenderAddon(osName, "2.83", options, false, true)
+                                if (options.currentTry < options.nodeReallocateTries) {
+                                    throw new Exception("All tests crashed")
+                                }
                             }
                         }
                     }
@@ -339,7 +351,7 @@ def executeBuildWindows(Map options)
         """
 
         dir('.build')
-        { 
+        {
             bat """
                 rename rprblender*.zip RadeonProRenderForBlender_${options.pluginVersion}_Windows.zip
             """
@@ -350,7 +362,7 @@ def executeBuildWindows(Map options)
                     rename RadeonProRender*zip *.(${options.branch_postfix}).zip
                 """
             }
-            
+
             archiveArtifacts "RadeonProRender*.zip"
             String BUILD_NAME = options.branch_postfix ? "RadeonProRenderForBlender_${options.pluginVersion}_Windows.(${options.branch_postfix}).zip" : "RadeonProRenderForBlender_${options.pluginVersion}_Windows.zip"
             rtp nullAction: '1', parserName: 'HTML', stableText: """<h3><a href="${BUILD_URL}/artifact/${BUILD_NAME}">[BUILD: ${BUILD_ID}] ${BUILD_NAME}</a></h3>"""
@@ -360,7 +372,7 @@ def executeBuildWindows(Map options)
             """
 
             stash includes: "RadeonProRenderBlender_Windows.zip", name: "appWindows"
-        }      
+        }
     }
 }
 
@@ -373,7 +385,7 @@ def executeBuildOSX(Map options)
         """
 
         dir('.build')
-        { 
+        {
             sh """
                 mv rprblender*.zip RadeonProRenderForBlender_${options.pluginVersion}_OSX.zip
             """
@@ -388,7 +400,7 @@ def executeBuildOSX(Map options)
             archiveArtifacts "RadeonProRender*.zip"
             String BUILD_NAME = options.branch_postfix ? "RadeonProRenderForBlender_${options.pluginVersion}_OSX.(${options.branch_postfix}).zip" : "RadeonProRenderForBlender_${options.pluginVersion}_OSX.zip"
             rtp nullAction: '1', parserName: 'HTML', stableText: """<h3><a href="${BUILD_URL}/artifact/${BUILD_NAME}">[BUILD: ${BUILD_ID}] ${BUILD_NAME}</a></h3>"""
-            
+
             sh """
                 mv RadeonProRender*zip RadeonProRenderBlender_OSX.zip
             """
@@ -431,12 +443,15 @@ def executeBuildLinux(String osName, Map options)
             stash includes: "RadeonProRenderBlender_${osName}.zip", name: "app${osName}"
 
         }
-        
+
     }
 }
 
 def executeBuild(String osName, Map options)
 {
+    if (options.sendToUMS){
+        universeClient.stage("Build-" + osName , "begin")
+    }
     try {
         dir('RadeonProRenderBlenderAddon')
         {
@@ -458,7 +473,7 @@ def executeBuild(String osName, Map options)
         }
 
         outputEnvironmentInfo(osName)
-        
+
         switch(osName)
         {
             case 'Windows':
@@ -472,7 +487,7 @@ def executeBuild(String osName, Map options)
                 withEnv(["PATH=$WORKSPACE:$PATH"])
                 {
                     executeBuildOSX(options);
-                 }
+                }
                 break;
             default:
                 if(!fileExists("python3"))
@@ -489,18 +504,13 @@ def executeBuild(String osName, Map options)
         options.failureMessage = "[ERROR] Failed to build plugin on ${osName}"
         options.failureError = e.getMessage()
         currentBuild.result = "FAILED"
-        if (options.sendToRBS)
-        {
-            try {
-                options.rbs_prod.setFailureStatus()
-            } catch (err) {
-                println(err)
-            }
-        }
         throw e
     }
     finally {
         archiveArtifacts artifacts: "*.log", allowEmptyArchive: true
+    }
+    if (options.sendToUMS){
+        universeClient.stage("Build-" + osName, "end")
     }
 }
 
@@ -542,10 +552,11 @@ def executePreBuild(Map options)
         checkOutBranchOrScm(options.projectBranch, options.projectRepo, true)
 
         options.commitAuthor = bat (script: "git show -s --format=%%an HEAD ",returnStdout: true).split('\r\n')[2].trim()
-        options.commitMessage = bat (script: "git log --format=%%B -n 1", returnStdout: true).split('\r\n')[2].trim()
+        options.commitMessage = bat (script: "git log --format=%%s -n 1", returnStdout: true).split('\r\n')[2].trim().replace('\n', '')
         options.commitSHA = bat (script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
         options.commitShortSHA = options.commitSHA[0..6]
 
+        println(bat (script: "git log --format=%%s -n 1", returnStdout: true).split('\r\n')[2].trim());
         println "The last commit was written by ${options.commitAuthor}."
         println "Commit message: ${options.commitMessage}"
         println "Commit SHA: ${options.commitSHA}"
@@ -603,7 +614,7 @@ def executePreBuild(Map options)
         currentBuild.description += "<b>Commit author:</b> ${options.commitAuthor}<br/>"
         currentBuild.description += "<b>Commit message:</b> ${options.commitMessage}<br/>"
         currentBuild.description += "<b>Commit SHA:</b> ${options.commitSHA}<br/>"
-        
+
     }
 
     if (env.BRANCH_NAME && (env.BRANCH_NAME == "master" || env.BRANCH_NAME == "develop")) {
@@ -624,9 +635,9 @@ def executePreBuild(Map options)
                           artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
     }
 
-    
+
     def tests = []
-    options.groupsRBS = []
+    options.groupsUMS = []
     if(options.testsPackage != "none")
     {
         dir('jobs_test_blender')
@@ -637,7 +648,7 @@ def executePreBuild(Map options)
             {
                 def testsByJson = readJSON file: "jobs/${options.testsPackage}"
                 testsByJson.each() {
-                    options.groupsRBS << "${it.key}"
+                    options.groupsUMS << "${it.key}"
                 }
                 options.splitTestsExecution = false
             }
@@ -650,7 +661,7 @@ def executePreBuild(Map options)
                 }
                 options.tests = tests
                 options.testsPackage = "none"
-                options.groupsRBS = tests
+                options.groupsUMS = tests
             }
         }
     }
@@ -660,7 +671,7 @@ def executePreBuild(Map options)
             tests << "${it}"
         }
         options.tests = tests
-        options.groupsRBS = tests
+        options.groupsUMS = tests
     }
 
     if(options.splitTestsExecution) {
@@ -671,11 +682,16 @@ def executePreBuild(Map options)
         options.tests = tests.join(" ")
     }
 
-    if (options.sendToRBS)
+    if (options.sendToUMS)
     {
         try
         {
-            options.rbs_prod.startBuild(options)
+            // Universe : auth because now we in node
+            // If use httpRequest in master slave will catch 408 error
+            universeClient.tokenSetup()
+
+            // create build ([OS-1:GPU-1, ... OS-N:GPU-N], ['Suite1', 'Suite2', ..., 'SuiteN'])
+            universeClient.createBuild(options.universePlatforms, options.groupsUMS)
         }
         catch (e)
         {
@@ -696,6 +712,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
             dir("summaryTestResults")
             {
+                unstashCrashInfo(options['nodeRetry'])
                 testResultList.each()
                 {
                     dir("$it".replace("testResult-", ""))
@@ -739,16 +756,17 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"])
                 {
                     dir("jobs_launcher") {
+                        def retryInfo = JsonOutput.toJson(options.nodeRetry)
                         if (options['isPreBuilt'])
                         {
                             bat """
-                            build_reports.bat ..\\summaryTestResults "${escapeCharsByUnicode('Blender 2.83')}" "PreBuilt" "PreBuilt" "PreBuilt"
+                            build_reports.bat ..\\summaryTestResults ${escapeCharsByUnicode("Blender 2.83")} "PreBuilt" "PreBuilt" "PreBuilt" \"${escapeCharsByUnicode(retryInfo.toString())}\"
                             """
                         }
                         else
                         {
                             bat """
-                            build_reports.bat ..\\summaryTestResults "${escapeCharsByUnicode('Blender 2.83')}" ${options.commitSHA} ${branchName} \"${escapeCharsByUnicode(options.commitMessage)}\"
+                            build_reports.bat ..\\summaryTestResults ${escapeCharsByUnicode("Blender 2.83")} ${options.commitSHA} ${branchName} \"${escapeCharsByUnicode(options.commitMessage)}\" \"${escapeCharsByUnicode(retryInfo.toString())}\"
                             """
                         }
                     }
@@ -768,6 +786,19 @@ def executeDeploy(Map options, List platformList, List testResultList)
             catch(e)
             {
                 println("[ERROR] Failed to generate slack status.")
+                println(e.toString())
+                println(e.getMessage())
+            }
+
+            try
+            {
+                dir("jobs_launcher") {
+                    archiveArtifacts "launcher.engine.log"
+                }
+            }
+            catch(e)
+            {
+                println("ERROR during archiving launcher.engine.log")
                 println(e.toString())
                 println(e.getMessage())
             }
@@ -812,10 +843,10 @@ def executeDeploy(Map options, List platformList, List testResultList)
                          reportName: 'Test Report',
                          reportTitles: 'Summary Report, Performance Report, Compare Report'])
 
-            if (options.sendToRBS) {
+            if (options.sendToUMS) {
                 try {
                     String status = currentBuild.result ?: 'SUCCESSFUL'
-                    options.rbs_prod.finishBuild(options, status)
+                    universeClient.changeStatus(status)
                 }
                 catch (e){
                     println(e.getMessage())
@@ -838,8 +869,8 @@ def appendPlatform(String filteredPlatforms, String platform) {
     if (filteredPlatforms)
     {
         filteredPlatforms +=  ";" + platform
-    } 
-    else 
+    }
+    else
     {
         filteredPlatforms += platform
     }
@@ -859,7 +890,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
     String tests = "",
     Boolean forceBuild = false,
     Boolean splitTestsExecution = true,
-    Boolean sendToRBS = true,
+    Boolean sendToUMS = true,
     String resX = '0',
     String resY = '0',
     String SPU = '25',
@@ -869,7 +900,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
     String customBuildLinkLinux = "",
     String customBuildLinkOSX = "",
     String engine = "1.0",
-    String autotest_assets = 'master')
+    String tester_tag = "Blender2.8")
 {
     resX = (resX == 'Default') ? '0' : resX
     resY = (resY == 'Default') ? '0' : resY
@@ -877,6 +908,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
     iter = (iter == 'Default') ? '50' : iter
     theshold = (theshold == 'Default') ? '0.05' : theshold
     engine = (engine == '2.0 (Northstar)') ? 'FULL2' : 'FULL'
+    def nodeRetry = []
     try
     {
         Boolean isPreBuilt = customBuildLinkWindows || customBuildLinkOSX || customBuildLinkLinux
@@ -933,13 +965,19 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
             }
         }
 
-        rbs_prod = new RBSProduction(this, "Blender28", env.JOB_NAME, env)
+
+        def universePlatforms = convertPlatforms(platforms);
+
+        println "Platforms: ${platforms}"
+        println "Tests: ${tests}"
+        println "Tests package: ${testsPackage}"
+        println "Split tests execution: ${splitTestsExecution}"
+        println "UMS platforms: ${universePlatforms}"
 
         multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy,
                                [projectRepo:projectRepo,
                                 projectBranch:projectBranch,
                                 testsBranch:testsBranch,
-                                autotest_assets: autotest_assets,
                                 updateRefs:updateRefs,
                                 enableNotifications:enableNotifications,
                                 PRJ_NAME:PRJ_NAME,
@@ -952,13 +990,13 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                                 forceBuild:forceBuild,
                                 reportName:'Test_20Report',
                                 splitTestsExecution:splitTestsExecution,
-                                sendToRBS: sendToRBS,
+                                sendToUMS: sendToUMS,
                                 gpusCount:gpusCount,
-                                TEST_TIMEOUT:90,
+                                TEST_TIMEOUT:150,
                                 DEPLOY_TIMEOUT:150,
-                                TESTER_TAG:"Blender2.8",
+                                TESTER_TAG:tester_tag,
                                 BUILDER_TAG:"BuildBlender2.8",
-                                rbs_prod: rbs_prod,
+                                universePlatforms: universePlatforms,
                                 resX: resX,
                                 resY: resY,
                                 SPU: SPU,
@@ -967,12 +1005,16 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                                 customBuildLinkWindows: customBuildLinkWindows,
                                 customBuildLinkLinux: customBuildLinkLinux,
                                 customBuildLinkOSX: customBuildLinkOSX,
-                                engine: engine
+                                engine: engine,
+                                nodeRetry: nodeRetry
                                 ])
     }
     catch(e)
     {
         currentBuild.result = "FAILED"
+        if (sendToUMS){
+            universeClient.changeStatus(currentBuild.result)
+        }
         failureMessage = "INIT FAILED"
         failureError = e.getMessage()
         println(e.toString());

@@ -283,6 +283,7 @@ def executePreBuild(Map options) {
             options.testsPackage = "PR"
         } else if (env.BRANCH_NAME == "master" || env.BRANCH_NAME == "develop") {
            println "[INFO] ${env.BRANCH_NAME} branch was detected"
+           options.enableNotifications = true
            options.executeBuild = true
            options.executeTests = true
            options.testsPackage = "master"
@@ -354,7 +355,7 @@ def call(String projectBranch = "",
         String testsBranch = "master",
         String platforms = 'Windows;Ubuntu18;OSX;CentOS7_6',
         Boolean updateRefs = false,
-        Boolean enableNotifications = true,
+        Boolean enableNotifications = false,
         Boolean incrementVersion = true,
         String testsPackage = "",
         String tests = "",

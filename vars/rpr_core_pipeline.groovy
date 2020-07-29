@@ -1,4 +1,8 @@
-import RBSProduction
+import UniverseClient
+import groovy.transform.Field
+import groovy.json.JsonOutput;
+
+@Field UniverseClient universeClient = new UniverseClient(this, "https://umsapi.cis.luxoft.com", env, "https://imgs.cis.luxoft.com", "AMD%20Radeon™%20ProRender%20Core")
 
 def getCoreSDK(String osName, Map options)
 {
@@ -116,41 +120,61 @@ def executeGenTestRefCommand(String osName, Map options)
     }
 }
 
-def executeTestCommand(String osName, Map options)
+def executeTestCommand(String osName, String asicName, Map options)
 {
-    switch(osName) {
-        case 'Windows':
-            dir('scripts')
-            {
-                bat """
-                run.bat ${options.testsPackage} \"${options.tests}\" ${options.width} ${options.height} ${options.iterations} >> ../${STAGE_NAME}.log 2>&1
-                """
+    build_id = "none"
+    job_id = "none"
+    if (options.sendToUMS && universeClient.build != null){
+        build_id = universeClient.build["id"]
+        job_id = universeClient.build["job_id"]
+    }
+
+    withCredentials([usernamePassword(credentialsId: 'image_service', usernameVariable: 'IS_USER', passwordVariable: 'IS_PASSWORD'),
+        usernamePassword(credentialsId: 'universeMonitoringSystem', usernameVariable: 'UMS_USER', passwordVariable: 'UMS_PASSWORD')])
+    {
+        withEnv(["UMS_USE=${options.sendToUMS}", "UMS_BUILD_ID=${build_id}", "UMS_JOB_ID=${job_id}",
+            "UMS_URL=${universeClient.url}", "UMS_ENV_LABEL=${osName}-${asicName}", "IS_URL=${universeClient.is_url}",
+            "UMS_LOGIN=${UMS_USER}", "UMS_PASSWORD=${UMS_PASSWORD}", "IS_LOGIN=${IS_USER}", "IS_PASSWORD=${IS_PASSWORD}"])
+        {
+            switch(osName) {
+                case 'Windows':
+                    dir('scripts')
+                    {
+                        bat """
+                        run.bat ${options.testsPackage} \"${options.tests}\" ${options.width} ${options.height} ${options.iterations} >> ../${STAGE_NAME}.log 2>&1
+                        """
+                    }
+                    break;
+                case 'OSX':
+                    dir('scripts')
+                    {
+                        withEnv(["LD_LIBRARY_PATH=../rprSdk:\$LD_LIBRARY_PATH"]) {
+                            sh """
+                            ./run.sh ${options.testsPackage} \"${options.tests}\" ${options.width} ${options.height} ${options.iterations} >> ../${STAGE_NAME}.log 2>&1
+                            """
+                        }
+                    }
+                    break;
+                default:
+                    dir('scripts')
+                    {
+                        withEnv(["LD_LIBRARY_PATH=../rprSdk:\$LD_LIBRARY_PATH"]) {
+                            sh """
+                            ./run.sh ${options.testsPackage} \"${options.tests}\" ${options.width} ${options.height} ${options.iterations} >> ../${STAGE_NAME}.log 2>&1
+                            """
+                        }
+                    }
             }
-            break;
-        case 'OSX':
-            dir('scripts')
-            {
-                withEnv(["LD_LIBRARY_PATH=../rprSdk:\$LD_LIBRARY_PATH"]) {
-                    sh """
-                    ./run.sh ${options.testsPackage} \"${options.tests}\" ${options.width} ${options.height} ${options.iterations} >> ../${STAGE_NAME}.log 2>&1
-                    """
-                }
-            }
-            break;
-        default:
-            dir('scripts')
-            {
-                withEnv(["LD_LIBRARY_PATH=../rprSdk:\$LD_LIBRARY_PATH"]) {
-                    sh """
-                    ./run.sh ${options.testsPackage} \"${options.tests}\" ${options.width} ${options.height} ${options.iterations} >> ../${STAGE_NAME}.log 2>&1
-                    """
-                }
-            }
+        }
     }
 }
 
 def executeTests(String osName, String asicName, Map options)
 {
+    // TODO: improve envs, now working on Windows testers only
+    if (options.sendToUMS){
+        universeClient.stage("Tests-${osName}-${asicName}", "begin")
+    }
     // used for mark stash results or not. It needed for not stashing failed tasks which will be retried.
     Boolean stashResults = true
 
@@ -160,9 +184,6 @@ def executeTests(String osName, String asicName, Map options)
             try {
                 cleanWS(osName)
                 checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_core.git')
-                if (options.sendToRBS) {
-                    options.rbs_prod.setTester(options)
-                }
                 getCoreSDK(osName, options)
             } catch(e) {
                 println("[ERROR] Failed to prepare test group on ${env.NODE_NAME}")
@@ -182,7 +203,7 @@ def executeTests(String osName, String asicName, Map options)
 
         if(options['updateRefs'])
         {
-            executeTestCommand(osName, options)
+            executeTestCommand(osName, asicName, options)
             executeGenTestRefCommand(osName, options)
             sendFiles('./Work/Baseline/', REF_PATH_PROFILE)
         }
@@ -190,7 +211,7 @@ def executeTests(String osName, String asicName, Map options)
         {
             // Update ref images from one card to others
             // TODO: Fix hardcode naming
-            executeTestCommand(osName, options)
+            executeTestCommand(osName, asicName, options)
             executeGenTestRefCommand(osName, options)
             ['AMD_RXVEGA', 'AMD_WX9100', 'AMD_WX7100', 'AMD_RadeonVII', 'NVIDIA_GF1080TI', 'NVIDIA_RTX2080'].each
             {
@@ -206,7 +227,7 @@ def executeTests(String osName, String asicName, Map options)
             } catch(e) {
                 println("No baseline")
             }
-            executeTestCommand(osName, options)
+            executeTestCommand(osName, asicName, options)
         }
     } catch (e) {
         if (options.currentTry < options.nodeReallocateTries) {
@@ -235,9 +256,9 @@ def executeTests(String osName, String asicName, Map options)
                         currentBuild.result = "FAILED"
                     }
 
-                    if (options.sendToRBS)
+                    if (options.sendToUMS)
                     {
-                        options.rbs_prod.sendSuiteResult(sessionReport, options)
+                        universeClient.stage("Tests-${osName}-${asicName}", "end")
                     }
 
                     echo "Stashing test results to : ${options.testResultsName}"
@@ -245,8 +266,9 @@ def executeTests(String osName, String asicName, Map options)
 
                     // reallocate node if there are still attempts
                     if (sessionReport.summary.total == sessionReport.summary.error + sessionReport.summary.skipped) {
-                        if (options.currentTry < options.nodeReallocateTries) {
-                            if (osName == "Ubuntu18") {
+                        if (sessionReport.summary.total != sessionReport.summary.skipped){
+                            collectCrashInfo(osName, options)
+                            if (osName == "Ubuntu18"){
                                 sh """
                                     echo "Restarting Unix Machine...."
                                     hostname
@@ -254,7 +276,9 @@ def executeTests(String osName, String asicName, Map options)
                                 """
                                 sleep(60)
                             }
-                            throw new Exception("All tests crashed")
+                            if (options.currentTry < options.nodeReallocateTries) {
+                                throw new Exception("All tests crashed")
+                            }
                         }
                     }
                 }
@@ -297,6 +321,10 @@ def executeBuildLinux(Map options)
 
 def executeBuild(String osName, Map options)
 {
+    if (options.sendToUMS){
+        universeClient.stage("Build-" + osName , "begin")
+    }
+
     try {
         dir('RadeonProRenderSDK')
         {
@@ -319,18 +347,13 @@ def executeBuild(String osName, Map options)
     }
     catch (e) {
         currentBuild.result = "FAILED"
-        if (options.sendToRBS)
-        {
-            try {
-                options.rbs_prod.setFailureStatus()
-            } catch (err) {
-                println(err)
-            }
-        }
         throw e
     }
     finally {
         archiveArtifacts artifacts: "*.log", allowEmptyArchive: true
+    }
+    if (options.sendToUMS){
+        universeClient.stage("Build-" + osName, "end")
     }
 }
 
@@ -340,9 +363,8 @@ def executePreBuild(Map options)
     checkOutBranchOrScm(options['projectBranch'], 'git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderSDK.git')
 
     options.commitAuthor = bat (script: "git show -s --format=%%an HEAD ",returnStdout: true).split('\r\n')[2].trim()
-    options.commitMessage = bat (script: "git log --format=%%B -n 1", returnStdout: true).split('\r\n')[2].trim()
+    options.commitMessage = bat (script: "git log --format=%%s -n 1", returnStdout: true).split('\r\n')[2].trim().replace('\n', '')
     options.commitSHA = bat (script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
-
 
     println "The last commit was written by ${options.commitAuthor}."
     println "Commit message: ${options.commitMessage}"
@@ -378,8 +400,9 @@ def executePreBuild(Map options)
                           artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '30']]]);
     }
 
+
     def tests = []
-    options.groupsRBS = []
+    options.groupsUMS = []
     if(options.testsPackage != "none")
     {
         dir('jobs_test_core')
@@ -389,11 +412,11 @@ def executePreBuild(Map options)
             String tempTests = readFile("jobs/${options.testsPackage}")
             tempTests.split("\n").each {
                 // TODO: fix: duck tape - error with line ending
-                tests << "${it.replaceAll("[^a-zA-Z0-9_]+","")}"
-            }
-            options.tests = tests
-            options.testsPackage = "none"
-            options.groupsRBS = tests
+            tests << "${it.replaceAll("[^a-zA-Z0-9_]+","")}"
+        }
+        options.tests = tests
+        options.testsPackage = "none"
+        options.groupsUMS = tests
         }
     }
     else {
@@ -402,17 +425,25 @@ def executePreBuild(Map options)
             tests << "${it}"
         }
         options.tests = tests
-        options.groupsRBS = tests
+        options.groupsUMS = tests
     }
 
     options.testsList = ['']
     options.tests = tests.join(" ")
 
-    if (options.sendToRBS)
+    if (options.sendToUMS)
     {
         try
         {
-            options.rbs_prod.startBuild(options)
+            // Universe : auth because now we in node
+            // If use httpRequest in master slave will catch 408 error
+            universeClient.tokenSetup()
+
+            println("Test groups:")
+            println(options.groupsUMS)
+
+            // create build ([OS-1:GPU-1, ... OS-N:GPU-N], ['Suite1', 'Suite2', ..., 'SuiteN'])
+            universeClient.createBuild(options.universePlatforms, options.groupsUMS)
         }
         catch (e)
         {
@@ -433,6 +464,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
             dir("summaryTestResults")
             {
+                unstashCrashInfo(options['nodeRetry'])
                 testResultList.each()
                 {
                     dir("$it".replace("testResult-", ""))
@@ -483,10 +515,26 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
                 options.commitMessage = options.commitMessage.replace("'", "")
                 options.commitMessage = options.commitMessage.replace('"', '')
+
+                def retryInfo = JsonOutput.toJson(options.nodeRetry)
                 bat """
-                build_reports.bat ..\\summaryTestResults Core ${options.commitSHA} ${options.branchName} \"${escapeCharsByUnicode(options.commitMessage)}\"
+                build_reports.bat ..\\summaryTestResults Core ${options.commitSHA} ${options.branchName} \"${escapeCharsByUnicode(options.commitMessage)}\" \"${escapeCharsByUnicode(retryInfo.toString())}\"
                 """
+
                 bat "get_status.bat ..\\summaryTestResults"
+            }
+
+            try
+            {
+                dir("jobs_launcher") {
+                    archiveArtifacts "launcher.engine.log"
+                }
+            }
+            catch(e)
+            {
+                println("ERROR during archiving launcher.engine.log")
+                println(e.toString())
+                println(e.getMessage())
             }
 
             try
@@ -525,10 +573,10 @@ def executeDeploy(Map options, List platformList, List testResultList)
                          reportName: 'Test Report',
                          reportTitles: 'Summary Report, Performance Report, Compare Report'])
 
-            if (options.sendToRBS) {
+            if (options.sendToUMS) {
                 try {
                     String status = currentBuild.result ?: 'SUCCESSFUL'
-                    options.rbs_prod.finishBuild(options, status)
+                    universeClient.changeStatus(status)
                 }
                 catch (e){
                     println(e.getMessage())
@@ -559,12 +607,14 @@ def call(String projectBranch = "",
          String width = "0",
          String height = "0",
          String iterations = "0",
-         Boolean sendToRBS = true) {
+         Boolean sendToUMS = true,
+         String tester_tag = 'Core') {
     try
     {
         String PRJ_NAME="RadeonProRenderCore"
         String PRJ_ROOT="rpr-core"
 
+        def nodeRetry = []
 
         gpusCount = 0
         platforms.split(';').each()
@@ -580,7 +630,12 @@ def call(String projectBranch = "",
             }
         }
 
-        rbs_prod = new RBSProduction(this, "Core", env.JOB_NAME, env)
+        def universePlatforms = convertPlatforms(platforms);
+
+        println "Platforms: ${platforms}"
+        println "Tests: ${tests}"
+        println "Tests package: ${testsPackage}"
+        println "UMS platforms: ${universePlatforms}"
 
         multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy,
                                [projectBranch:projectBranch,
@@ -591,7 +646,7 @@ def call(String projectBranch = "",
                                 PRJ_NAME:PRJ_NAME,
                                 PRJ_ROOT:PRJ_ROOT,
                                 BUILDER_TAG:'BuilderS',
-                                TESTER_TAG:'Core',
+                                TESTER_TAG:tester_tag,
                                 slackChannel:"${SLACK_CORE_CHANNEL}",
                                 renderDevice:renderDevice,
                                 testsPackage:testsPackage,
@@ -599,17 +654,21 @@ def call(String projectBranch = "",
                                 executeBuild:true,
                                 executeTests:true,
                                 reportName:'Test_20Report',
-                                TEST_TIMEOUT:60,
+                                TEST_TIMEOUT:110,
                                 width:width,
                                 gpusCount:gpusCount,
                                 height:height,
                                 iterations:iterations,
-                                sendToRBS:sendToRBS,
-                                rbs_prod: rbs_prod,
+                                sendToUMS:sendToUMS,
+                                universePlatforms: universePlatforms,
+                                nodeRetry: nodeRetry
                                 ])
     }
     catch(e) {
         currentBuild.result = "FAILED"
+        if (sendToUMS){
+            universeClient.changeStatus(currentBuild.result)
+        }
         println(e.toString());
         println(e.getMessage());
         throw e

@@ -9,7 +9,10 @@ def executeTestCommand(String osName)
         dir("unittest")
         {
             bat "mkdir testSave"
-            bat "..\\bin\\UnitTest.exe -t .\\testSave -r .\\referenceImages --models ..\\models --gtest_filter=\"*.*/0\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ..\\${STAGE_NAME}.log  2>&1"
+            bat """
+            set RIF_AI_FP16_ENABLED=1
+            ..\\bin\\UnitTest.exe -t .\\testSave -r .\\referenceImages --models ..\\models --gtest_filter=\"*.*/0\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ..\\${STAGE_NAME}.log  2>&1
+            """
         }
         break;
     case 'OSX':
@@ -19,7 +22,7 @@ def executeTestCommand(String osName)
         dir("unittest")
         {
             sh "mkdir testSave"
-            sh "../bin/UnitTest  -t ./testSave -r ./referenceImages --models ../models --gtest_filter=\"*.*/0\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../${STAGE_NAME}.log  2>&1"
+            sh "RIF_AI_FP16_ENABLED=1 ../bin/UnitTest  -t ./testSave -r ./referenceImages --models ../models --gtest_filter=\"*.*/0\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../${STAGE_NAME}.log  2>&1"
         }
         break;
     default:
@@ -29,7 +32,7 @@ def executeTestCommand(String osName)
         dir("unittest")
         {
             sh "mkdir testSave"
-            sh "../bin/UnitTest  -t ./testSave -r ./referenceImages --models ../models --gtest_filter=\"*.*/0\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../${STAGE_NAME}.log  2>&1"
+            sh "RIF_AI_FP16_ENABLED=1 ../bin/UnitTest  -t ./testSave -r ./referenceImages --models ../models --gtest_filter=\"*.*/0\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../${STAGE_NAME}.log  2>&1"
         }
     }
 }
@@ -298,7 +301,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 }
 
 def call(String projectBranch = "",
-         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI,AMD_RadeonVII;Ubuntu18:NVIDIA_GTX980;OSX:AMD_RXVEGA;CentOS7;Ubuntu18-Clang',
+         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI,AMD_RadeonVII,AMD_RX5700XT;Ubuntu18:NVIDIA_GTX980;OSX:AMD_RXVEGA;CentOS7;Ubuntu18-Clang',
          Boolean updateRefs = false,
          Boolean enableNotifications = true,
          String cmakeKeys = '') {
@@ -314,7 +317,7 @@ def call(String projectBranch = "",
                             enableNotifications:enableNotifications,
                             BUILDER_TAG:'BuilderS',
                             TESTER_TAG:'RIF',
-                            BUILD_TIMEOUT:'15',
+                            BUILD_TIMEOUT:'30',
                             TEST_TIMEOUT:'30',
                             executeBuild:true,
                             executeTests:true,

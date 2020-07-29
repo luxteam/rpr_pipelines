@@ -272,47 +272,44 @@ def executeTests(String osName, String asicName, Map options)
 
         outputEnvironmentInfo(osName, options.stageName)
 
-        if (options['updateRefs']) {
+        if (options['updateRefs'])
+        {
             executeTestCommand(osName, asicName, options)
             executeGenTestRefCommand(osName, options)
             sendFiles('./Work/Baseline/', REF_PATH_PROFILE)
-        } else {
+        }
+        else
+        {
             // TODO: receivebaseline for json suite
             if (options.northStartPerformance) {
-                executeTestCommand(osName, asicName, options)
-                dir('scripts') {
-                    switch(osName) {
-                        case 'Windows':
-                            bat """
-                            make_results_baseline.bat
-                            """
-                            break;
-                        default:
-                            sh """
-                            ./make_results_baseline.sh
-                            """
-                            break;
+                // RPR baseline
+                try {
+                    println "[INFO] Downloading RPR-Tahoe-1.0 reference images for ${options.tests}"
+                    receiveFiles("${REF_PATH_PROFILE}/baseline_manifest.json", './Work/Baseline/first')
+                    options.tests.split(" ").each() {
+                        receiveFiles("${REF_PATH_PROFILE}/${it}", './Work/Baseline/first')
                     }
+                } catch (e) {
+                    println("[WARNING] Baseline doesn't exist.")
                 }
-                if (fileExists("Work/Results/Blender28/session_report.json")) {
-                    switch(osName) {
-                        case 'Windows':
-                            bat """
-                            xcopy Work\\Results\\Blender28\\session_report.json Work\\session_report_ENGINE.json* 
-                            """
-                            break;
-                    // OSX
-                        default:
-                            sh """
-                            cp Work/Results/Blender28/session_report.json Work/session_report_ENGINE.json
-                            """
-                            break;
+                // Northstar baseline
+                REF_PATH_PROFILE="${REF_PATH_PROFILE}-NorthStar"
+                try {
+                    println "[INFO] Downloading RPR-Tahoe-1.0 reference images for ${options.tests}"
+                    receiveFiles("${REF_PATH_PROFILE}/baseline_manifest.json", './Work/Baseline/second')
+                    options.tests.split(" ").each() {
+                        receiveFiles("${REF_PATH_PROFILE}/${it}", './Work/Baseline/second')
                     }
+                } catch (e) {
+                    println("[WARNING] Baseline doesn't exist.")
                 }
-                options.engine = "2"
-                executeTestCommand(osName, asicName, options)
+                withEnv(["JL_ENGINES_COMPARE=True"]) {
+                    options.engine = "FULL2"
+                    executeTestCommand(osName, asicName, options)
+                }
             }
-            else {
+            else
+            {
                 try {
                     println "[INFO] Downloading reference images for ${options.tests}"
                     receiveFiles("${REF_PATH_PROFILE}/baseline_manifest.json", './Work/Baseline/')

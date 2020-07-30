@@ -18,12 +18,12 @@ def executeBuildWindows(Map options)
             cmake ${options['cmakeKeysVulkanWrapper']} -G "Visual Studio 15 2017 Win64" .. >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1
             cmake --build . --config Release >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1"""
         }
-        dir("RadeonImageFilter") {
-            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonImageFilter.git")
-        }
-        dir("RadeonProRenderSDK") {
-            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderSDK.git")
-        }
+//        dir("RadeonImageFilter") {
+//            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonImageFilter.git")
+//        }
+//        dir("RadeonProRenderSDK") {
+//            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderSDK.git")
+//        }
         dir("RPRViewer") {
             checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
 
@@ -33,11 +33,11 @@ def executeBuildWindows(Map options)
             call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" >> ..\\${STAGE_NAME}.USD.log 2>&1
             
             pushd USDPixar
-            git apply ..\\\\usd_dev.patch >> ..\\\\..\\\\${STAGE_NAME}.USD.log 2>&1
+            git apply ..\\usd_dev.patch >> ..\\..\\${STAGE_NAME}.USD.log 2>&1
             popd
             
             python USDPixar/build_scripts/build_usd.py --build RPRViewer/build --src RPRViewer/deps RPRViewer/inst ^
-            --build-args "USD,-DRPR_LOCATION=${WORKSPACE}/RadeonProRenderSDK/RadeonProRender -DVID_WRAPPERS_DIR=${WORKSPACE}/RadeonProVulkanWrapper -DSHIBOKEN_BINARY=C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/bin/shiboken2.exe" >> ..\\${STAGE_NAME}.USD.log 2>&1
+            --build-args "USD,-DRPR_LOCATION=${WORKSPACE}/RPRViewer/HdRPRPlugin/deps/RPR/RadeonProRender -DVID_WRAPPERS_DIR=${WORKSPACE}/RadeonProVulkanWrapper -DSHIBOKEN_BINARY=C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/bin/shiboken2.exe" >> ..\\${STAGE_NAME}.USD.log 2>&1
             
             set PATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\bin;${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib;%PATH%
             set PYTHONPATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib\\python;%PYTHONPATH%
@@ -66,6 +66,7 @@ def executeBuildWindows(Map options)
 
 def executeBuild(String osName, Map options)
 {
+    //TODO: remove full WS resetting
     cleanWS()
 
     try {
@@ -127,6 +128,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 {}
 
 def call(String projectBranch = "",
+        // FIXME: to master branch
          String vulkanWrappersBranch = "db51573e1b65ff5f343f691bc95f7bc5400ef94d",
          String testsBranch = "master",
          String platforms = 'Windows',

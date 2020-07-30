@@ -193,8 +193,13 @@ def executeTests(String osName, String asicName, Map options)
             }
         }
 
-        downloadAssets("${options.PRJ_ROOT}/${options.PRJ_NAME}/MayaAssets/", 'MayaAssets')
-
+        switch (osName) {
+            case "Windows":
+                checkoutAssetsLFS("Windows", "https://gitlab.cts.luxoft.com/autotest_assets/rpr_maya_autotests.git", "master", "C:\\TestResources\\MayaAssets")
+                break;
+            default:
+                checkoutAssetsLFS(osName, "https://gitlab.cts.luxoft.com/autotest_assets/rpr_maya_autotests.git", "master", "${CIS_TOOLS}/../TestResources//MayaAssets")
+        }
         try {
             Boolean newPluginInstalled = false
             timeout(time: "15", unit: 'MINUTES') {

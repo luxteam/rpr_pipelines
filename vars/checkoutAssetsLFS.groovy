@@ -7,13 +7,11 @@ def call(String osName, String repository, String branchName, String destination
                 bat """
                 IF NOT EXIST .git (
                     echo "clear current dir"
-                    del *
+                    del /f /q *
                     FOR /D %%p IN (".") DO rmdir "%%p" /s /q
                     echo "clone"
                     git clone -v -j 4 --branch ${branchName} ${repository} .
-
-                )
-                ELSE (
+                ) ELSE (
                     echo "git repo clean"
                     git clean -fdx
                     git reset --hard HEAD

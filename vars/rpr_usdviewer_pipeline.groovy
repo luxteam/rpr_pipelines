@@ -7,6 +7,7 @@ def executeTests(String osName, String asicName, Map options)
 def executeBuildWindows(Map options)
 {
     bat "del *.log"
+    // WORKSPACE redefined for cmake compatibility
     withEnv(["PATH=c:\\python366\\;c:\\python366\\scripts\\;${PATH}", "WORKSPACE=${env.WORKSPACE.toString().replace('\\', '/')}"]) {
         outputEnvironmentInfo("Windows", "${STAGE_NAME}.initEnv")
 
@@ -18,17 +19,24 @@ def executeBuildWindows(Map options)
             cmake ${options['cmakeKeysVulkanWrapper']} -G "Visual Studio 15 2017 Win64" .. >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1
             cmake --build . --config Release >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1"""
         }
+
+        // TODO: remove unused code
+        // SDK's moved to submodules, save code for easies debug if need
 //        dir("RadeonImageFilter") {
 //            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonImageFilter.git")
 //        }
 //        dir("RadeonProRenderSDK") {
 //            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderSDK.git")
 //        }
+
         dir("RPRViewer") {
             checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
 
+            // add path to manually built python libraries
+            // discussed with dev - there is no way to implement on their side
             powershell """(Get-Content USDPixar/build_scripts/build_usd.py) -replace '-DCMAKE_PREFIX_PATH="{depsInstDir}" ', '-DCMAKE_PREFIX_PATH="{depsInstDir};C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/PySide2-5.14.2.3;C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/Shiboken2-5.14.2.3" ' | Out-File -encoding ASCII USDPixar/build_scripts/build_usd.py"""
 
+            // vcvars64.bat sets VS/msbuild env
             bat """
             call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" >> ..\\${STAGE_NAME}.USD.log 2>&1
             
@@ -60,6 +68,8 @@ def executeBuildWindows(Map options)
             cmake --build . --config RelWithDebInfo --target INSTALL >> ..\\..\\..\\${STAGE_NAME}.HdRPRPlugin.log 2>&1 
             """
 
+            // TODO: filter files for archive
+            zip archive: true, dir: "RPRViewer/inst", glob: '', zipFile: "RadeonProUSDViewer_Windows.zip"
         }
     }
 }

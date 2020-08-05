@@ -414,10 +414,6 @@ def executeBuildOSX(Map options)
 
 def executeBuild(String osName, Map options)
 {
-    def buildSummary = createSummary(icon: "installer.png", text: "<h2>Build Artifacts</h2>")
-    buildSummary.appendText("<p>On each OS build finish download links will be added below</p>")
-    options.summary = buildSummary
-
     if (options.sendToUMS){
         universeClient.stage("Build-" + osName , "begin")
     }
@@ -462,6 +458,11 @@ def executePreBuild(Map options)
     options.branch_postfix = env.CHANGE_URL ?: options.projectBranch
     options.branch_postfix = options.branch_postfix.replaceAll("(master|develop|origin/)", "").replace("/", "-")
     options.branch_postfix = options.branch_postfix.take(20)
+
+    // Create div block on build page
+    def buildSummary = createSummary(icon: "installer.png", text: "<h2>Build Artifacts</h2>")
+    buildSummary.appendText("<p>On each OS build finish download links will be added below</p>")
+    options.summary = buildSummary
 
     // manual job with prebuilt plugin
     if (options.isPreBuilt) {
@@ -725,7 +726,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 }
                 finally
                 {
-                    archiveArtifacts "launcher.engine.log", allowEmptyArchive: true
+                    archiveArtifacts artifacts: "launcher.engine.log", allowEmptyArchive: true
                 }
             }
             try

@@ -355,7 +355,7 @@ def executeBuildWindows(Map options)
 
         archiveArtifacts "RadeonProRender*.msi"
         String BUILD_NAME = options.branch_postfix ? "RadeonProRenderMaya_${options.pluginVersion}.(${options.branch_postfix}).msi" : "RadeonProRenderMaya_${options.pluginVersion}.msi"
-        rtp nullAction: '1', parserName: 'HTML', stableText: """<h3><a href="${BUILD_URL}/artifact/${BUILD_NAME}">[BUILD: ${BUILD_ID}] ${BUILD_NAME}</a></h3>"""
+        options.summary.appendText("""<h3><a href="${BUILD_URL}/artifact/${BUILD_NAME}">[BUILD: ${BUILD_ID}] ${BUILD_NAME}</a></h3>""")
 
         bat """
             rename RadeonProRender*.msi RadeonProRenderMaya.msi
@@ -399,7 +399,7 @@ def executeBuildOSX(Map options)
 
             archiveArtifacts "RadeonProRender*.dmg"
             String BUILD_NAME = options.branch_postfix ? "RadeonProRenderMaya_${options.pluginVersion}.(${options.branch_postfix}).dmg" : "RadeonProRenderMaya_${options.pluginVersion}.dmg"
-            rtp nullAction: '1', parserName: 'HTML', stableText: """<h3><a href="${BUILD_URL}/artifact/${BUILD_NAME}">[BUILD: ${BUILD_ID}] ${BUILD_NAME}</a></h3>"""
+            options.summary.appendText("""<h3><a href="${BUILD_URL}/artifact/${BUILD_NAME}">[BUILD: ${BUILD_ID}] ${BUILD_NAME}</a></h3>""")
 
             sh "cp RadeonProRender*.dmg RadeonProRenderMaya.dmg"
             stash includes: 'RadeonProRenderMaya.dmg', name: "appOSX"
@@ -414,28 +414,17 @@ def executeBuildOSX(Map options)
 
 def executeBuild(String osName, Map options)
 {
+    def buildSummary = createSummary(icon: "installer.png", text: "<h2>Build Artifacts</h2>")
+    buildSummary.appendText("<p>On each OS build finish download links will be added below</p>")
+    options.summary = buildSummary
+
     if (options.sendToUMS){
         universeClient.stage("Build-" + osName , "begin")
     }
 
     try {
-        dir('RadeonProRenderMayaPlugin')
-        {
+        dir('RadeonProRenderMayaPlugin') {
             checkOutBranchOrScm(options.projectBranch, options.projectRepo)
-        }
-
-        options.branch_postfix = ""
-        if(env.BRANCH_NAME && env.BRANCH_NAME == "master")
-        {
-            options.branch_postfix = "release"
-        }
-        else if(env.BRANCH_NAME && env.BRANCH_NAME != "master" && env.BRANCH_NAME != "develop")
-        {
-            options.branch_postfix = env.BRANCH_NAME.replace('/', '-')
-        }
-        else if(options.projectBranch && options.projectBranch != "master" && options.projectBranch != "develop")
-        {
-            options.branch_postfix = options.projectBranch.replace('/', '-')
         }
 
         outputEnvironmentInfo(osName)
@@ -465,6 +454,15 @@ def executeBuild(String osName, Map options)
 
 def executePreBuild(Map options)
 {
+    // For artifacts naming in build stage
+    // try to set all custom names, if it's default - string will be cleared
+    // take max 20 symbols if long string
+    options.branch_postfix = options.projectBranch
+    options.branch_postfix = env.BUILD_NAME ?: options.projectBranch
+    options.branch_postfix = env.CHANGE_URL ?: options.projectBranch
+    options.branch_postfix = options.branch_postfix.replaceAll("(master|develop|origin/)", "").replace("/", "-")
+    options.branch_postfix = options.branch_postfix.take(20)
+
     // manual job with prebuilt plugin
     if (options.isPreBuilt) {
         println "[INFO] Build was detected as prebuilt. Build stage will be skipped"
@@ -556,11 +554,11 @@ def executePreBuild(Map options)
                 }
             }
 
-            currentBuild.description += "<b>Version:</b> ${options.pluginVersion}<br/>"
+            addHtmlBadge("<img src='/static/8361d0d6/images/16x16/attribute.png'/> v${options.pluginVersion}")
+
             currentBuild.description += "<b>Commit author:</b> ${options.commitAuthor}<br/>"
             currentBuild.description += "<b>Commit message:</b> ${options.commitMessage}<br/>"
             currentBuild.description += "<b>Commit SHA:</b> ${options.commitSHA}<br/>"
-
         }
     }
 
@@ -572,10 +570,6 @@ def executePreBuild(Map options)
         properties([[$class: 'BuildDiscarderProperty', strategy:
                          [$class: 'LogRotator', artifactDaysToKeepStr: '',
                           artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '3']]]);
-    } else if (env.JOB_NAME == "RadeonProRenderMayaPlugin-WeeklyFull") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
     } else {
         properties([[$class: 'BuildDiscarderProperty', strategy:
                          [$class: 'LogRotator', artifactDaysToKeepStr: '',
@@ -673,7 +667,6 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 }
             }
 
-            
             try {
                 String executionType
                 if (options.testsPackage.endsWith('.json')) {
@@ -695,12 +688,11 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
 
             String branchName = env.BRANCH_NAME ?: options.projectBranch
-
-            try
-            {
-                withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"])
+            dir("jobs_launcher") {
+                try
                 {
-                    dir("jobs_launcher") {
+                    withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"])
+                    {
                         def retryInfo = JsonOutput.toJson(options.nodeRetry)
                         if (options['isPreBuilt'])
                         {
@@ -715,39 +707,27 @@ def executeDeploy(Map options, List platformList, List testResultList)
                             """
                         }
                     }
+                } catch(e) {
+                    println("ERROR during report building")
+                    println(e.toString())
+                    println(e.getMessage())
                 }
-            } catch(e) {
-                println("ERROR during report building")
-                println(e.toString())
-                println(e.getMessage())
-            }
 
-            try
-            {
-                dir("jobs_launcher") {
+                try
+                {
                     bat "get_status.bat ..\\summaryTestResults"
                 }
-            }
-            catch(e)
-            {
-                println("ERROR during slack status generation")
-                println(e.toString())
-                println(e.getMessage())
-            }
-
-            try
-            {
-                dir("jobs_launcher") {
-                    archiveArtifacts "launcher.engine.log"
+                catch(e)
+                {
+                    println("ERROR during slack status generation")
+                    println(e.toString())
+                    println(e.getMessage())
+                }
+                finally
+                {
+                    archiveArtifacts "launcher.engine.log", allowEmptyArchive: true
                 }
             }
-            catch(e)
-            {
-                println("ERROR during archiving launcher.engine.log")
-                println(e.toString())
-                println(e.getMessage())
-            }
-
             try
             {
                 def summaryReport = readJSON file: 'summaryTestResults/summary_status.json'
@@ -779,7 +759,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
             }
 
             publishHTML([allowMissing: false,
-                         alwaysLinkToLastBuild: false,
+                         alwaysLinkToLastBuild: true,
                          keepAll: true,
                          reportDir: 'summaryTestResults',
                          reportFiles: 'summary_report.html, performance_report.html, compare_report.html',

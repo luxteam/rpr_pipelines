@@ -33,7 +33,8 @@ def call(String labels, def stageTimeout, def retringFunction, Boolean reuseLast
                     try {
                         retringFunction(nodesList)
                         successCurrentNode = true
-                    } catch(Exception e) {
+                    }
+                    catch(Exception e) {
                         String exceptionClassName = e.getClass().toString()
 
                         if (exceptionClassName.contains("FlowInterruptedException")) {
@@ -53,6 +54,7 @@ def call(String labels, def stageTimeout, def retringFunction, Boolean reuseLast
                             }
                         }
 
+                        options.FAILED_STAGES.add(e.toString())
                         println "[ERROR] Failed during tests on ${env.NODE_NAME} node"
                         println "Exception: ${e.toString()}"
                         println "Exception message: ${e.getMessage()}"

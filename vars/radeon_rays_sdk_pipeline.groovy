@@ -127,17 +127,17 @@ def executeDeploy(Map options, List platformList, List testResultList)
 {
 }
 
-def call(String projectBranch = "", String projectURL = 'git@github.com:GPUOpen-LibrariesAndSDKs/RadeonRays_SDK.git',
+def call(String projectBranch = "",
+         String projectURL = 'git@github.com:GPUOpen-LibrariesAndSDKs/RadeonRays_SDK.git',
          String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;OSX:AMD_RXVEGA;Ubuntu18',
          String PRJ_NAME="RadeonRays_SDK",
          Boolean enableNotifications = true) {
-
     
     String PRJ_ROOT="rpr-core"
     
-    properties([[$class: 'BuildDiscarderProperty', strategy: 
-                 [$class: 'LogRotator', artifactDaysToKeepStr: '', 
-                  artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
+    properties([[$class: 'BuildDiscarderProperty', strategy:
+            [$class: 'LogRotator', artifactDaysToKeepStr: '',
+             artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]])
     
     multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, null, 
                            [projectBranch:projectBranch,

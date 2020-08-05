@@ -1,9 +1,5 @@
 import java.text.SimpleDateFormat;
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
-import hudson.plugins.git.GitException;
-import java.nio.channels.ClosedChannelException;
-import hudson.remoting.RequestAbortedException;
-import java.lang.IllegalArgumentException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 
@@ -124,26 +120,21 @@ def executePlatform(String osName, String gpuNames, def executeBuild, def execut
 
 def call(String platforms, def executePreBuild, def executeBuild, def executeTests, def executeDeploy, Map options) {
     try {
-
         // if it's PR - supersede all previously launched executions
         if(env.CHANGE_ID) {
             //set logRotation for PRs
             properties([[$class: 'BuildDiscarderProperty', strategy:
-                [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '5']]]);
+                [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '3']]]);
 
             def buildNumber = env.BUILD_NUMBER as int
             if (buildNumber > 1) milestone(buildNumber - 1)
             milestone(buildNumber)
-
         }
 
         def date = new Date()
         dateFormatter = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss")
         options.JOB_STARTED_TIME = dateFormatter.format(date)
 
-        /*properties([[$class: 'BuildDiscarderProperty', strategy:
-                     [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                      artifactNumToKeepStr: '10', daysToKeepStr: '', numToKeepStr: '']]]);*/
         timestamps
         {
             String PRJ_PATH="${options.PRJ_ROOT}/${options.PRJ_NAME}"

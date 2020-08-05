@@ -394,7 +394,7 @@ def executePreBuild(Map options)
     } else {
         properties([[$class: 'BuildDiscarderProperty', strategy:
                          [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '50']]]);
+                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '25']]]);
     }
 
     def tests = []

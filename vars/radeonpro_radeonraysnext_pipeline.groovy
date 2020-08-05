@@ -137,11 +137,10 @@ def call(String projectBranch = "", String projectURL = 'git@github.com:Radeon-P
          String PRJ_NAME="RadeonRaysNext",
          Boolean enableNotifications = true) {
 
-    
     String PRJ_ROOT="rpr-core"
-    
-    properties([[$class: 'BuildDiscarderProperty', strategy: 
-                 [$class: 'LogRotator', artifactDaysToKeepStr: '', 
+
+    properties([[$class: 'BuildDiscarderProperty', strategy:
+                 [$class: 'LogRotator', artifactDaysToKeepStr: '',
                   artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
     
     multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, null, 

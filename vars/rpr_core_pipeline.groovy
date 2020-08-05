@@ -389,15 +389,15 @@ def executePreBuild(Map options)
     if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
         properties([[$class: 'BuildDiscarderProperty', strategy:
                          [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '30']]]);
+                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '25']]]);
     } else if (env.BRANCH_NAME && BRANCH_NAME != "master") {
         properties([[$class: 'BuildDiscarderProperty', strategy:
                          [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '5']]]);
+                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '3']]]);
     } else {
         properties([[$class: 'BuildDiscarderProperty', strategy:
                          [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '30']]]);
+                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
     }
 
 

@@ -7,7 +7,7 @@ def call(Map options) {
           "title_link": "${env.BUILD_URL}",
           "color": "#fc0356",
           "pretext": "${currentBuild.result}",
-          "text": "Failed in:  ${options.FAILED_STAGES.join("\n")}"
+          "text": "Failed in: ${options.FAILED_STAGES.join("\n")}"
           }]
         """;
         // TODO: foreach
@@ -16,9 +16,11 @@ def call(Map options) {
          */
 
         try {
-            if ((env.BRANCH_NAME && env.BRANCH_NAME == "master") || env.CHANGE_BRANCH || env.JOB_NAME.contains("Weekly")) {
+            if ((env.BRANCH_NAME && (env.BRANCH_NAME == "master" || env.BRANCH_NAME == "develop")) || env.JOB_NAME.contains("Weekly")) {
+                // notify about master & weekly failures
                 slackSend(attachments: debagSlackMessage, channel: 'cis_failed_master', baseUrl: env.debagUrl, tokenCredentialId: 'debug-channel-master')
-            } else {
+            } else if (env.BRANCH_NAME || env.CHANGE_BRANCH) {
+                // notify about auto jobs failures
                 slackSend (attachments: debagSlackMessage, channel: env.debagChannel, baseUrl: env.debagUrl, tokenCredentialId: 'debug-channel')
             }
         } catch (e) {

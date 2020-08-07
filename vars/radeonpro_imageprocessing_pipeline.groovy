@@ -259,7 +259,6 @@ def executePreBuild(Map options)
 
     if (env.CHANGE_URL) {
         echo "branch was detected as Pull Request"
-        options['isPR'] = true
     }
 
     if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {

@@ -102,43 +102,58 @@ def executeGenTestRefCommand(String osName, Map options)
 
 def executeTestCommand(String osName, String asicName, Map options)
 {
-    build_id = "none"
-    job_id = "none"
-    if (options.sendToUMS && universeClient.build != null){
-        build_id = universeClient.build["id"]
-        job_id = universeClient.build["job_id"]
-    }
-    withCredentials([usernamePassword(credentialsId: 'image_service', usernameVariable: 'IS_USER', passwordVariable: 'IS_PASSWORD'),
-        usernamePassword(credentialsId: 'universeMonitoringSystem', usernameVariable: 'UMS_USER', passwordVariable: 'UMS_PASSWORD')])
+    def test_timeout
+    if (options.testsPackage.endsWith('.json')) 
     {
-        withEnv(["UMS_USE=${options.sendToUMS}", "UMS_BUILD_ID=${build_id}", "UMS_JOB_ID=${job_id}",
-            "UMS_URL=${universeClient.url}", "UMS_ENV_LABEL=${osName}-${asicName}", "IS_URL=${universeClient.is_url}",
-            "UMS_LOGIN=${UMS_USER}", "UMS_PASSWORD=${UMS_PASSWORD}", "IS_LOGIN=${IS_USER}", "IS_PASSWORD=${IS_PASSWORD}"])
+        test_timeout = options.timeouts["${options.testsPackage}"]
+    } 
+    else
+    {
+        test_timeout = options.timeouts["${options.tests}"]
+    }
+
+    println "Set timeout to ${test_timeout}"
+
+    timeout(time: test_timeout, unit: 'MINUTES') { 
+
+        build_id = "none"
+        job_id = "none"
+        if (options.sendToUMS && universeClient.build != null){
+            build_id = universeClient.build["id"]
+            job_id = universeClient.build["job_id"]
+        }
+        withCredentials([usernamePassword(credentialsId: 'image_service', usernameVariable: 'IS_USER', passwordVariable: 'IS_PASSWORD'),
+            usernamePassword(credentialsId: 'universeMonitoringSystem', usernameVariable: 'UMS_USER', passwordVariable: 'UMS_PASSWORD')])
         {
-            switch(osName)
+            withEnv(["UMS_USE=${options.sendToUMS}", "UMS_BUILD_ID=${build_id}", "UMS_JOB_ID=${job_id}",
+                "UMS_URL=${universeClient.url}", "UMS_ENV_LABEL=${osName}-${asicName}", "IS_URL=${universeClient.is_url}",
+                "UMS_LOGIN=${UMS_USER}", "UMS_PASSWORD=${UMS_PASSWORD}", "IS_LOGIN=${IS_USER}", "IS_PASSWORD=${IS_PASSWORD}"])
             {
-            case 'Windows':
-                dir('scripts')
+                switch(osName)
                 {
-                    bat """
-                    run.bat ${options.testsPackage} \"${options.tests}\" >> ../${options.stageName}.log  2>&1
-                    """
-                }
-                break;
-
-            case 'OSX':
-                echo "OSX is not supported"
-                break;
-
-            default:
-                dir('scripts')
-                {
-                    withEnv(["LD_LIBRARY_PATH=../RprViewer/engines/hybrid:\$LD_LIBRARY_PATH"]) {
-                        sh """
-                        chmod +x ../RprViewer/RadeonProViewer
-                        chmod +x run.sh
-                        ./run.sh ${options.testsPackage} \"${options.tests}\" >> ../${options.stageName}.log  2>&1
+                case 'Windows':
+                    dir('scripts')
+                    {
+                        bat """
+                        run.bat ${options.testsPackage} \"${options.tests}\" >> ../${options.stageName}.log  2>&1
                         """
+                    }
+                    break;
+
+                case 'OSX':
+                    echo "OSX is not supported"
+                    break;
+
+                default:
+                    dir('scripts')
+                    {
+                        withEnv(["LD_LIBRARY_PATH=../RprViewer/engines/hybrid:\$LD_LIBRARY_PATH"]) {
+                            sh """
+                            chmod +x ../RprViewer/RadeonProViewer
+                            chmod +x run.sh
+                            ./run.sh ${options.testsPackage} \"${options.tests}\" >> ../${options.stageName}.log  2>&1
+                            """
+                        }
                     }
                 }
             }
@@ -371,41 +386,53 @@ def executePreBuild(Map options)
     println "Commit message: ${options.commitMessage}"
     println "Commit SHA: ${options.commitSHA}"
 
+    if (options.projectBranch){
+        currentBuild.description = "<b>Project branch:</b> ${options.projectBranch}<br/>"
+    } else {
+        currentBuild.description = "<b>Project branch:</b> ${env.BRANCH_NAME}<br/>"
+    }
+
+    currentBuild.description += "<b>Commit author:</b> ${options.commitAuthor}<br/>"
+    currentBuild.description += "<b>Commit message:</b> ${options.commitMessage}<br/>"
+    currentBuild.description += "<b>Commit SHA:</b> ${options.commitSHA}<br/>"
+
     if (env.CHANGE_URL) {
         echo "branch was detected as Pull Request"
-        options['isPR'] = true
         options.testsPackage = "PR"
-    }
-    else if(env.BRANCH_NAME && env.BRANCH_NAME == "master") {
+    } else if(env.BRANCH_NAME && env.BRANCH_NAME == "master") {
         options.testsPackage = "master"
-    }
-    else if(env.BRANCH_NAME) {
+    } else if(env.BRANCH_NAME) {
         options.testsPackage = "smoke"
     }
 
-    if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
+    if (env.BRANCH_NAME && (env.BRANCH_NAME == "master" || env.BRANCH_NAME == "develop")) {
         properties([[$class: 'BuildDiscarderProperty', strategy:
                          [$class: 'LogRotator', artifactDaysToKeepStr: '',
                           artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
-    } else if (env.BRANCH_NAME && BRANCH_NAME != "master") {
+    } else if (env.BRANCH_NAME && env.BRANCH_NAME != "master" && env.BRANCH_NAME != "develop") {
         properties([[$class: 'BuildDiscarderProperty', strategy:
                          [$class: 'LogRotator', artifactDaysToKeepStr: '',
                           artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '3']]]);
+    } else if (env.JOB_NAME == "RadeonProViewer-WeeklyFull") {
+        properties([[$class: 'BuildDiscarderProperty', strategy:
+                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
+                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
     } else {
         properties([[$class: 'BuildDiscarderProperty', strategy:
                          [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '25']]]);
+                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
     }
 
     def tests = []
+    options.timeouts = [:]
     options.groupsUMS = []
 
-    if(options.testsPackage != "none")
+    dir('jobs_test_rprviewer')
     {
-        dir('jobs_test_rprviewer')
+        checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_rprviewer.git')
+
+        if(options.testsPackage != "none")
         {
-            checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_rprviewer.git')
-            // json means custom test suite. Split doesn't supported
             if(options.testsPackage.endsWith('.json'))
             {
                 def testsByJson = readJSON file: "jobs/${options.testsPackage}"
@@ -413,28 +440,34 @@ def executePreBuild(Map options)
                     options.groupsUMS << "${it.key}"
                 }
                 options.splitTestsExecution = false
+                options.timeouts = ["regression.json": options.REGRESSION_TIMEOUT + options.ADDITIONAL_XML_TIMEOUT]
             }
             else
             {
                 String tempTests = readFile("jobs/${options.testsPackage}")
                 tempTests.split("\n").each {
                     // TODO: fix: duck tape - error with line ending
-                    tests << "${it.replaceAll("[^a-zA-Z0-9_]+","")}"
+                    def test_group = "${it.replaceAll("[^a-zA-Z0-9_]+","")}"
+                    tests << test_group
+                    def xml_timeout = utils.getTimeoutFromXML(this, "${test_group}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
+                    options.timeouts["${test_group}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
                 }
                 options.tests = tests
                 options.testsPackage = "none"
                 options.groupsUMS = tests
             }
         }
-    }
-    else
-    {
-        options.tests.split(" ").each()
+        else
         {
-            tests << "${it}"
+            options.tests.split(" ").each()
+            {
+                tests << "${it}"
+                def xml_timeout = utils.getTimeoutFromXML(this, "${it}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
+                options.timeouts["${it}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
+            }
+            options.tests = tests
+            options.groupsUMS = tests
         }
-        options.tests = tests
-        options.groupsUMS = tests
     }
 
     if(options.splitTestsExecution)
@@ -447,6 +480,8 @@ def executePreBuild(Map options)
         options.tests = tests.join(" ")
     }
 
+    println "timeouts: ${options.timeouts}"
+
     if (options.sendToUMS)
     {
         try
@@ -454,9 +489,6 @@ def executePreBuild(Map options)
             // Universe : auth because now we in node
             // If use httpRequest in master slave will catch 408 error
             universeClient.tokenSetup()
-
-            println("Test groups:")
-            println(options.groupsUMS)
 
             // create build ([OS-1:GPU-1, ... OS-N:GPU-N], ['Suite1', 'Suite2', ..., 'SuiteN'])
             universeClient.createBuild(options.universePlatforms, options.groupsUMS)
@@ -657,7 +689,9 @@ def call(String projectBranch = "",
                             splitTestsExecution:splitTestsExecution,
                             DEPLOY_FOLDER:"RprViewer",
                             testsPackage:testsPackage,
-                            TEST_TIMEOUT:40,
+                            TEST_TIMEOUT:45,
+                            ADDITIONAL_XML_TIMEOUT:15,
+                            REGRESSION_TIMEOUT:45,
                             DEPLOY_TIMEOUT:45,
                             tests:tests,
                             nodeRetry: nodeRetry,

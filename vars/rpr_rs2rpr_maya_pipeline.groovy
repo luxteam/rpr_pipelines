@@ -226,7 +226,6 @@ def executePreBuild(Map options)
     } else {
         if (env.CHANGE_URL) {
             println "[INFO] Branch was detected as Pull Request"
-            options.isPR = true
             options.executeTests = true
             options.testsPackage = "Master"
         } else if (env.BRANCH_NAME == "master" || env.BRANCH_NAME == "develop") {

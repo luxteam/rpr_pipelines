@@ -96,24 +96,39 @@ def executeGenTestRefCommand(String osName, Map options)
 
 def executeTestCommand(String osName, String asicName, Map options)
 {
-    build_id = "none"
-    job_id = "none"
-    if (options.sendToUMS && universeClient.build != null){
-        build_id = universeClient.build["id"]
-        job_id = universeClient.build["job_id"]
-    }
-    withCredentials([usernamePassword(credentialsId: 'image_service', usernameVariable: 'IS_USER', passwordVariable: 'IS_PASSWORD'),
-        usernamePassword(credentialsId: 'universeMonitoringSystem', usernameVariable: 'UMS_USER', passwordVariable: 'UMS_PASSWORD')])
+    def test_timeout
+    if (options.testsPackage.endsWith('.json')) 
     {
-        withEnv(["UMS_USE=${options.sendToUMS}", "UMS_BUILD_ID=${build_id}", "UMS_JOB_ID=${job_id}",
-            "UMS_URL=${universeClient.url}", "UMS_ENV_LABEL=${osName}-${asicName}", "IS_URL=${universeClient.is_url}",
-            "UMS_LOGIN=${UMS_USER}", "UMS_PASSWORD=${UMS_PASSWORD}", "IS_LOGIN=${IS_USER}", "IS_PASSWORD=${IS_PASSWORD}"])
+        test_timeout = options.timeouts["${options.testsPackage}"]
+    } 
+    else
+    {
+        test_timeout = options.timeouts["${options.tests}"]
+    }
+
+    println "Set timeout to ${test_timeout}"
+
+    timeout(time: test_timeout, unit: 'MINUTES') { 
+
+        build_id = "none"
+        job_id = "none"
+        if (options.sendToUMS && universeClient.build != null){
+            build_id = universeClient.build["id"]
+            job_id = universeClient.build["job_id"]
+        }
+        withCredentials([usernamePassword(credentialsId: 'image_service', usernameVariable: 'IS_USER', passwordVariable: 'IS_PASSWORD'),
+            usernamePassword(credentialsId: 'universeMonitoringSystem', usernameVariable: 'UMS_USER', passwordVariable: 'UMS_PASSWORD')])
         {
-            dir('scripts')
+            withEnv(["UMS_USE=${options.sendToUMS}", "UMS_BUILD_ID=${build_id}", "UMS_JOB_ID=${job_id}",
+                "UMS_URL=${universeClient.url}", "UMS_ENV_LABEL=${osName}-${asicName}", "IS_URL=${universeClient.is_url}",
+                "UMS_LOGIN=${UMS_USER}", "UMS_PASSWORD=${UMS_PASSWORD}", "IS_LOGIN=${IS_USER}", "IS_PASSWORD=${IS_PASSWORD}"])
             {
-                bat"""
-                run.bat ${options.renderDevice} ${options.testsPackage} \"${options.tests}\" ${options.toolVersion} ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} >> ../${options.stageName}.log  2>&1
-                """
+                dir('scripts')
+                {
+                    bat"""
+                    run.bat ${options.renderDevice} ${options.testsPackage} \"${options.tests}\" ${options.toolVersion} ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} >> ../${options.stageName}.log  2>&1
+                    """
+                }
             }
         }
     }
@@ -291,20 +306,6 @@ def executeBuild(String osName, Map options)
             checkOutBranchOrScm(options.projectBranch, options.projectRepo)
         }
 
-        options.branch_postfix = ""
-        if(env.BRANCH_NAME && env.BRANCH_NAME == "master")
-        {
-            options.branch_postfix = "release"
-        }
-        else if(env.BRANCH_NAME && env.BRANCH_NAME != "master" && env.BRANCH_NAME != "develop")
-        {
-            options.branch_postfix = env.BRANCH_NAME.replace('/', '-')
-        }
-        else if(options.projectBranch && options.projectBranch != "master" && options.projectBranch != "develop")
-        {
-            options.branch_postfix = options.projectBranch.replace('/', '-')
-        }
-
         outputEnvironmentInfo(osName)
 
         switch(osName)
@@ -359,6 +360,21 @@ def executePreBuild(Map options)
             println "[INFO] ${env.BRANCH_NAME} branch was detected"
             options['testsPackage'] = "regression.json"
         }
+    }
+
+    // branch postfix
+    options["branch_postfix"] = ""
+    if(env.BRANCH_NAME && env.BRANCH_NAME == "master")
+    {
+        options["branch_postfix"] = "release"
+    }
+    else if(env.BRANCH_NAME && env.BRANCH_NAME != "master" && env.BRANCH_NAME != "develop")
+    {
+        options["branch_postfix"] = env.BRANCH_NAME.replace('/', '-')
+    }
+    else if(options.projectBranch && options.projectBranch != "master" && options.projectBranch != "develop")
+    {
+        options["branch_postfix"] = options.projectBranch.replace('/', '-')
     }
 
     if (!options['isPreBuilt']) {
@@ -449,14 +465,15 @@ def executePreBuild(Map options)
     }
 
     def tests = []
+    options.timeouts = [:]
     options.groupsUMS = []
 
-    if(options.testsPackage != "none")
+    dir('jobs_test_max')
     {
-        dir('jobs_test_max')
+        checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_max.git')
+
+        if(options.testsPackage != "none")
         {
-            checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_max.git')
-            // json means custom test suite. Split doesn't supported
             if(options.testsPackage.endsWith('.json'))
             {
                 def testsByJson = readJSON file: "jobs/${options.testsPackage}"
@@ -464,30 +481,37 @@ def executePreBuild(Map options)
                     options.groupsUMS << "${it.key}"
                 }
                 options.splitTestsExecution = false
+                options.timeouts = ["regression.json": options.REGRESSION_TIMEOUT + options.ADDITIONAL_XML_TIMEOUT]
             }
-            else {
+            else 
+            {
                 String tempTests = readFile("jobs/${options.testsPackage}")
                 tempTests.split("\n").each {
                     // TODO: fix: duck tape - error with line ending
-                    tests << "${it.replaceAll("[^a-zA-Z0-9_]+","")}"
+                    def test_group = "${it.replaceAll("[^a-zA-Z0-9_]+","")}"
+                    tests << test_group
+                    def xml_timeout = utils.getTimeoutFromXML(this, "${test_group}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
+                    options.timeouts["${test_group}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
                 }
                 options.tests = tests
                 options.testsPackage = "none"
                 options.groupsUMS = tests
             }
         }
-    }
-    else
-    {
-        options.tests.split(" ").each()
+        else
         {
-            tests << "${it}"
+            options.tests.split(" ").each()
+            {
+                tests << "${it}"
+                def xml_timeout = utils.getTimeoutFromXML(this, "${it}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
+                options.timeouts["${it}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
+            }
+            options.tests = tests
+            options.groupsUMS = tests
         }
-        options.tests = tests
-        options.groupsUMS = tests
     }
 
-    println(options.groupsUMS)
+    println "timeouts: ${options.timeouts}"
 
     if(options.splitTestsExecution) {
         options.testsList = options.tests
@@ -793,6 +817,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                                 sendToUMS: sendToUMS,
                                 gpusCount:gpusCount,
                                 TEST_TIMEOUT:180,
+                                ADDITIONAL_XML_TIMEOUT:15,
+                                REGRESSION_TIMEOUT:60,
                                 TESTER_TAG:tester_tag,
                                 universePlatforms: universePlatforms,
                                 resX: resX,

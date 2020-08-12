@@ -1,6 +1,3 @@
-import groovy.json.JsonOutput
-
-
 def executeTests(String osName, String asicName, Map options)
 {}
 
@@ -20,39 +17,30 @@ def executeBuildWindows(Map options)
             cmake --build . --config Release >> ..\\..\\${STAGE_NAME}.VulkanWrapper.log 2>&1"""
         }
 
-        // TODO: remove unused code
-        // SDK's moved to submodules, save code for easies debug if need
-//        dir("RadeonImageFilter") {
-//            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonImageFilter.git")
-//        }
-//        dir("RadeonProRenderSDK") {
-//            checkOutBranchOrScm("master", "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderSDK.git")
-//        }
-
         dir("RPRViewer") {
             checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
 
             // add path to manually built python libraries
             // discussed with dev - there is no way to implement on their side
-            powershell """(Get-Content USDPixar/build_scripts/build_usd.py) -replace '-DCMAKE_PREFIX_PATH="{depsInstDir}" ', '-DCMAKE_PREFIX_PATH="{depsInstDir};C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/PySide2-5.14.2.3;C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/Shiboken2-5.14.2.3" ' | Out-File -encoding ASCII USDPixar/build_scripts/build_usd.py"""
+            powershell """(Get-Content USDPixar/build_scripts/build_usd.py) 
+            -replace '-DCMAKE_PREFIX_PATH="{depsInstDir}" ',
+            '-DCMAKE_PREFIX_PATH="{depsInstDir};C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/PySide2-5.14.2.3;C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/Shiboken2-5.14.2.3" '
+            | Out-File -encoding ASCII USDPixar/build_scripts/build_usd.py"""
 
             // vcvars64.bat sets VS/msbuild env
-            bat """
-            call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" >> ..\\${STAGE_NAME}.USD.log 2>&1
+            // git apply is required by devs
+            bat """call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" >> ..\\${STAGE_NAME}.USD.log 2>&1
             
             pushd USDPixar
             git apply ..\\usd_dev.patch >> ..\\..\\${STAGE_NAME}.USD.log 2>&1
             popd
             
             python USDPixar/build_scripts/build_usd.py --build RPRViewer/build --src RPRViewer/deps RPRViewer/inst ^
-            --build-args "USD,-DRPR_LOCATION=${WORKSPACE}/RPRViewer/HdRPRPlugin/deps/RPR/RadeonProRender -DVID_WRAPPERS_DIR=${WORKSPACE}/RadeonProVulkanWrapper -DSHIBOKEN_BINARY=C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/bin/shiboken2.exe" >> ..\\${STAGE_NAME}.USD.log 2>&1
+            --build-args "USD,-DRPR_LOCATION=${WORKSPACE}/RPRViewer/HdRPRPlugin/deps/RPR/RadeonProRender -DVID_WRAPPERS_DIR=${WORKSPACE}/RadeonProVulkanWrapper ^
+            -DSHIBOKEN_BINARY=C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/bin/shiboken2.exe" >> ..\\${STAGE_NAME}.USD.log 2>&1
             
             set PATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\bin;${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib;%PATH%
             set PYTHONPATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib\\python;%PYTHONPATH%
-            
-            pushd RPRViewer\\build\\USDPixar
-            cmake --build . --config RelWithDebInfo --target INSTALL >> ..\\..\\..\\..\\${STAGE_NAME}.USDPixar.log 2>&1 
-            popd
     
             pushd HdRPRPlugin
             mkdir build
@@ -67,7 +55,6 @@ def executeBuildWindows(Map options)
 
             cmake --build . --config RelWithDebInfo --target INSTALL >> ..\\..\\..\\${STAGE_NAME}.HdRPRPlugin.log 2>&1 
             """
-
             // TODO: filter files for archive
             zip archive: true, dir: "RPRViewer/inst", glob: '', zipFile: "RadeonProUSDViewer_Windows.zip"
         }
@@ -76,9 +63,6 @@ def executeBuildWindows(Map options)
 
 def executeBuild(String osName, Map options)
 {
-    //TODO: remove full WS resetting
-    cleanWS()
-
     try {
         switch (osName) {
             case 'Windows':
@@ -138,7 +122,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 {}
 
 def call(String projectBranch = "",
-        // FIXME: to master branch
+         // FIXME: to master branch
          String vulkanWrappersBranch = "db51573e1b65ff5f343f691bc95f7bc5400ef94d",
          String testsBranch = "master",
          String platforms = 'Windows',
@@ -161,7 +145,7 @@ def call(String projectBranch = "",
              projectRepo:projectRepo,
              BUILDER_TAG:'RPRUSDVIEWER',
              executeBuild:true,
-             executeTests:true,
+             executeTests:false,
              BUILD_TIMEOUT:90,
              DEPLOY_TIMEOUT:45,
              cmakeKeysVulkanWrapper:"-DCMAKE_BUILD_TYPE=Release -DVW_ENABLE_RRNEXT=OFF",

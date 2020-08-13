@@ -22,10 +22,7 @@ def executeBuildWindows(Map options)
 
             // add path to manually built python libraries
             // discussed with dev - there is no way to implement on their side
-            powershell """(Get-Content USDPixar/build_scripts/build_usd.py) 
-            -replace '-DCMAKE_PREFIX_PATH="{depsInstDir}" ',
-            '-DCMAKE_PREFIX_PATH="{depsInstDir};C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/PySide2-5.14.2.3;C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/Shiboken2-5.14.2.3" '
-            | Out-File -encoding ASCII USDPixar/build_scripts/build_usd.py"""
+            powershell """(Get-Content USDPixar/build_scripts/build_usd.py) -replace '-DCMAKE_PREFIX_PATH="{depsInstDir}" ', '-DCMAKE_PREFIX_PATH="{depsInstDir};C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/PySide2-5.14.2.3;C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/lib/cmake/Shiboken2-5.14.2.3" ' | Out-File -encoding ASCII USDPixar/build_scripts/build_usd.py"""
 
             // vcvars64.bat sets VS/msbuild env
             // git apply is required by devs

@@ -43,7 +43,7 @@ def executeBuildWindows(Map options)
             pushd build
             
             cmake -G "Visual Studio 15 2017 Win64" -DUSD_ROOT=${WORKSPACE}/deps/RPRViewer/inst ^
-            -Dpxr_DIR=${WORKSPACE}/deps/RPRViewer/USDPixar ^
+            -Dpxr_DIR=${WORKSPACE}/RPRViewer/USDPixar ^
             -DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE ^
             -DCMAKE_INSTALL_PREFIX=${WORKSPACE}/deps/RPRViewer/inst ^
             -DPXR_USE_PYTHON_3=ON ^

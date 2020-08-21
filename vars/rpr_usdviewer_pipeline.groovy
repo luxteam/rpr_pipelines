@@ -32,20 +32,20 @@ def executeBuildWindows(Map options)
             git apply ..\\usd_dev.patch >> ..\\..\\${STAGE_NAME}.USD.log 2>&1
             popd
             
-            python USDPixar/build_scripts/build_usd.py --build RPRViewer/build --src RPRViewer/deps RPRViewer/inst ^
+            python USDPixar/build_scripts/build_usd.py --build ../deps/RPRViewer/build --src ../deps/RPRViewer/deps ../deps/RPRViewer/inst ^
             --build-args "USD,-DRPR_LOCATION=${WORKSPACE}/RPRViewer/HdRPRPlugin/deps/RPR/RadeonProRender -DVID_WRAPPERS_DIR=${WORKSPACE}/RadeonProVulkanWrapper -DSHIBOKEN_BINARY=C:/JN/pyside-setup/pyside-setup/testenv3_install/py3.6-qt5.14.2-64bit-release/bin/shiboken2.exe" >> ..\\${STAGE_NAME}.USD.log 2>&1
             
-            set PATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\bin;${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib;%PATH%
-            set PYTHONPATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib\\python;%PYTHONPATH%
+            set PATH=${WORKSPACE}\\deps\\RPRViewer\\inst\\bin;${WORKSPACE}\\deps\\RPRViewer\\inst\\lib;%PATH%
+            set PYTHONPATH=${WORKSPACE}\\deps\\RPRViewer\\inst\\lib\\python;%PYTHONPATH%
     
             pushd HdRPRPlugin
             mkdir build
             pushd build
             
-            cmake -G "Visual Studio 15 2017 Win64" -DUSD_ROOT=${WORKSPACE}/RPRViewer/RPRViewer/inst ^
-            -Dpxr_DIR=${WORKSPACE}/RPRViewer/USDPixar ^
+            cmake -G "Visual Studio 15 2017 Win64" -DUSD_ROOT=${WORKSPACE}/deps/RPRViewer/inst ^
+            -Dpxr_DIR=${WORKSPACE}/deps/RPRViewer/USDPixar ^
             -DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE ^
-            -DCMAKE_INSTALL_PREFIX=${WORKSPACE}/RPRViewer/RPRViewer/inst ^
+            -DCMAKE_INSTALL_PREFIX=${WORKSPACE}/deps/RPRViewer/inst ^
             -DPXR_USE_PYTHON_3=ON ^
             .. >> ..\\..\\..\\${STAGE_NAME}.HdRPRPlugin.log 2>&1
 

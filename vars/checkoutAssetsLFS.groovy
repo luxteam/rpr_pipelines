@@ -4,12 +4,10 @@ def call(String osName, String repository, String branchName, String destination
             case "Windows":
                 bat """
                 cd ${destinationPath}
-                git config --global credential.username ${GIT_USER}
-                git config --global credential.helper "!echo password=${GIT_PASS}; echo"
                 IF NOT EXIST .git (
                     echo "clear current dir"
-                    del /f /q *
-                    FOR /D %%p IN (".") DO rmdir "%%p" /s /q
+                    del /f /q /s *
+                    rmdir /q /s .
                     echo "clone"
                     git clone -v -j 4 --branch ${branchName} ${repository} .
                 ) ELSE (
@@ -25,8 +23,6 @@ def call(String osName, String repository, String branchName, String destination
             default:
                 sh """
                 cd ${destinationPath}
-                git config --global credential.username ${GIT_USER}
-                git config --global credential.helper "!echo password=${GIT_PASS}; echo"
                 if [ ! -d ".git" ]
                 then
                     echo "clear current dir"

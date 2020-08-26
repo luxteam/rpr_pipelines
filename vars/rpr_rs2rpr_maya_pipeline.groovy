@@ -156,22 +156,16 @@ def executeTests(String osName, String asicName, Map options)
             sendFiles('./Work/Baseline/', REF_PATH_PROFILE)
         }
         else
-        {	
-            try
-            {
+        {
+            try {
+                String middle_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_rs_autotests_baselines" : "/mnt/c/TestResources/rpr_rs_autotests_baselines"
+                println "[INFO] Downloading reference images for ${options.tests}"
                 options.tests.split(" ").each() {
-                    receiveFiles("${REF_PATH_PROFILE}/${it}", './Work/Baseline/')
+                    receiveFiles("${REF_PATH_PROFILE}/${it}", middle_dir)
+                    receiveFiles("${REF_PATH_PROFILE_OR}/${it}", middle_dir)
                 }
             } catch (e) {
-                println("[WARNING] Baseline doesn't exist.")
-            }
-            try
-            {
-                options.tests.split(" ").each() {
-                    receiveFiles("${REF_PATH_PROFILE_OR}/${it}", './Work/Baseline/')
-                }
-            } catch (e) {
-                println("[WARNING] Baseline doesn't exist.")
+                println("[WARNING] Problem when copying baselines. " + e.getMessage())
             }
             executeTestCommand(osName, options)
         }

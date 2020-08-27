@@ -3,6 +3,7 @@ def call(String osName, String repository, String branchName, String destination
         switch (osName) {
             case "Windows":
                 bat """
+                cmdkey /generic:git:https://${GIT_USER}@gitlab.cts.luxoft.com /user:${GIT_USER} /pass:${GIT_PASS}
                 cd ${destinationPath}
                 IF NOT EXIST .git (
                     echo "clear current dir"

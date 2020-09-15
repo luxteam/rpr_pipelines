@@ -8,10 +8,13 @@ def call(String type, String main_branch){
                   } catch(Exception ex) {
                     println("Catching the exception");
                   }
-                dir("../") {
+                dir("../../") {
                     sh "sudo rm -rf universe/"        
                 }
-                checkOutBranchOrScm(main_branch, 'https://gitlab.cts.luxoft.com/dm1tryG/universe.git', false, false, true, 'radeonprorender-gitlab', false)
+
+                dir("../") {
+                    checkOutBranchOrScm(main_branch, 'https://gitlab.cts.luxoft.com/dm1tryG/universe.git', false, false, true, 'radeonprorender-gitlab', false)
+                }
             }
             stage('Build') {
                 sh "sudo docker-compose build"

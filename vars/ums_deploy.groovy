@@ -1,10 +1,10 @@
 def call(String type, String main_branch){
     node('UMS') {
-        dir("${type}/universe") {
+        dir("${type}/universe/${type}") {
             stage('preBuild') {
                 try {
-                    sh "sudo docker-compose -f docker-compose.${type}.yml stop"
-                    sh "sudo docker-compose -f docker-compose.${type}.yml rm --force"
+                    sh "sudo docker-compose stop"
+                    sh "sudo docker-compose rm --force"
                   } catch(Exception ex) {
                     println("Catching the exception");
                   }
@@ -14,10 +14,10 @@ def call(String type, String main_branch){
                 checkOutBranchOrScm(main_branch, 'https://gitlab.cts.luxoft.com/dm1tryG/universe.git', false, false, true, 'radeonprorender-gitlab', false)
             }
             stage('Build') {
-                sh "sudo docker-compose -f docker-compose.${type}.yml build"
+                sh "sudo docker-compose build"
             }
             stage('Up') {
-                sh "sudo docker-compose -f docker-compose.${type}.yml up -d"
+                sh "sudo docker-compose up -d"
             }
         }
     }

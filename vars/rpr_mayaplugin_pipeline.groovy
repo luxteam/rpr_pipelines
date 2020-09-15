@@ -762,7 +762,7 @@ def executePreBuild(Map options)
         try
         {
             universeClient.tokenSetup()
-            universeClient.createBuild(options.universePlatforms, options.groupsUMS)
+            universeClient.createBuild(options.universePlatforms, options.groupsUMS, options.updateRefs)
         }
         catch (e)
         {

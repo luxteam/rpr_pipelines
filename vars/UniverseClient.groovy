@@ -25,13 +25,24 @@ class UniverseClient {
      * @param product Name of product (example: "RPR_Maya")
      */
     UniverseClient(context, url, env, is_url, product) {
-        this.url = url;
+        def urlMap = [
+            "Production": "https://umsapi.cis.luxoft.com",
+            "Development": "https://umsapidev.cis.luxoft.com",
+            "TestingDEVRC": "http://stvcis-server-u20-001.spb.luxoft.com:5001",
+            "TestingDEV2": "http://stvcis-server-u20-001.spb.luxoft.com:5002",
+            "TestingDEV3": "http://stvcis-server-u20-001.spb.luxoft.com:5003"
+        ]
+
+        this.url = urlMap.get(url);
         this.context = context;
         this.env = env;
         this.is_url = is_url;
         this.product = product;
     }
 
+
+    def setURL(url):
+        this.url = url
     /**
      * function retry wrapper for request function (required to return response)
      *

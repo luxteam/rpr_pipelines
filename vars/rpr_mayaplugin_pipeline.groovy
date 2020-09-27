@@ -6,7 +6,7 @@ import net.sf.json.JSONSerializer
 import net.sf.json.JsonConfig
 import TestsExecutionType
 
-@Field UniverseClient universeClient = new UniverseClient(this, "http://stvcis-server-u20-001.spb.luxoft.com:5004", env, "https://imgs.cis.luxoft.com/", "AMD%20Radeon™%20ProRender%20for%20Maya")
+@Field UniverseClient universeClient = new UniverseClient(this, None, env, "https://imgs.cis.luxoft.com/", "AMD%20Radeon™%20ProRender%20for%20Maya")
 @Field ProblemMessageManager problemMessageManager = new ProblemMessageManager(this, currentBuild)
 
 
@@ -1122,7 +1122,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
         String enginesNames = "Tahoe",
         String tester_tag = 'Maya',
         String mergeablePR = "",
-        String parallelExecutionTypeString = "TakeAllNodes")
+        String parallelExecutionTypeString = "TakeAllNodes"),
+        String UMSInstance = "Prodcution"
 {
     resX = (resX == 'Default') ? '0' : resX
     resY = (resY == 'Default') ? '0' : resY
@@ -1197,6 +1198,9 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                 }
             }
 
+            // Set ums instance node
+            universeClient.setURL(UMSInstance);
+
             def universePlatforms = convertPlatforms(platforms);
 
             def parallelExecutionType = TestsExecutionType.valueOf(parallelExecutionTypeString)
@@ -1207,6 +1211,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
             println "Split tests execution: ${splitTestsExecution}"
             println "Tests execution type: ${parallelExecutionType}"
             println "UMS platforms: ${universePlatforms}"
+            println "UMS instance:" ${universeClient.url}
 
             String prRepoName = ""
             String prBranchName = ""
@@ -1264,7 +1269,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
             throw e
         }
 
-        multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy, options)
+        // multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy, options)
     } 
     catch(e) 
     {

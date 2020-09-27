@@ -41,8 +41,10 @@ class UniverseClient {
     }
 
 
-    def setURL(url):
+    def setURL(url) {
         this.url = url
+    }
+ 
     /**
      * function retry wrapper for request function (required to return response)
      *

@@ -6,7 +6,7 @@ import net.sf.json.JSONSerializer
 import net.sf.json.JsonConfig
 import TestsExecutionType
 
-@Field UniverseClient universeClient = new UniverseClient(this, None, env, "https://imgs.cis.luxoft.com/", "AMD%20Radeon™%20ProRender%20for%20Maya")
+@Field UniverseClient universeClient = new UniverseClient(this, 'none', env, "https://imgs.cis.luxoft.com/", "AMD%20Radeon™%20ProRender%20for%20Maya")
 @Field ProblemMessageManager problemMessageManager = new ProblemMessageManager(this, currentBuild)
 
 

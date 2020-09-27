@@ -915,12 +915,15 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
 
             def parallelExecutionType = TestsExecutionType.valueOf(parallelExecutionTypeString)
 
+            universeClient.setURL(umsInstance);
+
             println "Platforms: ${platforms}"
             println "Tests: ${tests}"
             println "Tests package: ${testsPackage}"
             println "Split tests execution: ${splitTestsExecution}"
             println "Tests execution type: ${parallelExecutionType}"
             println "UMS platforms: ${universePlatforms}"
+            println "UMS instance: ${universeClient.url}"
 
             String prRepoName = ""
             String prBranchName = ""

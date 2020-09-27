@@ -1200,7 +1200,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
             }
 
             // Set ums instance node
-            universeClient.setURL(UMSInstance);
+            universeClient.setURL(umsInstance);
 
             def universePlatforms = convertPlatforms(platforms);
 

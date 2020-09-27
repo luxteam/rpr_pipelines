@@ -1216,6 +1216,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
     String toolVersion = "2.83",
     String mergeablePR = "",
     String parallelExecutionTypeString = "TakeAllNodes",
+    Integer testCaseRetries = 2,
     String umsInstance = "Production")
 {
     resX = (resX == 'Default') ? '0' : resX

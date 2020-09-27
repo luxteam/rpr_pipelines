@@ -1211,7 +1211,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
             println "Split tests execution: ${splitTestsExecution}"
             println "Tests execution type: ${parallelExecutionType}"
             println "UMS platforms: ${universePlatforms}"
-            println "UMS instance:" ${universeClient.url}
+            println "UMS instance: ${universeClient.url}"
 
             String prRepoName = ""
             String prBranchName = ""

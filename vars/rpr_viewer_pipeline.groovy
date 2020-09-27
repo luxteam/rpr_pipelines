@@ -803,6 +803,7 @@ def call(String projectBranch = "",
          Boolean sendToUMS = true,
          String tester_tag = 'RprViewer',
          String parallelExecutionTypeString = "TakeAllNodes",
+         Integer testCaseRetries = 2,
          String umsInstance = "Production"
          )
 {

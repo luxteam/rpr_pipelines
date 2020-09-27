@@ -7,7 +7,7 @@ import net.sf.json.JSONSerializer
 import net.sf.json.JsonConfig
 import TestsExecutionType
 
-@Field UniverseClient universeClient = new UniverseClient(this, "https://umsapi.cis.luxoft.com", env, "https://imgs.cis.luxoft.com", "AMD%20Radeon™%20ProRender%20for%20Blender")
+@Field UniverseClient universeClient = new UniverseClient(this, "none", env, "https://imgs.cis.luxoft.com", "AMD%20Radeon™%20ProRender%20for%20Blender")
 @Field ProblemMessageManager problemMessageManager = new ProblemMessageManager(this, currentBuild)
 
 
@@ -1215,7 +1215,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
     String tester_tag = "Blender2.8",
     String toolVersion = "2.83",
     String mergeablePR = "",
-    String parallelExecutionTypeString = "TakeAllNodes")
+    String parallelExecutionTypeString = "TakeAllNodes",
+    String umsInstance = "Production")
 {
     resX = (resX == 'Default') ? '0' : resX
     resY = (resY == 'Default') ? '0' : resY
@@ -1298,6 +1299,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                 }
             }
 
+            universeClient.setURL(umsInstance);
 
             def universePlatforms = convertPlatforms(platforms);
 
@@ -1309,6 +1311,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
             println "Split tests execution: ${splitTestsExecution}"
             println "Tests execution type: ${parallelExecutionType}"
             println "UMS platforms: ${universePlatforms}"
+            println "UMS instance: ${universeClient.url}"
 
             String prRepoName = ""
             String prBranchName = ""

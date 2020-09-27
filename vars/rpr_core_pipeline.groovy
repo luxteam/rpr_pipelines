@@ -6,7 +6,7 @@ import net.sf.json.JSONSerializer
 import net.sf.json.JsonConfig
 import TestsExecutionType
 
-@Field UniverseClient universeClient = new UniverseClient(this, "https://umsapi.cis.luxoft.com", env, "https://imgs.cis.luxoft.com", "AMD%20Radeon™%20ProRender%20Core")
+@Field UniverseClient universeClient = new UniverseClient(this, "none", env, "https://imgs.cis.luxoft.com", "AMD%20Radeon™%20ProRender%20Core")
 @Field ProblemMessageManager problemMessageManager = new ProblemMessageManager(this, currentBuild)
 
 
@@ -725,7 +725,8 @@ def call(String projectBranch = "",
          Boolean sendToUMS = true,
          String tester_tag = 'Core',
          String mergeablePR = "",
-         String parallelExecutionTypeString = "TakeOneNodePerGPU")
+         String parallelExecutionTypeString = "TakeOneNodePerGPU"
+         String umsInstance = "Production")
 {
     
     def nodeRetry = []
@@ -752,6 +753,8 @@ def call(String projectBranch = "",
                 }
             }
 
+            universeClient.setURL(umsInstance);
+
             def universePlatforms = convertPlatforms(platforms);
 
             def parallelExecutionType = TestsExecutionType.valueOf(parallelExecutionTypeString)
@@ -761,6 +764,7 @@ def call(String projectBranch = "",
             println "Tests package: ${testsPackage}"
             println "Tests execution type: ${parallelExecutionType}"
             println "UMS platforms: ${universePlatforms}"
+            println "UMS Instance: ${umsInstance}"
 
             String prRepoName = ""
             String prBranchName = ""

@@ -802,7 +802,9 @@ def call(String projectBranch = "",
          Boolean splitTestsExecution = true,
          Boolean sendToUMS = true,
          String tester_tag = 'RprViewer',
-         String parallelExecutionTypeString = "TakeAllNodes")
+         String parallelExecutionTypeString = "TakeAllNodes",
+         String umsInstance = "Production"
+         )
 {
     def nodeRetry = []
     Map options = [:]
@@ -815,6 +817,8 @@ def call(String projectBranch = "",
             String PRJ_NAME='RadeonProViewer'
             String projectRepo='git@github.com:Radeon-Pro/RadeonProViewer.git'
 
+            universeClient.setURL(umsInstance);
+
             def universePlatforms = convertPlatforms(platforms);
 
             def parallelExecutionType = TestsExecutionType.valueOf(parallelExecutionTypeString)
@@ -824,6 +828,8 @@ def call(String projectBranch = "",
             println "Tests package: ${testsPackage}"
             println "Tests execution type: ${parallelExecutionType}"
             println "UMS platforms: ${universePlatforms}"
+            println "UMS instance: ${universeClient.url}"
+
 
             options << [projectBranch:projectBranch,
                         testsBranch:testsBranch,

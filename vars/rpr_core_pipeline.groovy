@@ -725,7 +725,7 @@ def call(String projectBranch = "",
          Boolean sendToUMS = true,
          String tester_tag = 'Core',
          String mergeablePR = "",
-         String parallelExecutionTypeString = "TakeOneNodePerGPU"
+         String parallelExecutionTypeString = "TakeOneNodePerGPU",
          String umsInstance = "Production")
 {
     

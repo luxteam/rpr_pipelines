@@ -1,6 +1,35 @@
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 
+def killProcesses(String osName) {
+    try {
+        if (osName == "Windows") {
+            bat '''
+                taskkill /f /im "blender.exe"
+                taskkill /f /im "maya.exe"
+                taskkill /f /im "3dsmax.exe"
+            '''
+        } else if (osName == "Darwin") {
+            sh '''
+                kilall "Blender"
+                kilall "Maya"
+                kilall "Maya"
+            '''
+        } else {
+            sh '''
+                kilall "Blender"
+            '''
+        }
+    } catch (FlowInterruptedException e2) {
+        throw e2
+    } catch (Exception e2) {
+        // ignore errors if processes don't exist
+    } 
+}
+
 def call(String osName = "Windows") {
+
+    killProcesses(osName)
+
     try {
         println("[INFO] Try to clean WS via cleanWs command")
         cleanWs(deleteDirs: true, disableDeferredWipeout: true)
@@ -8,22 +37,6 @@ def call(String osName = "Windows") {
     } catch (FlowInterruptedException e1) {
         throw e1
     } catch (Exception e1) {
-
-        println("[ERROR] WS cleaning via cleanWs command failed. Try to kill processes and restart.")
-        // kill blender, maya and max processes on Windows for prevent locks
-        try {
-            if (osName == "Windows") {
-                bat '''
-                    taskkill /f /im "blender.exe"
-                    taskkill /f /im "maya.exe"
-                    taskkill /f /im "3dsmax.exe"
-                '''
-            }
-        } catch (FlowInterruptedException e2) {
-            throw e2
-        } catch (Exception e2) {
-            // ignore errors if processes don't exist
-        } 
 
         try {
             println("[INFO] Try to clean WS via cleanWs command again.")

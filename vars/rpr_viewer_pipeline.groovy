@@ -98,14 +98,17 @@ def executeGenTestRefCommand(String osName, Map options, Boolean delete)
 
 def executeTestCommand(String osName, String asicName, Map options)
 {
-    def test_timeout
-    if (options.testsPackage.endsWith('.json')) 
-    {
-        test_timeout = options.timeouts["${options.testsPackage}"]
-    } 
-    else
-    {
-        test_timeout = options.timeouts["${options.tests}"]
+    def test_timeout = options.timeouts["${options.tests}"]
+    String testsNames = options.tests
+    String testsPackageName = options.testsPackage
+    if (options.testsPackage != "none" && !options.isPackageSplitted) {
+        if (options.testsPackage.split(":")[0] == options.tests) {
+            // if tests package isn't splitted and it's execution of this package - replace test group for non-splitted package by empty string
+            testsNames = ""
+        } else {
+            // if tests package isn't splitted and it isn't execution of this package - replace tests package by empty string
+            testsPackageName = ""
+        }
     }
 
     println "Set timeout to ${test_timeout}"
@@ -134,7 +137,7 @@ def executeTestCommand(String osName, String asicName, Map options)
                     {
                         bat """
                         set CIS_RENDER_DEVICE=%CIS_RENDER_DEVICE%${driverPostfix}
-                        run.bat ${options.testsPackage} \"${options.tests}\" >> ../${options.stageName}.log  2>&1
+                        run.bat \"${testsPackageName}\" \"${testsNames}\" ${options.testCaseRetries} 1>> ../${options.stageName}.log  2>&1
                         """
                     }
                     break;
@@ -150,7 +153,7 @@ def executeTestCommand(String osName, String asicName, Map options)
                             sh """
                             chmod +x ../RprViewer/RadeonProViewer
                             chmod +x run.sh
-                            ./run.sh ${options.testsPackage} \"${options.tests}\" >> ../${options.stageName}.log  2>&1
+                            ./run.sh \"${testsPackageName}\" \"${testsNames}\" ${options.testCaseRetries} 1>> ../${options.stageName}.log  2>&1
                             """
                         }
                     }
@@ -209,7 +212,11 @@ def executeTests(String osName, String asicName, Map options)
                     String baseline_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_viewer_autotests_baselines" : "/mnt/c/TestResources/rpr_viewer_autotests_baselines"
                     println "[INFO] Downloading reference images for ${options.tests}"
                     options.tests.split(" ").each() {
-                        receiveFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
+                        if (it.endsWith(".json")) {
+                            receiveFiles("${REF_PATH_PROFILE}/", baseline_dir)
+                        } else {
+                            receiveFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
+                        }
                     }
                 } 
                 catch (e)
@@ -458,14 +465,14 @@ def executePreBuild(Map options)
 {
     if (env.CHANGE_URL) {
         echo "[INFO] Branch was detected as Pull Request"
-        options.testsPackage = "PR"
+        options.testsPackage = "PR.json"
         GithubNotificator githubNotificator = new GithubNotificator(this, pullRequest)
         options.githubNotificator = githubNotificator
         githubNotificator.initPR(options, "${BUILD_URL}")
     } else if(env.BRANCH_NAME && env.BRANCH_NAME == "master") {
-        options.testsPackage = "master"
+        options.testsPackage = "master.json"
     } else if(env.BRANCH_NAME) {
-        options.testsPackage = "smoke"
+        options.testsPackage = "smoke.json"
     }
 
     try {
@@ -525,44 +532,68 @@ def executePreBuild(Map options)
             options['testsBranch'] = bat (script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
             println "[INFO] Test branch hash: ${options['testsBranch']}"
 
-            if(options.testsPackage != "none")
+            def packageInfo
+
+            if(options.testsPackage != "none") 
             {
-                // json means custom test suite. Split doesn't supported
-                if(options.testsPackage.endsWith('.json'))
-                {
-                    def testsByJson = readJSON file: "jobs/${options.testsPackage}"
-                    testsByJson.each() {
-                        options.groupsUMS << "${it.key}"
-                    }
-                    options.splitTestsExecution = false
-                    options.timeouts = ["regression.json": options.REGRESSION_TIMEOUT + options.ADDITIONAL_XML_TIMEOUT]
-                }
-                else
-                {
-                    String tempTests = readFile("jobs/${options.testsPackage}")
-                    tempTests.split("\n").each {
-                        // TODO: fix: duck tape - error with line ending
-                        def test_group = "${it.replaceAll("[^a-zA-Z0-9_]+","")}"
-                        tests << test_group
-                        def xml_timeout = utils.getTimeoutFromXML(this, "${test_group}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
-                        options.timeouts["${test_group}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
-                    }
-                    options.tests = tests
+                packageInfo = readJSON file: "jobs/${options.testsPackage}"
+                options.isPackageSplitted = packageInfo["split"]
+                // if it's build of manual job and package can be splitted - use list of tests which was specified in params (user can change list of tests before run build)
+                if (options.forceBuild && options.isPackageSplitted && options.tests) {
                     options.testsPackage = "none"
-                    options.groupsUMS = tests
                 }
             }
-            else
+
+            if(options.testsPackage != "none")
             {
-                options.tests.split(" ").each()
-                {
-                    tests << "${it}"
+                if (options.isPackageSplitted) {
+                    println("[INFO] Tests package '${options.testsPackage}' can be splitted")
+                } else {
+                    // save tests which user wants to run with non-splitted tests package
+                    if (options.tests) {
+                        tests = options.tests.split(" ") as List
+                        options.groupsUMS = tests.clone()
+                    }
+                    println("[INFO] Tests package '${options.testsPackage}' can't be splitted")
+                }
+
+                // modify name of tests package if tests package is non-splitted (it will be use for run package few time with different engines)
+                String modifiedPackageName = "${options.testsPackage}:"
+                packageInfo["groups"].each() {
+                    if (options.isPackageSplitted) {
+                        tests << it.key
+                        options.groupsUMS << it.key
+                    } else {
+                        if (!tests.contains(it.key)) {
+                            options.groupsUMS << it.key
+                        } else {
+                            // add duplicated group name in name of package group name for exclude it
+                            modifiedPackageName = "${modifiedPackageName};${it.key}"
+                        }
+                    }
+                }
+                tests.each() {
                     def xml_timeout = utils.getTimeoutFromXML(this, "${it}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
                     options.timeouts["${it}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
                 }
-                options.tests = tests
-                options.groupsUMS = tests
+                modifiedPackageName = modifiedPackageName.replace(':;', ':')
+
+                if (options.isPackageSplitted) {
+                    options.testsPackage = "none"
+                } else {
+                    tests << options.testsPackage
+                    options.timeouts[options.testsPackage] = options.NON_SPLITTED_PACKAGE_TIMEOUT + options.ADDITIONAL_XML_TIMEOUT
+                    options.testsPackage = modifiedPackageName
+                }
+            } else {
+                tests = options.tests.split(" ") as List
+                tests.each() {
+                    options.groupsUMS << it
+                    def xml_timeout = utils.getTimeoutFromXML(this, "${it}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
+                    options.timeouts["${it}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
+                }
             }
+            options.tests = tests
         }
     } catch (e) {
         String errorMessage = "Failed to configurate tests."
@@ -571,15 +602,7 @@ def executePreBuild(Map options)
         throw e
     }
 
-    if(options.splitTestsExecution)
-    {
-        options.testsList = options.tests
-    }
-    else
-    {
-        options.testsList = ['']
-        options.tests = tests.join(" ")
-    }
+    options.testsList = options.tests
 
     println "timeouts: ${options.timeouts}"
 
@@ -644,18 +667,9 @@ def executeDeploy(Map options, List platformList, List testResultList)
             }
 
             try {
-                String executionType
-                if (options.testsPackage.endsWith('.json')) {
-                    executionType = 'regression'
-                } else if (options.splitTestsExecution) {
-                    executionType = 'split_execution'
-                } else {
-                    executionType = 'default'
-                }
-
                 dir("jobs_launcher") {
                     bat """
-                    count_lost_tests.bat \"${lostStashes}\" .. ..\\summaryTestResults ${executionType} \"${options.tests}\"
+                    count_lost_tests.bat \"${lostStashes}\" .. ..\\summaryTestResults \"${options.splitTestsExecution}\" \"${options.testsPackage}\" \"${options.tests}\"
                     """
                 }
             } catch (e) {
@@ -804,8 +818,7 @@ def call(String projectBranch = "",
          String tester_tag = 'RprViewer',
          String parallelExecutionTypeString = "TakeAllNodes",
          Integer testCaseRetries = 2,
-         String umsInstance = "Production"
-         )
+         String umsInstance = "Production")
 {
     def nodeRetry = []
     Map options = [:]
@@ -848,7 +861,7 @@ def call(String projectBranch = "",
                         testsPackage:testsPackage,
                         TEST_TIMEOUT:45,
                         ADDITIONAL_XML_TIMEOUT:15,
-                        REGRESSION_TIMEOUT:45,
+                        NON_SPLITTED_PACKAGE_TIMEOUT:45,
                         DEPLOY_TIMEOUT:45,
                         tests:tests,
                         nodeRetry: nodeRetry,
@@ -856,7 +869,8 @@ def call(String projectBranch = "",
                         universePlatforms: universePlatforms,
                         problemMessageManager: problemMessageManager,
                         platforms:platforms,
-                        parallelExecutionType:parallelExecutionType
+                        parallelExecutionType:parallelExecutionType,
+                        testCaseRetries:testCaseRetries
                         ]
         } 
         catch(e)

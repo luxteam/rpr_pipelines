@@ -161,14 +161,17 @@ def buildRenderCache(String osName, String toolVersion, String log_name)
 
 def executeTestCommand(String osName, String asicName, Map options)
 {
-    def test_timeout
-    if (options.testsPackage.endsWith('.json')) 
-    {
-        test_timeout = options.timeouts["${options.testsPackage}"]
-    } 
-    else
-    {
-        test_timeout = options.timeouts["${options.parsedTests}"]
+    def test_timeout = options.timeouts["${options.parsedTests}"]
+    String testsNames = options.parsedTests
+    String testsPackageName = options.testsPackage
+    if (options.testsPackage != "none" && !options.isPackageSplitted) {
+        if (options.testsPackage.split(":")[0] == options.tests) {
+            // if tests package isn't splitted and it's execution of this package - replace test group for non-splitted package by empty string
+            testsNames = ""
+        } else {
+            // if tests package isn't splitted and it isn't execution of this package - replace tests package by empty string
+            testsPackageName = ""
+        }
     }
 
     println "Set timeout to ${test_timeout}"
@@ -194,7 +197,7 @@ def executeTestCommand(String osName, String asicName, Map options)
                         dir('scripts')
                         {
                             bat """
-                                run.bat ${options.renderDevice} ${options.testsPackage} \"${options.parsedTests}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.toolVersion} ${options.engine} >> ../${options.stageName}.log  2>&1
+                                run.bat ${options.renderDevice} \"${testsPackageName}\" \"${testsNames}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.toolVersion} ${options.engine} ${options.testCaseRetries} 1>> ../${options.stageName}.log  2>&1
                             """
                         }
                         break;
@@ -202,7 +205,7 @@ def executeTestCommand(String osName, String asicName, Map options)
                         dir('scripts')
                         {
                             sh """
-                                ./run.sh ${options.renderDevice} ${options.testsPackage} \"${options.parsedTests}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.toolVersion} ${options.engine} >> ../${options.stageName}.log 2>&1
+                                ./run.sh ${options.renderDevice} \"${testsPackageName}\" \"${testsNames}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.toolVersion} ${options.engine} ${options.testCaseRetries} 1>> ../${options.stageName}.log 2>&1
                             """
                         }
                         break;
@@ -341,7 +344,11 @@ def executeTests(String osName, String asicName, Map options)
                     GithubNotificator.updateStatus("Test", options['stageName'], "pending", env, options, "Downloading reference images.", "${BUILD_URL}")
                     println "[INFO] Downloading reference images for ${options.parsedTests}"
                     options.parsedTests.split(" ").each() {
-                        receiveFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
+                        if (it.endsWith(".json")) {
+                            receiveFiles("${REF_PATH_PROFILE}/", baseline_dir)
+                        } else {
+                            receiveFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
+                        }
                     }
                 } catch (e) {
                     println("[WARNING] Problem when copying baselines. " + e.getMessage())
@@ -728,42 +735,45 @@ def executePreBuild(Map options)
             options['testsBranch'] = bat (script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
             println "[INFO] Test branch hash: ${options['testsBranch']}"
 
-            if(options.testsPackage != "none")
+            def packageInfo
+
+            if(options.testsPackage != "none") 
             {
-                // json means custom test suite. Split doesn't supported
-                if(options.testsPackage.endsWith('.json'))
-                {
-                    def testsByJson = readJSON file: "jobs/${options.testsPackage}"
-                    testsByJson.each() {
-                        options.groupsUMS << "${it.key}"
-                    }
-                    options.splitTestsExecution = false
-                    options.timeouts = ["regression.json": options.REGRESSION_TIMEOUT + options.ADDITIONAL_XML_TIMEOUT]
-                }
-                else {
-                    String tempTests = readFile("jobs/${options.testsPackage}")
-                    tempTests.split("\n").each {
-                        // TODO: fix: duck tape - error with line ending
-                        def test_group = "${it.replaceAll("[^a-zA-Z0-9_]+","")}"
-                        // if there are more than one engines - generate set of tests for each engine
-                        if (options.engines.count(",") > 0) {
-                            options.engines.split(",").each { engine ->
-                                tests << "${test_group}-${engine}"
-                            }
-                        } else {
-                            tests << "${test_group}"
-                        }
-                        def xml_timeout = utils.getTimeoutFromXML(this, "${test_group}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
-                        options.timeouts["${test_group}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
-                    }
-                    options.tests = tests
+                packageInfo = readJSON file: "jobs/${options.testsPackage}"
+                options.isPackageSplitted = packageInfo["split"]
+                // if it's build of manual job and package can be splitted - use list of tests which was specified in params (user can change list of tests before run build)
+                if (options.forceBuild && options.isPackageSplitted && options.tests) {
                     options.testsPackage = "none"
-                    options.groupsUMS = tests
                 }
             }
-            else 
+
+            if(options.testsPackage != "none")
             {
-                options.tests.split(" ").each() 
+                def tempTests = []
+
+                if (options.isPackageSplitted) {
+                    println("[INFO] Tests package '${options.testsPackage}' can be splitted")
+                } else {
+                    // save tests which user wants to run with non-splitted tests package
+                    if (options.tests) {
+                        tempTests = options.tests.split(" ") as List
+                    }
+                    println("[INFO] Tests package '${options.testsPackage}' can't be splitted")
+                }
+
+                // modify name of tests package if tests package is non-splitted (it will be use for run package few time with different engines)
+                String modifiedPackageName = "${options.testsPackage}:"
+                packageInfo["groups"].each() {
+                    if (options.isPackageSplitted) {
+                        tempTests << it.key
+                    } else {
+                        if (tempTests.contains(it.key)) {
+                            // add duplicated group name in name of package group name for exclude it
+                            modifiedPackageName = "${modifiedPackageName};${it.key}"
+                        }
+                    }
+                }
+                tempTests.each()
                 {
                     // if there are more than one engines - generate set of tests for each engine
                     if (options.engines.count(",") > 0) {
@@ -776,9 +786,36 @@ def executePreBuild(Map options)
                     def xml_timeout = utils.getTimeoutFromXML(this, "${it}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
                     options.timeouts["${it}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
                 }
-                options.tests = tests
+                options.groupsUMS = tests
+
+                modifiedPackageName = modifiedPackageName.replace(':;', ':')
+
+                if (options.isPackageSplitted) {
+                    options.testsPackage = "none"
+                } else {
+                    tests << options.testsPackage
+                    options.timeouts[options.testsPackage] = options.NON_SPLITTED_PACKAGE_TIMEOUT + options.ADDITIONAL_XML_TIMEOUT
+                    options.testsPackage = modifiedPackageName
+                }
+            }
+            else 
+            {
+                options.tests.split(" ").each()
+                {
+                    // if there are more than one engines - generate set of tests for each engine
+                    if (options.engines.count(",") > 0) {
+                        options.engines.split(",").each { engine ->
+                            tests << "${it}-${engine}"
+                        }
+                    } else {
+                        tests << "${it}"
+                    }
+                    def xml_timeout = utils.getTimeoutFromXML(this, "${it}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
+                    options.timeouts["${it}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
+                }
                 options.groupsUMS = tests
             }
+            options.tests = tests
         }
     } catch (e) {
         String errorMessage = "Failed to configurate tests."
@@ -787,13 +824,7 @@ def executePreBuild(Map options)
         throw e
     }
 
-    if(options.splitTestsExecution) {
-        options.testsList = options.tests
-    }
-    else {
-        options.tests = tests.join(" ")
-        options.testsList = ['']
-    }
+    options.testsList = options.tests
 
     println "timeouts: ${options.timeouts}"
 
@@ -877,15 +908,6 @@ def executeDeploy(Map options, List platformList, List testResultList)
             }
             
             try {
-                String executionType
-                if (options.testsPackage.endsWith('.json')) {
-                    executionType = 'regression'
-                } else if (options.splitTestsExecution) {
-                    executionType = 'split_execution'
-                } else {
-                    executionType = 'default'
-                }
-
                 dir("jobs_launcher") {
                     // delete engine name from names of test groups
                     def tests = []
@@ -899,16 +921,14 @@ def executeDeploy(Map options, List platformList, List testResultList)
                         tests = options.tests
                     }
                     options.engines.split(",").each {
-                        // \\\\ - prevent escape sequence '\N'
                         bat """
-                        count_lost_tests.bat \"${lostStashes[it]}\" .. ..\\summaryTestResults\\\\${it} ${executionType} \"${tests}\"
+                        count_lost_tests.bat \"${lostStashes[it]}\" .. ..\\summaryTestResults\\${it} \"${options.splitTestsExecution}\" \"${options.testsPackage}\" \"${options.tests}\"
                         """
                     }
                 }
             } catch (e) {
                 println("[ERROR] Can't generate number of lost tests")
             }
-
 
             String branchName = env.BRANCH_NAME ?: options.projectBranch
 
@@ -1222,6 +1242,9 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                 prBranchName = prInfo[1]
             }
 
+            Integer deployTimeout = 150 * enginesNames.split(',').length
+            println "Calculated deploy timeout: ${deployTimeout}"
+
             options << [projectRepo:projectRepo,
                         projectBranch:projectBranch,
                         testsBranch:testsBranch,
@@ -1244,8 +1267,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                         gpusCount:gpusCount,
                         TEST_TIMEOUT:120,
                         ADDITIONAL_XML_TIMEOUT:30,
-                        REGRESSION_TIMEOUT:120,
-                        DEPLOY_TIMEOUT:120,
+                        NON_SPLITTED_PACKAGE_TIMEOUT:120,
+                        DEPLOY_TIMEOUT:deployTimeout,
                         TESTER_TAG:tester_tag,
                         universePlatforms: universePlatforms,
                         resX: resX,
@@ -1262,7 +1285,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                         platforms:platforms,
                         prRepoName:prRepoName,
                         prBranchName:prBranchName,
-                        parallelExecutionType:parallelExecutionType
+                        parallelExecutionType:parallelExecutionType,
+                        testCaseRetries:testCaseRetries
                         ]
         } catch (e) {
             problemMessageManager.saveGeneralFailReason("Failed initialization.", "Init")

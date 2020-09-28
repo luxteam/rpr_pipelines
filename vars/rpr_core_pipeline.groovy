@@ -475,11 +475,11 @@ def executePreBuild(Map options)
                 println "[INFO] Test branch hash: ${options['testsBranch']}"
 
                 // json means custom test suite. Split doesn't supported
-                String tempTests = readFile("jobs/${options.testsPackage}")
-                tempTests.split("\n").each {
+                def tempTests = readJSON file: "jobs/${options.testsPackage}"
+                tempTests["groups"].each() {
                     // TODO: fix: duck tape - error with line ending
-                tests << "${it.replaceAll("[^a-zA-Z0-9_]+","")}"
-            }
+                    tests << it.key
+                }
             options.tests = tests
             options.testsPackage = "none"
             options.groupsUMS = tests
@@ -577,7 +577,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
             try {
                 dir("jobs_launcher") {
                     bat """
-                    count_lost_tests.bat \"${lostStashes}\" .. ..\\summaryTestResults default \"${options.tests}\"
+                    count_lost_tests.bat \"${lostStashes}\" .. ..\\summaryTestResults \"${options.splitTestsExecution}\" \"${options.testsPackage}\" \"${options.tests}\"
                     """
                 }
             } catch (e) {
@@ -717,12 +717,12 @@ def call(String projectBranch = "",
          String updateRefs = 'No',
          Boolean enableNotifications = true,
          String renderDevice = "gpu",
-         String testsPackage = "Full",
+         String testsPackage = "Full.json",
          String tests = "",
          String width = "0",
          String height = "0",
          String iterations = "0",
-         Boolean sendToUMS = true,
+         Boolean sendToUMS = false,
          String tester_tag = 'Core',
          String mergeablePR = "",
          String parallelExecutionTypeString = "TakeOneNodePerGPU",

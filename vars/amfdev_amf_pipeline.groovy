@@ -72,7 +72,7 @@ def executeTestCommand(String osName, String build_name, Map options)
             dir('AMF')
             {
                 bat """
-                    autotests.exe >> ../${STAGE_NAME}.${build_name}.log 2>&1
+                    autotests.exe --gtest_filter=\"${options.testsFilter}\" >> ../${STAGE_NAME}.${build_name}.log 2>&1
                 """
             }
             break;
@@ -81,7 +81,7 @@ def executeTestCommand(String osName, String build_name, Map options)
             {
                 sh """
                     chmod u+x autotests
-                    ./autotests >> ../${STAGE_NAME}.${build_name}.log 2>&1
+                    ./autotests --gtest_filter=\"${options.testsFilter}\" >> ../${STAGE_NAME}.${build_name}.log 2>&1
                 """
             }
             break;
@@ -299,11 +299,11 @@ def executeBuildWindows(Map options) {
                             xcopy /s/y/i ${sourceCodeLocation}\\${win_build_conf.capitalize()}\\autotests.exe binWindows
                         """
 
-                        if (win_build_conf == 'shared') {
+                        if (win_lib_type == 'shared') {
                             bat """
                                 xcopy /s/y/i ${sourceCodeLocation}\\openAmf\\${win_build_conf}\\openAmfLoader.lib binWindows
                             """
-                        } else if (win_build_conf == 'static') {
+                        } else if (win_lib_type == 'static') {
                             bat """
                                 xcopy /s/y/i ${sourceCodeLocation}\\openAmf\\${win_build_conf}\\openAmf.lib binWindows
                             """
@@ -513,7 +513,7 @@ def executeBuildLinux(String osName, Map options) {
 def executeBuild(String osName, Map options) {
     try {
 
-        checkOutBranchOrScm(options['projectBranch'], 'git@github.com:luxteam/AMF.git')
+        checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
         
         switch(osName)
         {
@@ -573,7 +573,7 @@ def executePreBuild(Map options) {
             }
         }
 
-        checkOutBranchOrScm(options['projectBranch'], 'git@github.com:luxteam/AMF.git', true)
+        checkOutBranchOrScm(options['projectBranch'], options['projectRepo'], true)
 
         options.commitAuthor = bat (script: "git show -s --format=%%an HEAD ",returnStdout: true).split('\r\n')[2].trim()
         options.commitMessage = bat (script: "git log --format=%%B -n 1", returnStdout: true).split('\r\n')[2].trim()
@@ -618,15 +618,17 @@ def executeDeploy(Map options, List platformList, List testResultList) {
 
 
 def call(String projectBranch = "",
-    String platforms = 'Windows;OSX;Ubuntu18',
-    String buildConfiguration = "release",
+    String projectRepo = "git@github.com:amfdev/AMF.git",
+    String platforms = 'Windows:AMD_WX7100,AMD_WX9100,AMD_RXVEGA,AMD_RadeonVII,AMD_RX5700XT,NVIDIA_RTX2080TI;OSX:AMD_RXVEGA',
+    String buildConfiguration = "release,debug",
     String winVisualStudioVersion = "2017,2019",
     String winLibraryType = "shared,static",
-    String osxTool = "cmake",
+    String osxTool = "cmake,xcode",
     String osxLibraryType = "shared,static",
     String linuxLibraryType = "shared,static",
     Boolean incrementVersion = true,
-    Boolean forceBuild = false) {
+    Boolean forceBuild = false,
+    String testsFilter = "*") {
     try {
         String PRJ_NAME="AMF"
         String PRJ_ROOT="gpuopen"
@@ -663,6 +665,7 @@ def call(String projectBranch = "",
 
         multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy,
                                [projectBranch:projectBranch,
+                                projectRepo:projectRepo,
                                 incrementVersion:incrementVersion,
                                 forceBuild:forceBuild,
                                 PRJ_NAME:PRJ_NAME,
@@ -676,7 +679,8 @@ def call(String projectBranch = "",
                                 gpusCount:gpusCount,
                                 TEST_TIMEOUT:90,
                                 DEPLOY_TIMEOUT:150,
-                                BUILDER_TAG:"BuilderAMF"
+                                BUILDER_TAG:"BuilderAMF",
+                                testsFilter:testsFilter
                                 ])
     } catch(e) {
         currentBuild.result = "FAILED"

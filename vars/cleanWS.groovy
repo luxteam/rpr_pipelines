@@ -10,13 +10,13 @@ def killProcesses(String osName) {
             '''
         } else if (osName == "Darwin") {
             sh '''
-                kilall "Blender"
-                kilall "Maya"
-                kilall "Maya"
+                killall "Blender"
+                killall "Maya"
+                killall "Maya"
             '''
         } else {
             sh '''
-                kilall "Blender"
+                killall "Blender"
             '''
         }
     } catch (FlowInterruptedException e2) {

@@ -10,9 +10,12 @@ def killProcesses(String osName) {
             '''
         } else if (osName == "Darwin") {
             sh '''
+                killall "Maya"
+                killall "Maya"
+                
+            '''
+            sh '''
                 killall "Blender"
-                killall "Maya"
-                killall "Maya"
             '''
         } else {
             sh '''

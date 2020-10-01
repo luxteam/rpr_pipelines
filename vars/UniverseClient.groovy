@@ -37,9 +37,9 @@ class UniverseClient {
         def urlMap = [
             "Production": "https://umsapi.cis.luxoft.com",
             "Development": "https://umsapidev.cis.luxoft.com",
-            "TestingDEVRC": "http://stvcis-server-u20-001.spb.luxoft.com:5001",
-            "TestingDEV2": "http://stvcis-server-u20-001.spb.luxoft.com:5002",
-            "TestingDEV3": "http://stvcis-server-u20-001.spb.luxoft.com:5003"
+            "TestingDEVRC": "http://172.26.157.233:5001",
+            "TestingDEV2": "http://172.26.157.233:5002",
+            "TestingDEV3": "http://172.26.157.233:5003"
         ]
 
         this.url = urlMap[urlType]

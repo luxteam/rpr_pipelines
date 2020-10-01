@@ -1226,7 +1226,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
     String tests = "",
     Boolean forceBuild = false,
     Boolean splitTestsExecution = true,
-    Boolean sendToUMS = true,
+    Boolean sendToUMS = "Production",
     String resX = '0',
     String resY = '0',
     String SPU = '25',
@@ -1240,8 +1240,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
     String toolVersion = "2.83",
     String mergeablePR = "",
     String parallelExecutionTypeString = "TakeAllNodes",
-    Integer testCaseRetries = 2,
-    String umsInstance = "Production")
+    Integer testCaseRetries = 2)
 {
     resX = (resX == 'Default') ? '0' : resX
     resY = (resY == 'Default') ? '0' : resY
@@ -1324,7 +1323,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                 }
             }
 
-            universeClient.setURL(umsInstance);
+            universeClient.setURL(sendToUMS);
 
             def universePlatforms = convertPlatforms(platforms);
 
@@ -1336,7 +1335,6 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
             println "Split tests execution: ${splitTestsExecution}"
             println "Tests execution type: ${parallelExecutionType}"
             println "UMS platforms: ${universePlatforms}"
-            println "UMS instance: ${universeClient.url}"
 
             String prRepoName = ""
             String prBranchName = ""

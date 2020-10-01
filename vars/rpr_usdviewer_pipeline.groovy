@@ -9,32 +9,19 @@ def executeBuildWindows(Map options)
         // vcvars64.bat sets VS/msbuild env
         bat """
             call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" >> ${STAGE_NAME}.EnvVariables.log 2>&1
-        
 
-            :: VulkanWrappers
-
-            cd RPRViewer\\deps\\VidWrappers
-            cmake -G "Visual Studio 15 2017 Win64" -B build -DVW_ENABLE_RRNEXT=OFF >> ..\\..\\..\\${STAGE_NAME}.VulkanWrappers.log 2>&1
-            cmake --build build --target VidWrappers --config Release >> ..\\..\\..\\${STAGE_NAME}.VulkanWrappers.log 2>&1
-            cmake --build build --target SPVRemapper --config Release >> ..\\..\\..\\${STAGE_NAME}.VulkanWrappers.log 2>&1
-            cd ..\\..\\..
-
-            git apply usd_dev.patch  >> ${STAGE_NAME}.USDPixar.log 2>&1
-
-            :: PySide
-
-            cd RPRViewer\\deps\\PySide
-            python setup.py install --ignore-git --parallel=%NUMBER_OF_PROCESSORS% >> ..\\..\\..\\${STAGE_NAME}.USDPixar.log 2>&1
-            cd ..\\..\\..
+            cd USDPixar
+            git apply ../usd_dev.patch  >> ${STAGE_NAME}.USDPixar.log 2>&1
+            cd ..
 
             :: USD
 
-            python USDPixar\\build_scripts\\build_usd.py --build RPRViewer/build --src RPRViewer/deps RPRViewer/inst >> ${STAGE_NAME}.USDPixar.log 2>&1
+            python USDPixar\\build_scripts\\build_usd.py --build RPRViewer/binary/build --src RPRViewer/binary/deps RPRViewer/binary/inst >> ${STAGE_NAME}.USDPixar.log 2>&1
         
             :: HdRPRPlugin
 
             set PXR_DIR=%CD%\\USDPixar
-            set INSTALL_PREFIX_DIR=%CD%\\RPRViewer\\inst
+            set INSTALL_PREFIX_DIR=%CD%\\RPRViewer\\binary\\inst
 
             cd HdRPRPlugin
             cmake -B build -G "Visual Studio 15 2017 Win64" -Dpxr_DIR=%PXR_DIR% -DCMAKE_INSTALL_PREFIX=%INSTALL_PREFIX_DIR% ^
@@ -45,9 +32,23 @@ def executeBuildWindows(Map options)
         // for testing
         //set PATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\bin;${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib;%PATH%
         //set PYTHONPATH=${WORKSPACE}\\RPRViewer\\RPRViewer\\inst\\lib\\python;%PYTHONPATH%
+
+        // delete files before zipping
+        bat """
+            del RPRViewer\\binary\\inst\\pxrConfig.cmake
+            rmdir /Q /S RPRViewer\\binary\\inst\\cmake
+            rmdir /Q /S RPRViewer\\binary\\inst\\include
+            rmdir /Q /S RPRViewer\\binary\\inst\\lib\\cmake
+            rmdir /Q /S RPRViewer\\binary\\inst\\lib\\pkgconfig
+            del RPRViewer\\binary\\inst\\bin\\*.lib
+            del RPRViewer\\binary\\inst\\bin\\*.pdb
+            del RPRViewer\\binary\\inst\\lib\\*.lib
+            del RPRViewer\\binary\\inst\\lib\\*.pdb
+            del RPRViewer\\binary\\inst\\plugin\\usd\\*.lib
+        """
         
         // TODO: filter files for archive
-        zip archive: true, dir: "RPRViewer/inst", glob: '', zipFile: "RadeonProUSDViewer_Windows.zip"
+        zip archive: true, dir: "RPRViewer\\binary\\inst", glob: '', zipFile: "RadeonProUSDViewer_Windows.zip"
         
     }
 }

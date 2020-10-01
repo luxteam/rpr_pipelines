@@ -80,7 +80,7 @@ def call(String labels, def stageTimeout, def retringFunction, Boolean reuseLast
                         println "[INFO] GOT NEW COMMIT"
                         GithubNotificator.closeUnfinishedSteps(env, options, "Build was aborted by new commit.")
                         throw e
-                    } else if (causeClassName.contains("UserInterruption")) {
+                    } else if (causeClassName.contains("UserInterruption") || causeClassName.contains("ExceptionCause")) {
                         if (options.problemMessageManager) {
                             options.problemMessageManager.saveSpecificFailReason("Build was aborted by user.", stageName, osName) 
                         }
@@ -193,6 +193,7 @@ def call(String labels, def stageTimeout, def retringFunction, Boolean reuseLast
             tries++
             closedChannelRetries++
             options['nodeReallocateTries']++
+            println("[INFO] Additional retry failed")
         }
     }
 }

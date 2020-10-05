@@ -12,20 +12,20 @@ def call(
             } catch(Exception ex) {
                 println("Catching the exception");
             }
-        }
 
-        dir("../") {
-            sh "sudo rm -rf ${folder}/"        
-        }
+            dir("../") {
+                sh "sudo rm -rf ${folder}/"        
+            }
 
-        
-        checkOutBranchOrScm(branch, repoName, false, false, true, 'radeonprorender-gitlab', false)
+            
+            checkOutBranchOrScm(branch, repoName, false, false, true, 'radeonprorender-gitlab', false)
 
-        stage('Build') {
-            sh "sudo docker-compose -f docker-compose${type}.yml build"
-        }
-        stage('Up') {
-            sh "sudo docker-compose -f docker-compose${type}.yml up -d"
+            stage('Build') {
+                sh "sudo docker-compose -f docker-compose${type}.yml build"
+            }
+            stage('Up') {
+                sh "sudo docker-compose -f docker-compose${type}.yml up -d"
+            }
         }
     }
 }

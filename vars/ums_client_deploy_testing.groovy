@@ -6,6 +6,8 @@ def call(
     String repoName = 'https://gitlab.cts.luxoft.com/dm1tryG/universe-client.git'
     String compose = "deploy/${type}/docker-compose.yml"
     node('UMS') {
+        cleanWS("Linux")
+
         // stop container
         dir("${type}/${folder}") {
             try {

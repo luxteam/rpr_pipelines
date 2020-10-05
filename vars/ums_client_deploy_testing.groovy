@@ -18,9 +18,8 @@ def call(
             sh "sudo rm -rf ${folder}/"        
         }
 
-        dir("../") {
-            checkOutBranchOrScm(branch, repoName, false, false, true, 'radeonprorender-gitlab', false)
-        }
+        
+        checkOutBranchOrScm(branch, repoName, false, false, true, 'radeonprorender-gitlab', false)
 
         stage('Build') {
             sh "sudo docker-compose -f docker-compose${type}.yml build"

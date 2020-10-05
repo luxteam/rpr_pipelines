@@ -4,11 +4,12 @@ def call(
 ) {
     String folder = 'universe-client'
     String repoName = 'https://gitlab.cts.luxoft.com/dm1tryG/universe-client.git'
+    String compose = "docker-compose${type}.yml"
     node('UMS') {
         // stop container
         dir("${type}/${folder}") {
             try {
-                sh "sudo docker-compose -f docker-compose.${type}.yml stop";
+                sh "sudo docker-compose -f ${compose} stop";
             } catch(Exception ex) {
                 println("Catching the exception");
             }
@@ -21,10 +22,10 @@ def call(
             checkOutBranchOrScm(branch, repoName, false, false, true, 'radeonprorender-gitlab', false)
 
             stage('Build') {
-                sh "sudo docker-compose -f docker-compose${type}.yml build"
+                sh "sudo docker-compose -f ${compose} build"
             }
             stage('Up') {
-                sh "sudo docker-compose -f docker-compose${type}.yml up -d"
+                sh "sudo docker-compose -f ${compose} up -d"
             }
         }
     }

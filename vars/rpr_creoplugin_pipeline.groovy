@@ -241,7 +241,6 @@ def executeTests(String osName, String asicName, Map options)
                 if (sessionReport.summary.total == 0)
                 {
                     options.failureMessage = "Noone test was finished for: ${asicName}-${osName}"
-                    currentBuild.result = "FAILED"
                 }
 
                 if (options.sendToRBS)
@@ -363,7 +362,6 @@ def executeBuild(String osName, Map options)
         }
     }
     catch (e) {
-        currentBuild.result = "FAILED"
         if (options.sendToRBS)
         {
             String token = rbs_get_token("https://rbsdbdev.cis.luxoft.com/api/login", "847a5a5d-700d-439b-ace1-518f415eb8d8")
@@ -621,15 +619,21 @@ def executeDeploy(Map options, List platformList, List testResultList)
             try
             {
                 def summaryReport = readJSON file: 'summaryTestResults/summary_status.json'
-                if (summaryReport.failed > 0 || summaryReport.error > 0)
-                {
-                    println("Some tests failed")
-                    currentBuild.result="UNSTABLE"
+                if (summaryReport.error > 0) {
+                    println("[INFO] Some tests marked as error. Build result = FAILURE.")
+                    currentBuild.result = "FAILURE"
+                }
+                else if (summaryReport.failed > 0) {
+                    println("[INFO] Some tests marked as failed. Build result = UNSTABLE.")
+                    currentBuild.result = "UNSTABLE"
                 }
             }
             catch(e)
             {
+                println(e.toString())
+                println(e.getMessage())
                 println("CAN'T GET TESTS STATUS")
+                currentBuild.result = "UNSTABLE"
             }
 
             try
@@ -643,13 +647,8 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 options.testsStatus = ""
             }
 
-            publishHTML([allowMissing: false,
-                         alwaysLinkToLastBuild: false,
-                         keepAll: true,
-                         reportDir: 'summaryTestResults',
-                         reportFiles: 'summary_report.html, performance_report.html, compare_report.html',
-                         reportName: 'Test Report',
-                         reportTitles: 'Summary Report, Performance Report, Compare Report'])
+            utils.publishReport(this, "${BUILD_URL}", "summaryTestResults", "summary_report.html, performance_report.html, compare_report.html", \
+                "Test Report", "Summary Report, Performance Report, Compare Report")
 
             if (options.sendToRBS)
             {
@@ -663,7 +662,6 @@ def executeDeploy(Map options, List platformList, List testResultList)
         }
     }
     catch (e) {
-        currentBuild.result = "FAILED"
         println(e.toString());
         println(e.getMessage());
         throw e

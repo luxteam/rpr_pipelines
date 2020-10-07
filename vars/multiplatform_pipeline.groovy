@@ -6,6 +6,21 @@ import hudson.remoting.RequestAbortedException;
 import java.lang.IllegalArgumentException;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import jenkins.model.Jenkins;
+import groovy.transform.Synchronized;
+import java.util.Iterator;
+import TestsExecutionType;
+
+
+@NonCPS
+@Synchronized
+def getNextTest(Iterator iterator) {
+    if (iterator.hasNext()) {
+        return iterator.next()
+    } else {
+        return null
+    }
+}
 
 
 def executeTestsNode(String osName, String gpuNames, def executeTests, Map options)
@@ -16,104 +31,144 @@ def executeTestsNode(String osName, String gpuNames, def executeTests, Map optio
         gpuNames.split(',').each()
         {
             String asicName = it
-            testTasks["Test-${it}-${osName}"] = {
+            
+            testTasks["Test-${asicName}-${osName}"] = {
                 stage("Test-${asicName}-${osName}") {
                     // if not split - testsList doesn't exists
                     // TODO: replace testsList check to splitExecution var
                     options.testsList = options.testsList ?: ['']
 
-                    options.testsList.each() { testName ->
-                        println("Scheduling ${osName}:${asicName} ${testName}")
-
-                        def testerTag = "Tester"
-                        if (options.TESTER_TAG){
-                            if (options.TESTER_TAG.indexOf(' ') > -1){
-                                testerTag = options.TESTER_TAG
-                            }else {
-                                testerTag = "${options.TESTER_TAG} && Tester"
-                            }
+                    def testerTag = "Tester"
+                    if (options.TESTER_TAG){
+                        if (options.TESTER_TAG.indexOf(' ') > -1){
+                            testerTag = options.TESTER_TAG
+                        }else {
+                            testerTag = "${options.TESTER_TAG} && Tester"
                         }
-                        // reallocate node for each test
-                        def nodeLabels = "${osName} && ${testerTag} && OpenCL && gpu${asicName}"
-                        def nodesList = nodesByLabel label: nodeLabels, offline: false
-                        println "Found the following PCs for the task: ${nodesList}"
-                        def nodesCount = nodesList.size()
-                        options.nodeReallocateTries = nodesCount + 1
-                        boolean successCurrentNode = false
+                    } 
+                    def testerLabels = "${osName} && ${testerTag} && OpenCL && gpu${asicName}"
 
-                        for (int i = 0; i < options.nodeReallocateTries; i++)
-                        {
-                            node(nodeLabels)
-                            {
-                                println("[INFO] Launched ${testName} task at: ${env.NODE_NAME}")
-                                options.currentTry = i
-                                timeout(time: "${options.TEST_TIMEOUT}", unit: 'MINUTES')
-                                {
-                                    ws("WS/${options.PRJ_NAME}_Test")
-                                    {
-                                        Map newOptions = options.clone()
-                                        newOptions['testResultsName'] = testName ? "testResult-${asicName}-${osName}-${testName}" : "testResult-${asicName}-${osName}"
-                                        newOptions['stageName'] = testName ? "${asicName}-${osName}-${testName}" : "${asicName}-${osName}"
-                                        newOptions['tests'] = testName ? testName : options.tests
-                                        try {
-                                            executeTests(osName, asicName, newOptions)
-                                            i = options.nodeReallocateTries + 1
-                                            successCurrentNode = true
-                                        } catch(Exception e) {
-                                            println "[ERROR] Failed during tests on ${env.NODE_NAME} node"
-                                            println "Exception: ${e.toString()}"
-                                            println "Exception message: ${e.getMessage()}"
-                                            println "Exception cause: ${e.getCause()}"
-                                            println "Exception stack trace: ${e.getStackTrace()}"
-
-                                            String exceptionClassName = e.getClass().toString()
-                                            if (exceptionClassName.contains("FlowInterruptedException")) {
-                                                e.getCauses().each(){
-                                                    // UserInterruption aborting by user
-                                                    // ExceededTimeout aborting by timeout
-                                                    // CancelledCause for aborting by new commit
-                                                    String causeClassName = it.getClass().toString()
-                                                    println "Interruption cause: ${causeClassName}"
-                                                    if (causeClassName.contains("CancelledCause")) {
-                                                        println "GOT NEW COMMIT"
-                                                        throw e
-                                                    }
-                                                }
-                                            }
-
-                                            // add info about retry to options
-                                            boolean added = false;
-                                            String testsOrTestPackage = newOptions['tests'];
-                                            if (testsOrTestPackage == ''){
-                                                testsOrTestPackage = newOptions['testsPackage'].replace(' ', '_')
-                                            }
-                                            options['nodeRetry'].each{ retry ->
-                                                if (retry['Testers'].equals(nodesList)){
-                                                    retry['Tries'][testsOrTestPackage].add([host:env.NODE_NAME, link:"${testsOrTestPackage}.${env.NODE_NAME}.crash.log", time: LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))])
-                                                    added = true
-                                                }
-                                            }
-                                            if (!added){
-                                                options['nodeRetry'].add([Testers: nodesList, Tries: [["${testsOrTestPackage}": [[host:env.NODE_NAME, link:"${testsOrTestPackage}.${env.NODE_NAME}.crash.log", time: LocalDateTime.now().toString()]]]]])
-                                            }
-                                            println options['nodeRetry'].inspect()
-
-                                            // change PC after first failed tries and don't change in the last try
-                                            if (i < nodesCount - 1 && nodesCount != 1) {
-                                                println "[INFO] Updating label after failure task. Adding !${env.NODE_NAME} to labels list."
-                                                nodeLabels += " && !${env.NODE_NAME}"
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        if (!successCurrentNode) {
-                            currentBuild.result = "FAILED"
-                            println "[ERROR] All allocated nodes failed."
-                        }
+                    Iterator testsIterator = options.testsList.iterator()
+                    Integer launchingGroupsNumber = 1
+                    if (!options["parallelExecutionType"] || options["parallelExecutionType"] == TestsExecutionType.TAKE_ONE_NODE_PER_GPU) {
+                        launchingGroupsNumber = 1
+                    } else if (options["parallelExecutionType"] == TestsExecutionType.TAKE_ALL_NODES) {
+                        List possibleNodes = nodesByLabel label: testerLabels, offline: true
+                        launchingGroupsNumber = possibleNodes.size()
                     }
 
+                    Map testsExecutors = [:]
+
+                    for (int i = 0; i < launchingGroupsNumber; i++) {
+                        testsExecutors["Test-${asicName}-${osName}-${i}"] = {
+                            String testName = getNextTest(testsIterator)
+                            while (testName != null) {
+                                println("Scheduling ${osName}:${asicName} ${testName}")
+
+                                Map newOptions = options.clone()
+                                newOptions['testResultsName'] = testName ? "testResult-${asicName}-${osName}-${testName}" : "testResult-${asicName}-${osName}"
+                                newOptions['stageName'] = testName ? "${asicName}-${osName}-${testName}" : "${asicName}-${osName}"
+                                newOptions['tests'] = testName ?: options.tests
+
+                                def retringFunction = { nodesList, currentTry ->
+                                    try {
+                                        executeTests(osName, asicName, newOptions)
+                                    } catch(Exception e) {
+                                        // save expected exception message for add it in report
+                                        String expectedExceptionMessage = ""
+                                        if (e instanceof ExpectedExceptionWrapper) {
+                                            expectedExceptionMessage = e.getMessage()
+                                            e = e.getCause()
+                                        }
+
+                                        println "[ERROR] Failed during tests on ${env.NODE_NAME} node"
+                                        println "Exception: ${e.toString()}"
+                                        println "Exception message: ${e.getMessage()}"
+                                        println "Exception cause: ${e.getCause()}"
+                                        println "Exception stack trace: ${e.getStackTrace()}"
+
+                                        String exceptionClassName = e.getClass().toString()
+                                        if (exceptionClassName.contains("FlowInterruptedException")) {
+                                            e.getCauses().each(){
+                                                // UserInterruption aborting by user
+                                                // ExceededTimeout aborting by timeout
+                                                // CancelledCause for aborting by new commit
+                                                String causeClassName = it.getClass().toString()
+                                                println "Interruption cause: ${causeClassName}"
+                                                if (causeClassName.contains("CancelledCause")) {
+                                                    expectedExceptionMessage = "Build was aborted by new commit."
+                                                } else if (causeClassName.contains("UserInterruption") || causeClassName.contains("ExceptionCause")) {
+                                                    expectedExceptionMessage = "Build was aborted by user."
+                                                } else if (utils.isTimeoutExceeded(e) && !expectedExceptionMessage.contains("timeout")) {
+                                                    expectedExceptionMessage = "Timeout exceeded (pipelines layer)."
+                                                }
+                                            }
+                                        } else if (exceptionClassName.contains("ClosedChannelException") || exceptionClassName.contains("RemotingSystemException") || exceptionClassName.contains("InterruptedException")) {
+                                            expectedExceptionMessage = "Lost connection with machine."
+                                        }
+
+                                        // add info about retry to options
+                                        boolean added = false;
+                                        String testsOrTestPackage
+                                        if (newOptions['splitTestsExecution']) {
+                                            testsOrTestPackage = newOptions['tests']
+                                        } else {
+                                            //all non splitTestsExecution and non regression builds (e.g. any build of core)
+                                            testsOrTestPackage = 'DefaultExecution'
+                                        }
+
+                                        if (!expectedExceptionMessage) {
+                                            expectedExceptionMessage = "Unexpected exception."
+                                        }
+
+                                        if (options.containsKey('nodeRetry')) {
+                                            Map tryInfo = [host:env.NODE_NAME, link:"${testsOrTestPackage}.${env.NODE_NAME}.retry_${currentTry}.crash.log", exception: expectedExceptionMessage, time: LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))]
+
+                                            retryLoops: for (testers in options['nodeRetry']) {
+                                                if (testers['Testers'].equals(nodesList)){
+                                                    for (group in testers['Tries']) {
+                                                        if (group[testsOrTestPackage]) {
+                                                            group[testsOrTestPackage].add(tryInfo)
+                                                            added = true
+                                                            break retryLoops
+                                                        }
+                                                    }
+                                                    // add list for test group if it doesn't exists
+                                                    testers['Tries'].add([(testsOrTestPackage): [tryInfo]])
+                                                    added = true
+                                                    break retryLoops
+                                                }
+                                            }
+
+                                            if (!added){
+                                                options['nodeRetry'].add([Testers: nodesList, gpuName: asicName, osName: osName, Tries: [[(testsOrTestPackage): [tryInfo]]]])
+                                            }
+                                            println options['nodeRetry'].inspect()
+                                        }
+
+                                        throw e
+                                    }
+                                }
+
+                                try {
+                                    Integer retries_count = options.retriesForTestStage ?: -1
+                                    run_with_retries(testerLabels, options.TEST_TIMEOUT, retringFunction, true, "Test", newOptions, [], retries_count, osName)
+                                } catch(FlowInterruptedException e) {
+                                    e.getCauses().each(){
+                                        String causeClassName = it.getClass().toString()
+                                        if (causeClassName.contains("CancelledCause") || causeClassName.contains("UserInterruption")) {
+                                            throw e
+                                        }
+                                    }
+                                } catch (e) {
+                                    // Ignore other exceptions
+                                }
+                                testName = getNextTest(testsIterator)
+                            }
+                        }                        
+                    }
+
+                    parallel testsExecutors
                 }
             }
         }
@@ -133,21 +188,19 @@ def executePlatform(String osName, String gpuNames, def executeBuild, def execut
         {
             if(options['executeBuild'] && executeBuild)
             {
-                node("${osName} && ${options.BUILDER_TAG}")
+                stage("Build-${osName}")
                 {
-                    println("Started build at ${NODE_NAME}")
-                    stage("Build-${osName}")
-                    {
-                        timeout(time: "${options.BUILD_TIMEOUT}", unit: 'MINUTES')
-                        {
-                            ws("WS/${options.PRJ_NAME}_Build")
-                            {
-                                executeBuild(osName, options)
-                            }
-                        }
+                    def builderLabels = "${osName} && ${options.BUILDER_TAG}"
+
+                    def retringFunction = { nodesList, currentTry ->
+                        executeBuild(osName, options)
                     }
+
+                    run_with_retries(builderLabels, options.BUILD_TIMEOUT, retringFunction, false, "Build", options, ['FlowInterruptedException'], -1, osName, true)
                 }
             }
+
+
             if (options.containsKey('tests') && options.containsKey('testsPackage')){
                 if (options['testsPackage'] != 'none' || options['tests'].size() == 0 || !(options['tests'].size() == 1 && options['tests'].get(0).length() == 0)){ // BUG: can throw exception if options['tests'] is string with length 1
                     executeTestsNode(osName, gpuNames, executeTests, options)
@@ -174,6 +227,35 @@ def executePlatform(String osName, String gpuNames, def executeBuild, def execut
 
 def call(String platforms, def executePreBuild, def executeBuild, def executeTests, def executeDeploy, Map options) {
     try {
+        try {
+            if (env.BuildPriority) {
+                currentBuild.displayName = "${currentBuild.displayName} (Priority: ${env.BuildPriority})"
+                println("[INFO] Priority was set by BuildPriority parameter")
+            } else {
+                def jenkins = Jenkins.getInstance();        
+                def views = Jenkins.getInstance().getViews()
+                String jobName = env.JOB_NAME.split('/')[0]
+
+                def jobsViews = []
+                for (view in views) {
+                    if (view.contains(jenkins.getItem(jobName))) {
+                        jobsViews.add(view.getDisplayName())
+                    }
+                }
+
+                if (jobsViews.contains('Autojobs')) {
+                    currentBuild.displayName = "${currentBuild.displayName} (Priority: 20)"
+                } else if (jobsViews.contains('Large_autojobs') || jobsViews.contains('Plugins Weekly')) {
+                    currentBuild.displayName = "${currentBuild.displayName} (Priority: 30)"
+                } else {
+                    currentBuild.displayName = "${currentBuild.displayName} (Priority: 40)"
+                }
+                println("[INFO] Priority was set based on view of job")
+            }
+        } catch (e) {
+            println("[ERROR Can't add priority in build name")
+            println(e.toString())
+        }
 
         // if it's PR - supersede all previously launched executions
         if(env.CHANGE_ID) {
@@ -189,6 +271,7 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
 
         def date = new Date()
         dateFormatter = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss")
+        dateFormatter.setTimeZone(TimeZone.getTimeZone("GMT+3:00"))
         options.JOB_STARTED_TIME = dateFormatter.format(date)
 
         /*properties([[$class: 'BuildDiscarderProperty', strategy:
@@ -244,6 +327,21 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                                     println("[ERROR] Failed during prebuild stage on ${env.NODE_NAME}")
                                     println(e.toString());
                                     println(e.getMessage());
+                                    String exceptionClassName = e.getClass().toString()
+                                    if (exceptionClassName.contains("FlowInterruptedException")) {
+                                        e.getCauses().each(){
+                                            String causeClassName = it.getClass().toString()
+                                            if (causeClassName.contains("ExceededTimeout")) {
+                                                if (options.problemMessageManager) {
+                                                    options.problemMessageManager.saveSpecificFailReason("Timeout exceeded.", "PreBuild")
+                                                }
+                                            }
+                                        }
+                                    }
+                                    if (options.problemMessageManager) {
+                                        options.problemMessageManager.saveGeneralFailReason("Unknown reason.", "PreBuild")
+                                    }
+                                    GithubNotificator.closeUnfinishedSteps(env, options, "PreBuild stage was failed.")
                                     throw e
                                 }
                             }
@@ -304,34 +402,27 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
             }
             finally
             {
-                node("Windows && ReportBuilder")
+                Boolean executeDeployStage = true
+                if (options['executeTests']) {
+                    if (options.containsKey('tests') && options.containsKey('testsPackage')){
+                        if (options['testsPackage'] == 'none' && options['tests'].size() == 1 && options['tests'].get(0).length() == 0){
+                            executeDeployStage = false
+                        }
+                    }
+                } else {
+                    executeDeployStage = false
+                }
+                if(executeDeploy && executeDeployStage)
                 {
                     stage("Deploy")
                     {
-                        timeout(time: "${options.DEPLOY_TIMEOUT}", unit: 'MINUTES')
-                        {
-                            ws("WS/${options.PRJ_NAME}_Deploy") {
+                        def reportBuilderLabels = "Windows && ReportBuilder"
 
-                                try
-                                {
-                                    if(executeDeploy && options['executeTests'])
-                                    {
-                                        if (options.containsKey('tests') && options.containsKey('testsPackage')){
-                                            if (options['testsPackage'] != 'none' || options['tests'].size() == 0 || !(options['tests'].size() == 1 && options['tests'].get(0).length() == 0)){
-                                                executeDeploy(options, platformList, testResultList)
-                                            }
-                                        } else {
-                                            executeDeploy(options, platformList, testResultList)
-                                        }
-                                    }
-                                }
-                                catch (e) {
-                                    println(e.toString());
-                                    println(e.getMessage());
-                                    throw e
-                                }
-                            }
+                        def retringFunction = { nodesList, currentTry ->
+                            executeDeploy(options, platformList, testResultList)
                         }
+
+                        run_with_retries(reportBuilderLabels, options.DEPLOY_TIMEOUT, retringFunction, false, "Deploy", options, [], 2)
                     }
                 }
             }
@@ -345,8 +436,6 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
     }
     catch (e)
     {
-        println(e.toString());
-        println(e.getMessage());
         currentBuild.result = "FAILURE"
         throw e
     }

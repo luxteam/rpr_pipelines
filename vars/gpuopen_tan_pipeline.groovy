@@ -174,9 +174,9 @@ def executeTests(String osName, String asicName, Map options) {
 
 def executeBuildWindows(Map options) {
 
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/*", './thirdparty/OpenCL-Headers')
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", './thirdparty/portaudio')
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5-dll64/*", './tan/tanlibrary/src/fftw-3.3.5-dll64')
+    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/*", "./thirdparty/OpenCL-Headers")
+    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", "./thirdparty/portaudio")
+    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5-dll64/*", "./tan/tanlibrary/src/fftw-3.3.5-dll64")
 
     bat """
         mkdir thirdparty\\Qt\\Qt5.9.9\\5.9.9\\msvc2017_64
@@ -484,17 +484,16 @@ def executePreBuild(Map options) {
 
     // manual job
     if (options.forceBuild) {
+        env.BRANCH_NAME = options['projectBranch']
         options.executeBuild = true
         options.executeTests = true
     // auto job
     } else {
         options.executeBuild = true
         options.executeTests = true
-        options.projectBranch = env.BRANCH_NAME
         if (env.CHANGE_URL)
         {
             println "[INFO] Branch was detected as Pull Request"
-            options.isPR = true
             options.testsPackage = "PR"
         }
         else if("${env.BRANCH_NAME}" == "master")
@@ -508,17 +507,7 @@ def executePreBuild(Map options) {
     }
 
     if(!env.CHANGE_URL){
-
-        currentBuild.description = ""
-        ['projectBranch'].each
-        {
-            if(options[it] != 'master' && options[it] != "")
-            {
-                currentBuild.description += "<b>${it}:</b> ${options[it]}<br/>"
-            }
-        }
-
-        checkOutBranchOrScm(env.BRANCH_NAME, 'git@github.com:GPUOpen-LibrariesAndSDKs/TAN.git', true)
+        checkOutBranchOrScm(env.BRANCH_NAME, 'git@github.com:imatyushin/TAN.git', true)
 
         options.commitAuthor = bat (script: "git show -s --format=%%an HEAD ",returnStdout: true).split('\r\n')[2].trim()
         options.commitMessage = bat (script: "git log --format=%%B -n 1", returnStdout: true).split('\r\n')[2].trim()
@@ -539,6 +528,7 @@ def executePreBuild(Map options) {
             options.tanVersion = "0"
         }
 
+        currentBuild.description = "<b>Project branch:</b> ${env.BRANCH_NAME}<br/>"
         currentBuild.description += "<b>Version:</b> ${options.tanVersion}<br/>"
         currentBuild.description += "<b>Commit author:</b> ${options.commitAuthor}<br/>"
         currentBuild.description += "<b>Commit message:</b> ${options.commitMessage}<br/>"
@@ -559,14 +549,14 @@ def executePreBuild(Map options) {
                 def updated_version = version_read("${env.WORKSPACE}\\tan\\tanlibrary\\include\\TrueAudioNext.h", '#define TAN_VERSION_BUILD')
                 println "[INFO] Updated build version: ${updated_version}"
 
-                //bat """
-                //    git add tan\\tanlibrary\\include\\TrueAudioNext.h
-                //    git commit -m "buildmaster: automatic build version update to ${updated_version}"
-                //    git push origin HEAD:${env.BRANCH_NAME}
-                //"""
+                bat """
+                    git add tan\\tanlibrary\\include\\TrueAudioNext.h
+                    git commit -m "buildmaster: automatic build version update to ${updated_version}"
+                    git push origin HEAD:${env.BRANCH_NAME}
+                """
 
                 //get commit's sha which have to be build
-                options.projectBranch = bat (script: "git log --format=%%H -1", returnStdout: true).split('\r\n')[2].trim() 
+                options.projectBranch = bat (script: "git log --format=%%H -1", returnStdout: true).split('\r\n')[2].trim()
             } 
         }
     }
@@ -579,7 +569,7 @@ def executePreBuild(Map options) {
         properties([[$class: 'BuildDiscarderProperty', strategy:
                          [$class: 'LogRotator', artifactDaysToKeepStr: '',
                           artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '25']]]);
-    } else if (env.CHANGE_URL ) {
+    } else if (env.CHANGE_URL) {
         properties([[$class: 'BuildDiscarderProperty', strategy:
                          [$class: 'LogRotator', artifactDaysToKeepStr: '',
                           artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
@@ -653,8 +643,8 @@ def call(String projectBranch = "",
     String buildConfiguration = "release",
     String ipp = "off",
     String winTool = "msbuild",
-    String winVisualStudioVersion = "2017,2019",
-    String winRTQ = "on,off",
+    String winVisualStudioVersion = "2017",
+    String winRTQ = "on",
     String osxTool = "cmake",
     Boolean enableNotifications = true,
     Boolean incrementVersion = true,

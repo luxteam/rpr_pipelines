@@ -2,11 +2,11 @@ import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
 import hudson.plugins.git.GitException
 import hudson.AbortException
 
-def call(String branchName, String repoName, Boolean disableSubmodules=false, Boolean polling=false, Boolean changelog=true, \
+def call(String branchName, String repoName, Boolean disableSubmodules=false, String prBranchName = '', String prRepoName = '', Boolean polling=false, Boolean changelog=true, \
     String credId='radeonprorender', Boolean useLFS=false, Boolean wipeWorkspace=false) {
     
     try {
-        executeCheckout(branchName, repoName, disableSubmodules, polling, changelog, credId, useLFS)
+        executeCheckout(branchName, repoName, disableSubmodules, prBranchName, prRepoName, polling, changelog, credId, useLFS)
     } 
     catch (FlowInterruptedException e) 
     {
@@ -19,20 +19,24 @@ def call(String branchName, String repoName, Boolean disableSubmodules=false, Bo
         println(e.getMessage())
         println "[ERROR] Failed to checkout git on ${env.NODE_NAME}. Cleaning workspace and try again."
         cleanWS()
-        executeCheckout(branchName, repoName, disableSubmodules, polling, changelog, credId, useLFS, true)
+        executeCheckout(branchName, repoName, disableSubmodules, prBranchName, prRepoName, polling, changelog, credId, useLFS, true)
     }
 }
 
 
-def executeCheckout(String branchName, String repoName, Boolean disableSubmodules=false, Boolean polling=false, Boolean changelog=true, \
+def executeCheckout(String branchName, String repoName, Boolean disableSubmodules=false, String prBranchName = '', String prRepoName = '', Boolean polling=false, Boolean changelog=true, \
     String credId='radeonprorender', Boolean useLFS=false, Boolean wipeWorkspace=false) {
 
     def repoBranch = branchName ? [[name: branchName]] : scm.branches
 
-    echo "checkout branch: ${repoBranch}; repo: ${repoName}"
+    echo "Checkout branch: ${repoBranch}; repo: ${repoName}"
     echo "Submodules processing: ${!disableSubmodules}"
     echo "Include in polling: ${polling}; Include in changelog: ${changelog}"
+    if (prBranchName) {
+        echo "PR commit: ${prBranchName}; PR repo: ${prRepoName}"
+    }
 
+    List configs = [[credentialsId: "${credId}", url: "${repoName}"]]
     def checkoutExtensions = [
             [$class: 'PruneStaleBranch'],
             [$class: 'CleanBeforeCheckout'],
@@ -42,8 +46,16 @@ def executeCheckout(String branchName, String repoName, Boolean disableSubmodule
             [$class: 'CloneOption', timeout: 60, noTags: false],
             [$class: 'SubmoduleOption', disableSubmodules: disableSubmodules,
              parentCredentials: true, recursiveSubmodules: true, shallow: true, depth: 2,
-             timeout: 60, reference: '', trackingSubmodules: false]
+             timeout: 60, reference: '', trackingSubmodules: false],
     ]
+    if (prBranchName) {
+        if (prRepoName && repoName != prRepoName) {
+            configs.add([credentialsId: "${credId}", url: "${prRepoName}", name: 'remoteRepo'])
+            checkoutExtensions.add([$class: 'PreBuildMerge', options: [mergeTarget: prBranchName, mergeRemote: 'remoteRepo']])
+        } else {
+            checkoutExtensions.add([$class: 'PreBuildMerge', options: [mergeTarget: prBranchName, mergeRemote: 'origin']])
+        }
+    }
 
     if (useLFS) checkoutExtensions.add([$class: 'GitLFSPull'])
     if (wipeWorkspace) checkoutExtensions.add([$class: 'WipeWorkspace'])
@@ -59,7 +71,7 @@ def executeCheckout(String branchName, String repoName, Boolean disableSubmodule
             scm: [$class: 'GitSCM', branches: repoBranch, doGenerateSubmoduleConfigurations: false,
                     extensions: checkoutExtensions,
                     submoduleCfg: [],
-                    userRemoteConfigs: [[credentialsId: "${credId}", url: "${repoName}"]]
+                    userRemoteConfigs: configs
                 ]
     }
     

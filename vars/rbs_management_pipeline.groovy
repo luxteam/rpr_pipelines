@@ -35,7 +35,7 @@ def main(Map options) {
 		}
 
 		dir("universe${versionPostfix}") {
-			checkOutBranchOrScm(options['universeBranch'], 'https://gitlab.cts.luxoft.com/dm1tryG/universe.git', false, false, true, 'radeonprorender-gitlab', false)
+			checkOutBranchOrScm(options['universeBranch'], 'https://gitlab.cts.luxoft.com/dm1tryG/universe.git', false, null, null, false, true, 'radeonprorender-gitlab', false)
 		}
 
 		sshagent(credentials : ['FrontendMachineCredentials']) {

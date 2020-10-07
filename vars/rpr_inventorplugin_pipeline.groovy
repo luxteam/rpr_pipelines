@@ -90,7 +90,6 @@ def executePreBuild(Map options) {
         if (env.CHANGE_URL)
         {
             println "[INFO] Branch was detected as Pull Request"
-            options.isPR = true
             // TODO add tests stage initialization
             //options.testsPackage = "PR"
         }

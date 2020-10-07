@@ -6,7 +6,7 @@ def call(String osName, Map options)
             receiveFiles("bin_storage/RadeonProMaterialLibrary.msi", "${CIS_TOOLS}\\..\\TestResources/")
 
             echo '[INFO] Reinstalling Material Library'
-            uninstallMSI("Radeon%Material%", options.stageName)
+            uninstallMSI("Radeon%Material%", options.stageName, options.currentTry)
             installMSI("${CIS_TOOLS}/../PluginsBinaries/RadeonProMaterialLibrary.msi", options.stageName)
             break;
 
@@ -20,7 +20,7 @@ def call(String osName, Map options)
             echo '[INFO] Installing Material Library'
             sh """
                 #!/bin/bash
-                ${CIS_TOOLS}/../TestResources/RadeonProRenderMaterialLibraryInstaller_2.0.run --nox11 --just-do-it >> ${options.stageName}.matlib.install.log 2>&1
+                ${CIS_TOOLS}/../TestResources/RadeonProRenderMaterialLibraryInstaller_2.0.run --nox11 --just-do-it >> \"${options.stageName}_${options.currentTry}.matlib.install.log\" 2>&1
             """
     }
 }

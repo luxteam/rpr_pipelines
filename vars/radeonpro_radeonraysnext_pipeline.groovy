@@ -157,5 +157,6 @@ def call(String projectBranch = "", String projectURL = 'git@github.com:Radeon-P
                             projectURL:projectURL,
                             slackChannel:"${SLACK_BAIKAL_CHANNEL}",
                             slackBaseUrl:"${SLACK_BAIKAL_BASE_URL}",
-                            slackTocken:"${SLACK_BAIKAL_TOCKEN}"])
+                            slackTocken:"${SLACK_BAIKAL_TOCKEN}",
+                            retriesForTestStage:1])
 }

@@ -46,7 +46,8 @@ def executeBuildWindows(Map options)
     Boolean failure = false
     def configurations = ['DXR_ON':'-DVW_ENABLE_DXR=ON -DVW_ENABLE_DXR_SUPPORT=ON',
                             'DXR_OFF':'-DVW_ENABLE_DXR=ON -DVW_ENABLE_DXR_SUPPORT=OFF',
-                            'RRNEXT_OFF':'-DVW_ENABLE_RRNEXT=OFF']
+                            'RRNEXT_OFF':'-DVW_ENABLE_RRNEXT=OFF',
+                            'KHR_ON': '-DVW_ENABLE_VK_INLINE_RAYTRACING_SUPPORT=ON']
 
     configurations.each() {
         KEY, VALUE ->

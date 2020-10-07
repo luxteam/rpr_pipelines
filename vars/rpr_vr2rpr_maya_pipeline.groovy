@@ -200,7 +200,6 @@ def executeTests(String osName, String asicName, Map options)
                     if (sessionReport.summary.total == 0)
                     {
                         options.failureMessage = "Noone test was finished for: ${asicName}-${osName}"
-                        currentBuild.result = "FAILED"
                     }
 
                     // deinstalling broken addon
@@ -228,7 +227,6 @@ def executePreBuild(Map options)
     } else {
         if (env.CHANGE_URL) {
             println "[INFO] Branch was detected as Pull Request"
-            options.isPR = true
             options.executeTests = true
             options.testsPackage = "Master"
         } else if (env.BRANCH_NAME == "master" || env.BRANCH_NAME == "develop") {
@@ -411,12 +409,12 @@ def executeDeploy(Map options, List platformList, List testResultList)
             {
                 def summaryReport = readJSON file: 'summaryTestResults/summary_status.json'
                 if (summaryReport.error > 0) {
-                    println("Some tests crashed")
-                    currentBuild.result="FAILED"
+                    println("[INFO] Some tests marked as error. Build result = FAILURE.")
+                    currentBuild.result = "FAILURE"
                 }
                 else if (summaryReport.failed > 0) {
-                    println("Some tests failed")
-                    currentBuild.result="UNSTABLE"
+                    println("[INFO] Some tests marked as failed. Build result = UNSTABLE.")
+                    currentBuild.result = "UNSTABLE"
                 }
             }
             catch(e)
@@ -424,7 +422,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 println(e.toString())
                 println(e.getMessage())
                 println("CAN'T GET TESTS STATUS")
-                currentBuild.result="UNSTABLE"
+                currentBuild.result = "UNSTABLE"
             }
 
             try
@@ -438,17 +436,10 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 options.testsStatus = ""
             }
 
-            publishHTML([allowMissing: false,
-                         alwaysLinkToLastBuild: false,
-                         keepAll: true,
-                         reportDir: 'summaryTestResults',
-                         reportFiles: 'summary_report.html',
-                         reportName: 'Test Report',
-                         reportTitles: 'Summary Report'])
+            utils.publishReport(this, "${BUILD_URL}", "summaryTestResults", "summary_report.html", "Test Report", "Summary Report")
         }
     }
     catch (e) {
-        currentBuild.result = "FAILED"
         println(e.toString());
         println(e.getMessage());
         throw e

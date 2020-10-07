@@ -1,9 +1,9 @@
-def call(String osName, Map options){
+def call(String osName, Map options, Integer retryNumber){
     String testsOrTestPackage = options['tests'];
     if (testsOrTestPackage == ''){
         testsOrTestPackage = options['testsPackage']
     }
-    logName = "${testsOrTestPackage}.${env.NODE_NAME}.crash.log"
+    logName = "${testsOrTestPackage}.${env.NODE_NAME}.retry_${retryNumber}.crash.log"
     println "Collect crash logs"
     switch(osName){
         case 'Windows':

@@ -75,7 +75,7 @@ def executeBuildWindows(Map options)
 
         if (env.TAG_NAME) {
             dir("rml-deploy") {
-                checkOutBranchOrScm("master", "ssh://git@gitlab.cts.luxoft.com:30122/servants/rml-deploy.git", true, false, true, "radeonprorender-gitlab")
+                checkOutBranchOrScm("master", "ssh://git@gitlab.cts.luxoft.com:30122/servants/rml-deploy.git", true, null, null, false, true, "radeonprorender-gitlab")
                 bat """
                     MD tf_cpu\\${CIS_OS}
                     RMDIR /S/Q tf_cpu\\${CIS_OS}
@@ -117,7 +117,7 @@ def executeBuildLinux(Map options)
 
         if (env.TAG_NAME) {
             dir("rml-deploy") {
-                checkOutBranchOrScm("master", "ssh://git@gitlab.cts.luxoft.com:30122/servants/rml-deploy.git", true, false, true, "radeonprorender-gitlab")
+                checkOutBranchOrScm("master", "ssh://git@gitlab.cts.luxoft.com:30122/servants/rml-deploy.git", true, null, null, false, true, "radeonprorender-gitlab")
                 sh """
                     mkdir -p tf_cpu/${CIS_OS}
                     rm -fdr tf_cpu/${CIS_OS}
@@ -272,5 +272,6 @@ def call(String projectBranch = "",
                             cmakeKeys:cmakeKeys,
                             slackChannel:"${SLACK_ML_CHANNEL}",
                             slackBaseUrl:"${SLACK_BAIKAL_BASE_URL}",
-                            slackTocken:"slack-ml-channel"])
+                            slackTocken:"slack-ml-channel",
+                            retriesForTestStage:1])
 }

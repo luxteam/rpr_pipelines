@@ -53,8 +53,9 @@ def executeTestCommand(String osName, Map options)
 def executeTestsCustomQuality(String osName, String asicName, Map options)
 {
     cleanWS(osName)
-    String REF_PATH_PROFILE="${options.REF_PATH}/${options.RENDER_QUALITY}/${asicName}-${osName}"
-    String JOB_PATH_PROFILE="${options.JOB_PATH}/${options.RENDER_QUALITY}/${asicName}-${osName}"
+    String parsedAsicName = asicName.replace("_Beta", "")
+    String REF_PATH_PROFILE="${options.REF_PATH}/${options.RENDER_QUALITY}/${parsedAsicName}-${osName}"
+    String JOB_PATH_PROFILE="${options.JOB_PATH}/${options.RENDER_QUALITY}/${parsedAsicName}-${osName}"
     String error_message = ""
 
     try {
@@ -93,14 +94,8 @@ def executeTestsCustomQuality(String osName, String asicName, Map options)
 
             stash includes: "${asicName}-${osName}-${options.RENDER_QUALITY}_failures/**/*", name: "testResult-${asicName}-${osName}-${options.RENDER_QUALITY}", allowEmpty: true
 
-            publishHTML([allowMissing: true,
-                         alwaysLinkToLastBuild: false,
-                         keepAll: true,
-                         escapeUnderscores: false,
-                         reportDir: "${asicName}-${osName}-${options.RENDER_QUALITY}_failures",
-                         reportFiles: "report.html",
-                         reportName: "${STAGE_NAME}_${options.RENDER_QUALITY}_failures",
-                         reportTitles: "${STAGE_NAME}_${options.RENDER_QUALITY}_failures"])
+            utils.publishReport(this, "${BUILD_URL}", "${asicName}-${osName}-${options.RENDER_QUALITY}_failures", "report.html", "${STAGE_NAME}_${options.RENDER_QUALITY}_failures", "${STAGE_NAME}_${options.RENDER_QUALITY}_failures")
+
         } catch (err) {
             println("Error during HTML report publish")
             println(err.getMessage())
@@ -127,28 +122,42 @@ def executeTestsCustomQuality(String osName, String asicName, Map options)
 
 def executeTests(String osName, String asicName, Map options)
 {
+    Boolean some_stage_fail = false
     options['testsQuality'].split(",").each() {
         try {
             options['RENDER_QUALITY'] = "${it}"
             executeTestsCustomQuality(osName, asicName, options)
         }
         catch (e) {
+            // suppress exception for start next quality test
+            some_stage_fail = true
             println(e.toString())
             println(e.getMessage())
         }
+    }
+    if (some_stage_fail) {
+        // send error signal for mark stage as failed
+        error "Error during tests execution"
     }
 }
 
 
 def executeBuildWindows(Map options)
 {
+    if (fileExists("3rdparty\\PKFXSDK_AMD_VRS.7z") && fileExists("Resources\\PopcornFX.7z")) {
+        bat """
+            %CIS_TOOLS%\\7-Zip\\7z.exe x 3rdparty\\PKFXSDK_AMD_VRS.7z -o3rdparty -y
+            %CIS_TOOLS%\\7-Zip\\7z.exe x Resources\\PopcornFX.7z -oResources -y
+        """
+    }
+    
     String build_type = options['cmakeKeys'].contains("-DCMAKE_BUILD_TYPE=Debug") ? "Debug" : "Release"
     bat """
-    mkdir Build
-    cd Build
-    cmake ${options['cmakeKeys']} -G "Visual Studio 16 2019" -A "x64" .. >> ..\\${STAGE_NAME}.log 2>&1
-    cmake --build . --target PACKAGE --config ${build_type} >> ..\\${STAGE_NAME}.log 2>&1
-    rename BaikalNext.zip BaikalNext_${STAGE_NAME}.zip
+        mkdir Build
+        cd Build
+        cmake ${options['cmakeKeys']} -G "Visual Studio 16 2019" -A "x64" .. >> ..\\${STAGE_NAME}.log 2>&1
+        cmake --build . --target PACKAGE --config ${build_type} >> ..\\${STAGE_NAME}.log 2>&1
+        rename BaikalNext.zip BaikalNext_${STAGE_NAME}.zip
     """
 }
 
@@ -162,32 +171,30 @@ def executeBuildLinux(Map options)
 
 def executePreBuild(Map options)
 {
-    checkOutBranchOrScm(options['projectBranch'], options['projectRepo'], true)
+    checkOutBranchOrScm(options.projectBranch, "git@github.com:Radeon-Pro/Ludashi-Hybrid.git", true)
 
-    AUTHOR_NAME = bat (
-            script: "git show -s --format=%%an HEAD ",
-            returnStdout: true
-            ).split('\r\n')[2].trim()
-
-    echo "The last commit was written by ${AUTHOR_NAME}."
-    options.AUTHOR_NAME = AUTHOR_NAME
-
-    commitMessage = bat ( script: "git log --format=%%B -n 1", returnStdout: true )
-    echo "Commit message: ${commitMessage}"
-    if(commitMessage.contains("[CIS:GENREF]") && env.BRANCH_NAME && env.BRANCH_NAME == "master") {
+    options.commitAuthor = bat (script: "git show -s --format=%%an HEAD ",returnStdout: true).split('\r\n')[2].trim()
+    commitMessage = bat (script: "git log --format=%%B -n 1", returnStdout: true)
+    options.commitSHA = bat (script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
+    println "The last commit was written by ${options.commitAuthor}."
+    println "Commit message: ${commitMessage}"
+    println "Commit SHA: ${options.commitSHA}"
+    
+    if (commitMessage.contains("[CIS:GENREF]") && env.BRANCH_NAME && env.BRANCH_NAME == "master") {
         options.updateRefs = true
         println("[CIS:GENREF] has been founded in comment")
     }
 
     if (env.CHANGE_URL) {
         echo "branch was detected as Pull Request"
-        options['isPR'] = true
     }
 
     options.commitMessage = []
     commitMessage = commitMessage.split('\r\n')
     commitMessage[2..commitMessage.size()-1].collect(options.commitMessage) { it.trim() }
     options.commitMessage = options.commitMessage.join('\n')
+
+    println "Commit list message: ${options.commitMessage}"
 
     // set pending status for all
     if(env.CHANGE_ID) {
@@ -225,7 +232,7 @@ def executeBuild(String osName, Map options)
     String context = "[BUILD] ${osName}"
     try
     {
-        checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
+        checkOutBranchOrScm(options.projectBranch, "git@github.com:Radeon-Pro/Ludashi-Hybrid.git")
         outputEnvironmentInfo(osName)
 
         if (env.CHANGE_ID)
@@ -317,11 +324,8 @@ def executeDeploy(Map options, List platformList, List testResultList)
 }
 
 def call(String projectBranch = "",
-         String platforms = 'Windows:AMD_RadeonVII',
+         String platforms = 'Windows:AMD_RadeonVII_Beta',
          String testsQuality = "low,medium",
-         String PRJ_ROOT='rpr-core',
-         String PRJ_NAME='RadeonProRender-LudashiHybrid',
-         String projectRepo='git@github.com:Radeon-Pro/Ludashi-Hybrid.git',
          Boolean updateRefs = false,
          Boolean enableNotifications = true,
          String cmakeKeys = "-DCMAKE_BUILD_TYPE=Release -DBAIKAL_ENABLE_RPR=ON -DBAIKAL_NEXT_EMBED_KERNELS=ON") {
@@ -332,9 +336,8 @@ def call(String projectBranch = "",
                             updateRefs:updateRefs,
                             testsQuality:testsQuality,
                             enableNotifications:enableNotifications,
-                            PRJ_NAME:PRJ_NAME,
-                            PRJ_ROOT:PRJ_ROOT,
-                            projectRepo:projectRepo,
+                            PRJ_NAME:'RadeonProRender-LudashiHybrid',
+                            PRJ_ROOT:'rpr-core',
                             BUILDER_TAG:'BuilderS && VS2019',
                             TESTER_TAG:'Ludashi',
                             executeBuild:true,
@@ -343,5 +346,6 @@ def call(String projectBranch = "",
                             slackBaseUrl:"${SLACK_BAIKAL_BASE_URL}",
                             slackTocken:"${SLACK_BAIKAL_TOCKEN}",
                             TEST_TIMEOUT:20,
-                            cmakeKeys:cmakeKeys])
+                            cmakeKeys:cmakeKeys,
+                            retriesForTestStage:1])
 }

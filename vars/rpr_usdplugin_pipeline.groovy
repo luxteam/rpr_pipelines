@@ -79,12 +79,14 @@ def executeTests(String osName, String asicName, Map options)
 
 def executeBuildWindows(Map options)
 {
+    clearBinariesWin()
+
     if (options.rebuildUSD){
         bat """
             if exist USDgen rmdir /s/q USDgen
             if exist USDinst rmdir /s/q USDinst
             call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat" amd64 >> ${STAGE_NAME}_USD.log 2>&1
-            C:\\Python27\\python.exe USD\\build_scripts\\build_usd.py -v --build ${WORKSPACE}/USDgen/build --src ${WORKSPACE}/USDgen/src ${WORKSPACE}/USDinst > USD/${STAGE_NAME}_USD.log 2>&1
+            python USD\\build_scripts\\build_usd.py -v --build USDgen/build --src USDgen/src USDinst > ${STAGE_NAME}_USD.log 2>&1
         """
     }
     
@@ -93,6 +95,7 @@ def executeBuildWindows(Map options)
             bat """
                 mkdir build
                 set PATH=c:\\python35\\;c:\\python35\\scripts\\;%PATH%;
+                set HFS=C:\\Program Files\\Side Effects Software\\Houdini ${options.houdiniVersion}
                 python pxr\\imaging\\plugin\\hdRpr\\package\\generatePackage.py -i "." -o "build" >> ..\\${STAGE_NAME}.log 2>&1
             """
 
@@ -107,7 +110,9 @@ def executeBuildWindows(Map options)
 }
 
 
-def executeBuildOSX(Map options) {
+def executeBuildOSX(Map options) 
+{
+    clearBinariesUnix()
 
     if (options.rebuildUSD) {
         sh """
@@ -122,7 +127,7 @@ def executeBuildOSX(Map options) {
             mkdir -p USDgen
             mkdir -p USDinst
 
-            python USD/build_scripts/build_usd.py -vvv --build USDgen/build --src USDgen/src USDinst > USD/${STAGE_NAME}_USD.log 2>&1
+            python USD/build_scripts/build_usd.py -vvv --build USDgen/build --src USDgen/src USDinst > ${STAGE_NAME}_USD.log 2>&1
         """
     }
 
@@ -130,7 +135,7 @@ def executeBuildOSX(Map options) {
         if (options.enableHoudini) {
             sh """
                 mkdir build
-                export HFS=/Applications/Houdini/Current/Frameworks/Houdini.framework/Versions/Current/Resources
+                export HFS=/Applications/Houdini/Houdini${options.houdiniVersion}/Frameworks/Houdini.framework/Versions/Current/Resources
                 python3 pxr/imaging/plugin/hdRpr/package/generatePackage.py -i "." -o "build" >> ../${STAGE_NAME}.log 2>&1
             """
         } else {
@@ -143,7 +148,9 @@ def executeBuildOSX(Map options) {
 }
 
 
-def executeBuildLinux(Map options) {
+def executeBuildUnix(Map options) 
+{
+    clearBinariesUnix()
 
     if (options.rebuildUSD) {
         sh """
@@ -158,7 +165,7 @@ def executeBuildLinux(Map options) {
             mkdir -p USDgen
             mkdir -p USDinst
 
-            python USD/build_scripts/build_usd.py -vvv --build USDgen/build --src USDgen/src USDinst > USD/${STAGE_NAME}_USD.log 2>&1
+            python USD/build_scripts/build_usd.py -vvv --build USDgen/build --src USDgen/src USDinst > ${STAGE_NAME}_USD.log 2>&1
         """
     }
 
@@ -166,43 +173,7 @@ def executeBuildLinux(Map options) {
         if (options.enableHoudini) {
             sh """
                 mkdir build
-                export HFS=/opt/hfs18.0.460
-                python3 pxr/imaging/plugin/hdRpr/package/generatePackage.py -i "." -o "build" >> ../${STAGE_NAME}.log 2>&1
-            """
-        } else {
-            sh """
-                mkdir build
-                python3 pxr/imaging/plugin/hdRpr/package/generatePackage.py -i "." -o "build" --cmake_options "-Dpxr_DIR=USDinst" >> ../${STAGE_NAME}.log 2>&1
-            """
-        }
-    }
-}
-
-
-def executeBuildCentOS(Map options) {
-
-    if (options.rebuildUSD) {
-        sh """
-            if [ -d "./USDgen" ]; then
-                rm -fdr ./USDgen
-            fi
-
-            if [ -d "./USDinst" ]; then
-                rm -fdr ./USDinst
-            fi
-
-            mkdir -p USDgen
-            mkdir -p USDinst
-
-            python USD/build_scripts/build_usd.py -vvv --build USDgen/build --src USDgen/src USDinst > USD/${STAGE_NAME}_USD.log 2>&1
-        """
-    }
-
-    dir ("RadeonProRenderUSD") {
-        if (options.enableHoudini) {
-            sh """
-                mkdir build
-                export HFS=/opt/hfs18.0.460
+                export HFS=/home/admin/Houdini/hfs${options.houdiniVersion}
                 python3 pxr/imaging/plugin/hdRpr/package/generatePackage.py -i "." -o "build" >> ../${STAGE_NAME}.log 2>&1
             """
         } else {
@@ -216,6 +187,19 @@ def executeBuildCentOS(Map options) {
 
 
 def executeBuild(String osName, Map options) {
+
+    if (options.enableHoudini) {
+        // autoupdate houdini license
+        timeout(time: "15", unit: 'MINUTES') {
+            try {
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'sidefxCredentials', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
+                    print(python3("${CIS_TOOLS}/download_houdini.py --username \"$USERNAME\" --password \"$PASSWORD\" --version \"${options.houdiniVersion}\""))
+                }
+            } catch (e) {
+                print e
+            }
+        }
+    }
 
     try {
         dir('RadeonProRenderUSD') {
@@ -236,14 +220,8 @@ def executeBuild(String osName, Map options) {
             case 'OSX':
                 executeBuildOSX(options);
                 break;
-            case 'CentOS':
-                executeBuildCentOS(options);
-                break;
-            case 'CentOS7_6':
-                executeBuildCentOS(options);
-                break;
             default:
-                executeBuildLinux(options);
+                executeBuildUnix(options);
         }
         archiveArtifacts "RadeonProRenderUSD/build/hdRpr-*.tar.gz"
     }
@@ -261,9 +239,6 @@ def executeBuild(String osName, Map options) {
     }
     finally {
         archiveArtifacts "*.log"
-        if (options.rebuildUSD) {
-            archiveArtifacts "USD/*.log"
-        }
     }
 }
 
@@ -277,7 +252,6 @@ def executePreBuild(Map options) {
     } else {
         if (env.CHANGE_URL) {
             println "[INFO] Branch was detected as Pull Request"
-            options.isPR = true
             options.executeBuild = true
             options.executeTests = true
             options.testsPackage = "PR"
@@ -355,14 +329,15 @@ def call(String projectBranch = "",
         String testsBranch = "master",
         String platforms = 'Windows;Ubuntu18;OSX;CentOS7_6',
         Boolean updateRefs = false,
-        Boolean enableNotifications = false,
+        Boolean enableNotifications = true,
         Boolean incrementVersion = true,
         String testsPackage = "",
         String tests = "",
         Boolean forceBuild = false,
         Boolean splitTestsExectuion = false,
         Boolean enableHoudini = true,
-        Boolean rebuildUSD = false)
+        Boolean rebuildUSD = false,
+        String houdiniVersion = "18.0.566")
 {
     try
     {
@@ -386,7 +361,8 @@ def call(String projectBranch = "",
                                 TEST_TIMEOUT:30,
                                 enableHoudini:enableHoudini,
                                 rebuildUSD:rebuildUSD,
-                                BUILDER_TAG:'Builder6'
+                                houdiniVersion:houdiniVersion,
+                                BUILDER_TAG:'BuilderHoudini'
                                 ])
     }
     catch(e) {

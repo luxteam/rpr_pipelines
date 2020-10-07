@@ -174,9 +174,9 @@ def executeTests(String osName, String asicName, Map options) {
 
 def executeBuildWindows(Map options) {
 
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/*", './thirdparty/OpenCL-Headers')
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", './thirdparty/portaudio')
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5-dll64/*", './tan/tanlibrary/src/fftw-3.3.5-dll64')
+    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/*", "./thirdparty/OpenCL-Headers")
+    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", "./thirdparty/portaudio")
+    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5-dll64/*", "./tan/tanlibrary/src/fftw-3.3.5-dll64")
 
     bat """
         mkdir thirdparty\\Qt\\Qt5.9.9\\5.9.9\\msvc2017_64
@@ -495,7 +495,6 @@ def executePreBuild(Map options) {
         if (env.CHANGE_URL)
         {
             println "[INFO] Branch was detected as Pull Request"
-            options.isPR = true
             options.testsPackage = "PR"
         }
         else if("${env.BRANCH_NAME}" == "master")

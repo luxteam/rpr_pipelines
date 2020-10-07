@@ -1,4 +1,4 @@
-def executeTestCommand(String osName)
+def executeTestCommand(String osName, Boolean testPerformance)
 {
     switch(osName)
     {
@@ -9,10 +9,17 @@ def executeTestCommand(String osName)
         dir("unittest")
         {
             bat "mkdir testSave"
-            bat """
-            set RIF_AI_FP16_ENABLED=1
-            ..\\bin\\UnitTest.exe -t .\\testSave -r .\\referenceImages --models ..\\models --gtest_filter=\"*.*/0\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ..\\${STAGE_NAME}.log  2>&1
-            """
+            if (testPerformance) {
+                bat """
+                set RIF_AI_FP16_ENABLED=1
+                ..\\bin\\UnitTest.exe --mode p --gtest_filter=\"Performance.*\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ..\\${STAGE_NAME}.log  2>&1
+                """
+            } else {
+                bat """
+                set RIF_AI_FP16_ENABLED=1
+                ..\\bin\\UnitTest.exe -t .\\testSave -r .\\referenceImages --models ..\\models --gtest_filter=\"*.*/0\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ..\\${STAGE_NAME}.log  2>&1
+                """
+            }
         }
         break;
     case 'OSX':
@@ -22,7 +29,11 @@ def executeTestCommand(String osName)
         dir("unittest")
         {
             sh "mkdir testSave"
-            sh "RIF_AI_FP16_ENABLED=1 ../bin/UnitTest  -t ./testSave -r ./referenceImages --models ../models --gtest_filter=\"*.*/0\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../${STAGE_NAME}.log  2>&1"
+            if (testPerformance) {
+                sh "RIF_AI_FP16_ENABLED=1 ../bin/UnitTest --mode p --gtest_filter=\"Performance.*\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../${STAGE_NAME}.log  2>&1"
+            } else {
+                sh "RIF_AI_FP16_ENABLED=1 ../bin/UnitTest  -t ./testSave -r ./referenceImages --models ../models --gtest_filter=\"*.*/0\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../${STAGE_NAME}.log  2>&1"
+            }
         }
         break;
     default:
@@ -32,7 +43,11 @@ def executeTestCommand(String osName)
         dir("unittest")
         {
             sh "mkdir testSave"
-            sh "RIF_AI_FP16_ENABLED=1 ../bin/UnitTest  -t ./testSave -r ./referenceImages --models ../models --gtest_filter=\"*.*/0\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../${STAGE_NAME}.log  2>&1"
+            if (testPerformance) {
+                sh "RIF_AI_FP16_ENABLED=1 ../bin/UnitTest --mode p --gtest_filter=\"Performance.*\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../${STAGE_NAME}.log  2>&1"
+            } else {
+                sh "RIF_AI_FP16_ENABLED=1 ../bin/UnitTest  -t ./testSave -r ./referenceImages --models ../models --gtest_filter=\"*.*/0\" --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../${STAGE_NAME}.log  2>&1"
+            }
         }
     }
 }
@@ -46,7 +61,7 @@ def executeTests(String osName, String asicName, Map options)
         outputEnvironmentInfo(osName)
         unstash "app${osName}"
 
-        executeTestCommand(osName)
+        executeTestCommand(osName, options.testPerformance)
     }
     catch (e)
     {
@@ -56,6 +71,30 @@ def executeTests(String osName, String asicName, Map options)
     }
     finally {
         archiveArtifacts "*.log"
+
+        if (options.testPerformance) {
+
+            switch(osName) {
+                case 'Windows':
+                    bat """
+                    move unittest\\rif_performance_*.csv .
+                    rename rif_performance_*.csv ${STAGE_NAME}.csv
+                    """
+                    break;
+                case 'OSX':
+                    sh """
+                    mv unittest/rif_performance_*.csv ./${STAGE_NAME}.csv
+                    """
+                    break;
+                default:
+                    sh """
+                    mv unittest/rif_performance_*.csv ./${STAGE_NAME}.csv
+                    """
+                    break;
+            }
+
+            stash includes: "${STAGE_NAME}.gtest.xml, ${STAGE_NAME}.csv", name: "${options.testResultsName}", allowEmpty: true
+        }
         junit "*.gtest.xml"
     }
 }
@@ -220,7 +259,6 @@ def executePreBuild(Map options)
 
     if (env.CHANGE_URL) {
         echo "branch was detected as Pull Request"
-        options['isPR'] = true
     }
 
     if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
@@ -276,41 +314,74 @@ def executeBuild(String osName, Map options)
 def executeDeploy(Map options, List platformList, List testResultList)
 {
     cleanWS()
-    checkOutBranchOrScm("master", "git@github.com:Radeon-Pro/RadeonProImageProcessingSDK.git")
 
-    bat """
-    git rm -r *
-    """
+    if (options.testPerformance) {
 
-    platformList.each() {
-        dir("${it}") {
-            unstash "deploy${it}"
+        dir("testResults") {
+            testResultList.each() {
+
+                try {
+                    unstash "$it"
+                } catch(e) {
+                    echo "[ERROR] Failed to unstash ${it}"
+                    println(e.toString());
+                    println(e.getMessage());
+                }
+
+            }
         }
-    }
-    unstash "models"
-    unstash "samples"
-    unstash "txtFiles"
-    unstash "include"
 
-    bat """
-    git add --all
-    git commit -m "buildmaster: SDK release v${env.TAG_NAME}"
-    git tag -a rif_sdk_${env.TAG_NAME} -m "rif_sdk_${env.TAG_NAME}"
-    git push --tag origin HEAD:master
-    """
+        dir("rif-report") {
+            checkOutBranchOrScm("master", "git@github.com:luxteam/rif_report.git")
+
+            bat """
+            set PATH=c:\\python35\\;c:\\python35\\scripts\\;%PATH%
+            pip install -r requirements.txt >> ${STAGE_NAME}.requirements.log 2>&1
+            python build_report.py --test_results ..\\testResults --output_dir ..\\results
+            """
+        }
+
+        utils.publishReport(this, "${BUILD_URL}", "summaryTestResults", "summary_report.html", "Test Report", "Summary Report")
+    } else {
+        checkOutBranchOrScm("master", "git@github.com:Radeon-Pro/RadeonProImageProcessingSDK.git")
+
+        bat """
+        git rm -r *
+        """
+
+        platformList.each() {
+            dir("${it}") {
+                unstash "deploy${it}"
+            }
+        }
+        unstash "models"
+        unstash "samples"
+        unstash "txtFiles"
+        unstash "include"
+
+        bat """
+        git add --all
+        git commit -m "buildmaster: SDK release v${env.TAG_NAME}"
+        git tag -a rif_sdk_${env.TAG_NAME} -m "rif_sdk_${env.TAG_NAME}"
+        git push --tag origin HEAD:master
+        """
+    }
 }
 
 def call(String projectBranch = "",
-         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI,AMD_RadeonVII,AMD_RX5700XT;Ubuntu18:NVIDIA_GTX980;OSX:AMD_RXVEGA;CentOS7;Ubuntu18-Clang',
+         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI,AMD_RadeonVII,AMD_RX5700XT;Ubuntu18:NVIDIA_RTX2070;OSX:AMD_RXVEGA;CentOS7;Ubuntu18-Clang',
          Boolean updateRefs = false,
          Boolean enableNotifications = true,
-         String cmakeKeys = '') {
+         String cmakeKeys = '',
+         Boolean testPerformance = false) {
     //TOOD: Ubuntu AMD_RadeonVII
     String PRJ_NAME="RadeonProImageProcessor"
     String PRJ_ROOT="rpr-core"
 
-    def deployStage = env.TAG_NAME ? this.&executeDeploy : null
+    def deployStage = env.TAG_NAME || testPerformance ? this.&executeDeploy : null
     platforms = env.TAG_NAME ? "Windows;Ubuntu18;OSX;CentOS7;" : platforms
+
+    def nodeRetry = []
 
     multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, deployStage,
                            [projectBranch:projectBranch,
@@ -323,5 +394,8 @@ def call(String projectBranch = "",
                             executeTests:true,
                             PRJ_NAME:PRJ_NAME,
                             PRJ_ROOT:PRJ_ROOT,
-                            cmakeKeys:cmakeKeys])
+                            cmakeKeys:cmakeKeys,
+                            testPerformance:testPerformance,
+                            nodeRetry: nodeRetry,
+                            retriesForTestStage:1])
 }

@@ -358,5 +358,6 @@ def call(String projectBranch = "",
                             slackTocken:"${SLACK_BAIKAL_TOCKEN}",
                             cmakeKeys:cmakeKeys,
                             BaikalTest:BaikalTest,
-                            RprTest: RprTest])
+                            RprTest: RprTest,
+                            retriesForTestStage:1])
 }

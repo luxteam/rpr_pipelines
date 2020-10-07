@@ -1,11 +1,13 @@
-def call(nodeRetryList){ //FIXME: add type of nodeRetryList
+def call(List nodeRetryList, String engine = ""){
     nodeRetryList.each{ gpu ->
         try
         {
             gpu['Tries'].each{ group ->
                 group.each{ groupKey, retries ->
-                    retries.each{ retry ->
-                        unstash "${retry['link']}"
+                    if (!engine || groupKey.split("-")[-1] == engine) {
+                        retries.each{ retry ->
+                            unstash "${retry['link']}"
+                        }
                     }
                 }
             }

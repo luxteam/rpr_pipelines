@@ -80,7 +80,7 @@ def executeBuildWindows(Map options)
 
     if (env.TAG_NAME) {
         dir("rml-deploy") {
-            checkOutBranchOrScm("master", "ssh://git@gitlab.cts.luxoft.com:30122/servants/rml-deploy.git", true, false, true, "radeonprorender-gitlab")
+            checkOutBranchOrScm("master", "ssh://git@gitlab.cts.luxoft.com:30122/servants/rml-deploy.git", true, null, null, false, true, "radeonprorender-gitlab")
             bat """
                 MD "miopen\\${CIS_OS}"
                 RMDIR /S/Q "miopen\\${CIS_OS}"
@@ -129,7 +129,7 @@ def executeBuildLinux(Map options)
 
     if (env.TAG_NAME) {
         dir("rml-deploy") {
-            checkOutBranchOrScm("master", "ssh://git@gitlab.cts.luxoft.com:30122/servants/rml-deploy.git", true, false, true, "radeonprorender-gitlab")
+            checkOutBranchOrScm("master", "ssh://git@gitlab.cts.luxoft.com:30122/servants/rml-deploy.git", true, null, null, false, true, "radeonprorender-gitlab")
             sh """
                 mkdir -p miopen/${CIS_OS}
                 rm -fdr miopen/${CIS_OS}
@@ -260,7 +260,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 }
 
 def call(String projectBranch = "",
-         String platforms = 'Windows:AMD_RadeonVII,NVIDIA_RTX2080;Ubuntu18:AMD_RadeonVII,NVIDIA_GTX980;CentOS7_6',
+         String platforms = 'Windows:AMD_RadeonVII,NVIDIA_RTX2080;Ubuntu18:AMD_RadeonVII,NVIDIA_RTX2070;CentOS7_6',
          String PRJ_ROOT='rpr-ml',
          String PRJ_NAME='MIOpen',
          String projectRepo='git@github.com:Radeon-Pro/RadeonML.git',
@@ -284,6 +284,7 @@ def call(String projectBranch = "",
                             cmakeKeys:cmakeKeys,
                             slackChannel:"${SLACK_ML_CHANNEL}",
                             slackBaseUrl:"${SLACK_BAIKAL_BASE_URL}",
-                            slackTocken:"slack-ml-channel"])
+                            slackTocken:"slack-ml-channel",
+                            retriesForTestStage:1])
 
 }

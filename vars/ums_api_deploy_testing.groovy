@@ -4,12 +4,10 @@ def call(
 ) {
     String folder = 'universe-api'
     String repoName = 'https://gitlab.cts.luxoft.com/dm1tryG/universe-api.git'
-    String compose = "deploy/${type}/docker-compose.yml"
+    String compose = "${folder}/deploy/${type}/docker-compose.yml"
     node('UMS') {
-        cleanWS("Linux")
-
         // stop container
-        dir("${type}/${folder}") {
+        dir("${type}") {
             try {
                 sh "sudo docker-compose -f ${compose} stop";
                 sh "sudo docker-compose -f ${compose} rm --force"
@@ -17,12 +15,11 @@ def call(
                 println("Catching the exception");
             }
 
-            dir("../../../") {
-                sh "sudo rm -rf ${folder}/"        
-            }
-
+            sh "sudo rm -rf ${folder}"        
             
-            checkOutBranchOrScm(branch, repoName, false, false, true, 'radeonprorender-gitlab', false)
+            dir ("${folder}") {
+                checkOutBranchOrScm(branch, repoName, false, false, true, 'radeonprorender-gitlab', false)
+            }
 
             stage('Build') {
                 sh "sudo docker-compose -f ${compose} build"

@@ -3,7 +3,7 @@ def call(
     String branch
 ) {
     String folder = 'universe-api'
-    String repoName = 'https://gitlab.cts.luxoft.com/dm1tryG/universe-api.git'
+    String repoName = 'ssh://git@gitlab.cts.luxoft.com:30122/dm1tryG/universe-api.git'
     String compose = "${folder}/deploy/${type}/docker-compose.yml"
     node('UMS') {
         // stop container
@@ -18,7 +18,10 @@ def call(
             sh "sudo rm -rf ${folder}"        
             
             dir ("${folder}") {
-                checkOutBranchOrScm(branch, repoName, false, false, true, 'radeonprorender-gitlab', false)
+                checkOutBranchOrScm(
+                    branchName: branch,
+                    repoName:repoName
+                )
             }
 
             stage('Build') {

@@ -3,7 +3,7 @@ def call(
     String branch
 ) {
     String folder = 'image-service'
-    String repoName = 'ssh://git@gitlab.cts.luxoft.com:30122/dm1tryG/universe-api.git'
+    String repoName = 'https://gitlab.cts.luxoft.com/services/image-service.git'
     String compose = "deploy/${type}/docker-compose.yml"
     node('UMS') {
         // stop container

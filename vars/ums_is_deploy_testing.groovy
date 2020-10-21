@@ -6,6 +6,8 @@ def call(
     String repoName = 'https://gitlab.cts.luxoft.com/services/image-service.git'
     String compose = "deploy/${type}/docker-compose.yml"
     node('UMS') {
+        cleanWS("Linux")
+
         // stop container
         dir("${type}/${folder}") {
             try {
@@ -18,12 +20,9 @@ def call(
             dir("../../../") {
                 sh "sudo rm -rf ${folder}/"        
             }
+
             
-            // clone
-            checkOutBranchOrScm(
-                branchName: branch,
-                repoName:repoName
-            )
+            checkOutBranchOrScm(branch, repoName, false, false, true, 'radeonprorender-gitlab', false)
 
             stage('Build') {
                 sh "sudo docker-compose -f ${compose} build"

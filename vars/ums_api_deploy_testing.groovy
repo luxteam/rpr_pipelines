@@ -18,10 +18,7 @@ def call(
             sh "sudo rm -rf ${folder}"        
             
             dir ("${folder}") {
-                checkOutBranchOrScm(
-                    branchName: branch,
-                    repoName:repoName
-                )
+                checkOutBranchOrScm(branch, repoName, false, false, true, 'radeonprorender-gitlab', false)
             }
 
             stage('Build') {

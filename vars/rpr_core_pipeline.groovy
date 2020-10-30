@@ -854,7 +854,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
 
 def call(String projectBranch = "",
-         String testsBranch = "inemankov/performance_history",
+         String testsBranch = "inemankov/performance_history_dev",
          String platforms = 'Windows:NVIDIA_RTX2080',
          String updateRefs = 'No',
          Boolean enableNotifications = false,

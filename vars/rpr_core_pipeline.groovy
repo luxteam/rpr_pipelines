@@ -855,7 +855,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
 def call(String projectBranch = "",
          String testsBranch = "inemankov/performance_history_dev",
-         String platforms = 'Windows:NVIDIA_RTX2080',
+         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,AMD_RadeonVII,AMD_RX5700XT,NVIDIA_GF1080TI,NVIDIA_RTX2080TI;OSX:AMD_RXVEGA;Ubuntu18:AMD_RadeonVII,NVIDIA_RTX2070',
          String updateRefs = 'No',
          Boolean enableNotifications = false,
          String renderDevice = "gpu",

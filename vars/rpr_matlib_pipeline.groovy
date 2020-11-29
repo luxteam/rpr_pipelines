@@ -19,7 +19,7 @@ def executeBuildMacOS()
 {
     sh """
     pushd MatLibPkg
-    ./build_macos_installer.sh >> ../${STAGE_NAME}.log 2>&1
+    ./build_osx_installer.sh >> ../${STAGE_NAME}.log 2>&1
     cp ./.installer_build/RadeonProRenderMaterialLibrary_2.0.0.dmg ../RadeonProRenderMaterialLibrary.dmg
     popd
     """

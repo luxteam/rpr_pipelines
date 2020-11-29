@@ -217,7 +217,7 @@ def executeBuildMacOS(Map options)
     dir('RadeonProRenderPkgPlugin/MayaPkg')
     {
         sh """
-        ./build_macos_installer.sh >> ../../${STAGE_NAME}.log 2>&1
+        ./build_osx_installer.sh >> ../../${STAGE_NAME}.log 2>&1
         """
 
         dir('.installer_build')

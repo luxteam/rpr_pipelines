@@ -561,7 +561,7 @@ def executeBuildMacOS(Map options)
     {
         GithubNotificator.updateStatus("Build", "MacOS", "pending", env, options, "Building the plugin.", "${BUILD_URL}/artifact/Build-MacOS.log")
         sh """
-            ./build_macos.sh >> ../../${STAGE_NAME}.log  2>&1
+            ./build_osx.sh >> ../../${STAGE_NAME}.log  2>&1
         """
 
         dir('.build')

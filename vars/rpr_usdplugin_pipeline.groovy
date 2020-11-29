@@ -21,7 +21,7 @@ def executeGenTestRefCommand(String osName, Map options)
                 make_results_baseline.bat
                 """
                 break;
-            case 'OSX':
+            case 'MacOS':
                 sh """
                 ./make_results_baseline.sh
                 """
@@ -57,7 +57,7 @@ def executeTestCommand(String osName, Map options)
             println "no tests functions"
         }
         break;
-    case 'OSX':
+    case 'MacOS':
         dir('scripts')
         {
             //sh """
@@ -116,7 +116,7 @@ def executeBuildWindows(Map options)
 }
 
 
-def executeBuildOSX(Map options) 
+def executeBuildMacOS(Map options) 
 {
     clearBinariesUnix()
 
@@ -139,10 +139,10 @@ def executeBuildOSX(Map options)
 
     dir ("RadeonProRenderUSD") {
         if (options.enableHoudini) {
-            osx_houdini_python3 = options.houdini_python3 ? "-py3" : "-py2"
+            macos_houdini_python3 = options.houdini_python3 ? "-py3" : "-py2"
             sh """
                 mkdir build
-                export HFS=/Applications/Houdini/Houdini${options.houdiniVersion}${osx_houdini_python3}/Frameworks/Houdini.framework/Versions/Current/Resources
+                export HFS=/Applications/Houdini/Houdini${options.houdiniVersion}${macos_houdini_python3}/Frameworks/Houdini.framework/Versions/Current/Resources
                 python3 pxr/imaging/plugin/hdRpr/package/generatePackage.py -i "." -o "build" >> ../${STAGE_NAME}.log 2>&1
             """
         } else {
@@ -226,8 +226,8 @@ def executeBuild(String osName, Map options) {
             case 'Windows':
                 executeBuildWindows(options);
                 break;
-            case 'OSX':
-                executeBuildOSX(options);
+            case 'MacOS':
+                executeBuildMacOS(options);
                 break;
             default:
                 executeBuildUnix(options);
@@ -354,7 +354,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 def call(String projectBranch = "",
         String usdBranch = "master",
         String testsBranch = "master",
-        String platforms = 'Windows;Ubuntu18;OSX',
+        String platforms = 'Windows;Ubuntu18;MacOS',
         Boolean updateRefs = false,
         Boolean enableNotifications = true,
         Boolean incrementVersion = true,

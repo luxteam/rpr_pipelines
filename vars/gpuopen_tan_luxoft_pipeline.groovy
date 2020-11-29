@@ -29,24 +29,24 @@ def getTanTool(String osName, Map options)
 
             break;
 
-        case 'OSX':
+        case 'MacOS':
 
-            if (!fileExists("${CIS_TOOLS}/../PluginsBinaries/${options.pluginOSXSha}.tar.gz")) {
+            if (!fileExists("${CIS_TOOLS}/../PluginsBinaries/${options.pluginMacOSSha}.tar.gz")) {
 
                 clearBinariesUnix()
 
                 println "[INFO] The plugin does not exist in the storage. Unstashing and copying..."
-                unstash "TAN_OSX"
+                unstash "TAN_MacOS"
                 
                 sh """
                     mkdir -p "${CIS_TOOLS}/../PluginsBinaries"
-                    cp binMacOS.tar.gz "${CIS_TOOLS}/../PluginsBinaries/${options.pluginOSXSha}.tar.gz"
+                    cp binMacOS.tar.gz "${CIS_TOOLS}/../PluginsBinaries/${options.pluginMacOSSha}.tar.gz"
                 """ 
 
             } else {
-                println "[INFO] The plugin ${options.pluginOSXSha}.tar.gz exists in the storage."
+                println "[INFO] The plugin ${options.pluginMacOSSha}.tar.gz exists in the storage."
                 sh """
-                    cp "${CIS_TOOLS}/../PluginsBinaries/${options.pluginOSXSha}.tar.gz" binMacOS.tar.gz
+                    cp "${CIS_TOOLS}/../PluginsBinaries/${options.pluginMacOSSha}.tar.gz" binMacOS.tar.gz
                 """
             }
 
@@ -98,7 +98,7 @@ def executeTestCommand(String osName, Map options)
                 """
             }
             break;
-        case 'OSX':
+        case 'MacOS':
             dir('Launcher')
             {
                 sh """
@@ -290,25 +290,25 @@ def executeBuildWindows(Map options) {
     }
 }
 
-def executeBuildOSX(Map options) {
+def executeBuildMacOS(Map options) {
 
     receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/*", './thirdparty/OpenCL-Headers')
     receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", './thirdparty/portaudio')
     receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5/*", './tan/tanlibrary/src/fftw-3.3.5')
 
-    options.buildConfiguration.each() { osx_build_conf ->
-        options.ipp.each() { osx_cur_ipp ->
-            options.osxTool.each() { osx_tool ->
+    options.buildConfiguration.each() { macos_build_conf ->
+        options.ipp.each() { macos_cur_ipp ->
+            options.macosTool.each() { macos_tool ->
 
-                osx_build_conf = osx_build_conf.capitalize()
+                macos_build_conf = macos_build_conf.capitalize()
 
-                println "Current build configuration: ${osx_build_conf}."
-                println "Current ipp: ${osx_cur_ipp}."
-                println "Current tool: ${osx_tool}."
+                println "Current build configuration: ${macos_build_conf}."
+                println "Current ipp: ${macos_cur_ipp}."
+                println "Current tool: ${macos_tool}."
 
-                osx_build_name = "${osx_build_conf}_${osx_tool}_ipp-${osx_cur_ipp}"
+                macos_build_name = "${macos_build_conf}_${macos_tool}_ipp-${macos_cur_ipp}"
 
-                if (osx_cur_ipp == "ipp"){
+                if (macos_cur_ipp == "ipp"){
                     println "add ipp flag"
                 } else {
                     println "add fftw"
@@ -321,22 +321,22 @@ def executeBuildOSX(Map options) {
                     """
                     dir("macos") {
                         try {
-                            options.osx_cmake = "/usr/local/Cellar/qt/5.13.1"
-                            options.osx_opencl_headers = "../../../../thirdparty/OpenCL-Headers"
-                            options.osx_portaudio = "../../../../../thirdparty/portaudio"
+                            options.macos_cmake = "/usr/local/Cellar/qt/5.13.1"
+                            options.macos_opencl_headers = "../../../../thirdparty/OpenCL-Headers"
+                            options.macos_portaudio = "../../../../../thirdparty/portaudio"
 
-                            if (osx_tool == "cmake") {
+                            if (macos_tool == "cmake") {
                                 sh """
-                                    cmake .. -DCMAKE_BUILD_TYPE=${osx_build_conf} -DCMAKE_PREFIX_PATH="${options.osx_cmake}" -DOpenCL_INCLUDE_DIR="${options.osx_opencl_headers}" -DPortAudio_DIR="${options.osx_portaudio}" -DDEFINE_AMD_OPENCL_EXTENSION=1 >> ../../../../${STAGE_NAME}.${osx_build_name}.log 2>&1
+                                    cmake .. -DCMAKE_BUILD_TYPE=${macos_build_conf} -DCMAKE_PREFIX_PATH="${options.macos_cmake}" -DOpenCL_INCLUDE_DIR="${options.macos_opencl_headers}" -DPortAudio_DIR="${options.macos_portaudio}" -DDEFINE_AMD_OPENCL_EXTENSION=1 >> ../../../../${STAGE_NAME}.${macos_build_name}.log 2>&1
                                 """
-                            } else if (osx_tool == "xcode") {
+                            } else if (macos_tool == "xcode") {
                                 sh """
-                                    cmake -G "Xcode" .. -DCMAKE_PREFIX_PATH="${options.osx_cmake}" -DOpenCL_INCLUDE_DIR="${options.osx_opencl_headers}" -DPortAudio_DIR="${options.osx_portaudio}" -DDEFINE_AMD_OPENCL_EXTENSION=1  >> ../../../../${STAGE_NAME}.${osx_build_name}.log 2>&1
+                                    cmake -G "Xcode" .. -DCMAKE_PREFIX_PATH="${options.macos_cmake}" -DOpenCL_INCLUDE_DIR="${options.macos_opencl_headers}" -DPortAudio_DIR="${options.macos_portaudio}" -DDEFINE_AMD_OPENCL_EXTENSION=1  >> ../../../../${STAGE_NAME}.${macos_build_name}.log 2>&1
                                 """
                             }
                             
                             sh """
-                                make VERBOSE=1 >> ../../../../${STAGE_NAME}.${osx_build_name}.log 2>&1
+                                make VERBOSE=1 >> ../../../../${STAGE_NAME}.${macos_build_name}.log 2>&1
                             """
 
                             sh """
@@ -347,16 +347,16 @@ def executeBuildOSX(Map options) {
                             """
 
                             sh """
-                                tar -czvf "MacOS_${osx_build_name}.tar.gz" ./binMacOS
+                                tar -czvf "MacOS_${macos_build_name}.tar.gz" ./binMacOS
                             """
                             
-                            archiveArtifacts "MacOS_${osx_build_name}.tar.gz"
+                            archiveArtifacts "MacOS_${macos_build_name}.tar.gz"
 
                             sh """
-                                mv MacOS_${osx_build_name}.tar.gz binMacOS.tar.gz
+                                mv MacOS_${macos_build_name}.tar.gz binMacOS.tar.gz
                             """
-                            stash includes: "binMacOS.tar.gz", name: 'TAN_OSX'
-                            options.pluginOSXSha = sha1 "binMacOS.tar.gz"
+                            stash includes: "binMacOS.tar.gz", name: 'TAN_MacOS'
+                            options.pluginMacOSSha = sha1 "binMacOS.tar.gz"
 
                         } catch (FlowInterruptedException error) {
                             println "[INFO] Job was aborted during build stage"
@@ -365,7 +365,7 @@ def executeBuildOSX(Map options) {
                             println(e.toString());
                             println(e.getMessage());
                             currentBuild.result = "FAILED"
-                            println "[ERROR] Failed to build TAN on OSX"
+                            println "[ERROR] Failed to build TAN on MacOS"
                         } 
                     }
                 }
@@ -461,9 +461,9 @@ def executeBuild(String osName, Map options) {
             case 'Windows':
                 executeBuildWindows(options);
                 break;
-            case 'OSX':
+            case 'MacOS':
                 withEnv(["PATH=$WORKSPACE:$PATH"]) {
-                    executeBuildOSX(options);
+                    executeBuildMacOS(options);
                 }
                 break;
             default:
@@ -640,13 +640,13 @@ def executeDeploy(Map options, List platformList, List testResultList) {
 
 def call(String projectBranch = "",
     String testsBranch = "master",
-    String platforms = 'Windows;OSX;Ubuntu18',
+    String platforms = 'Windows;MacOS;Ubuntu18',
     String buildConfiguration = "release",
     String ipp = "off",
     String winTool = "msbuild",
     String winVisualStudioVersion = "2017",
     String winRTQ = "on",
-    String osxTool = "cmake",
+    String macosTool = "cmake",
     Boolean enableNotifications = true,
     Boolean incrementVersion = true,
     Boolean forceBuild = false,
@@ -674,14 +674,14 @@ def call(String projectBranch = "",
         winTool = winTool.split(',')
         winVisualStudioVersion = winVisualStudioVersion.split(',')
         winRTQ = winRTQ.split(',')
-        osxTool = osxTool.split(',')
+        macosTool = macosTool.split(',')
 
         println "Build configuration: ${buildConfiguration}"
         println "IPP: ${ipp}"
         println "Win visual studio version: ${winVisualStudioVersion}"
         println "Win tool: ${winTool}"
         println "Win RQT: ${winRTQ}"
-        println "OSX tool: ${osxTool}"
+        println "MacOS tool: ${macosTool}"
 
         multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy,
                                [projectBranch:projectBranch,
@@ -696,7 +696,7 @@ def call(String projectBranch = "",
                                 winTool:winTool,
                                 winVisualStudioVersion:winVisualStudioVersion,
                                 winRTQ:winRTQ,
-                                osxTool:osxTool,
+                                macosTool:macosTool,
                                 tests:tests,
                                 gpusCount:gpusCount,
                                 TEST_TIMEOUT:90,

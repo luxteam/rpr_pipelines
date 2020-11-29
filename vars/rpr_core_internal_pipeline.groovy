@@ -40,24 +40,24 @@ def getCoreSDK(String osName, Map options)
 
             break;
 
-        case 'OSX':
+        case 'MacOS':
 
-            if (!fileExists("${CIS_TOOLS}/../PluginsBinaries/${options.pluginOSXSha}.zip")) {
+            if (!fileExists("${CIS_TOOLS}/../PluginsBinaries/${options.pluginMacOSSha}.zip")) {
 
                 clearBinariesUnix()
 
                 println "[INFO] The plugin does not exist in the storage. Unstashing and copying..."
-                unstash "OSXSDK"
+                unstash "MacOSSDK"
 
                 sh """
                     mkdir -p "${CIS_TOOLS}/../PluginsBinaries"
-                    cp binMacOS.zip "${CIS_TOOLS}/../PluginsBinaries/${options.pluginOSXSha}.zip"
+                    cp binMacOS.zip "${CIS_TOOLS}/../PluginsBinaries/${options.pluginMacOSSha}.zip"
                 """
 
             } else {
-                println "[INFO] The plugin ${options.pluginOSXSha}.zip exists in the storage."
+                println "[INFO] The plugin ${options.pluginMacOSSha}.zip exists in the storage."
                 sh """
-                    cp "${CIS_TOOLS}/../PluginsBinaries/${options.pluginOSXSha}.zip" binMacOS.zip
+                    cp "${CIS_TOOLS}/../PluginsBinaries/${options.pluginMacOSSha}.zip" binMacOS.zip
                 """
             }
 
@@ -105,7 +105,7 @@ def executeGenTestRefCommand(String osName, Map options, Boolean delete)
                 make_results_baseline.bat ${delete}
                 """
                 break;
-            case 'OSX':
+            case 'MacOS':
                 sh """
                 ./make_results_baseline.sh ${delete}
                 """
@@ -130,8 +130,8 @@ def executeTestCommand(String osName)
                 """
             }
             break;
-        case 'OSX':
-            // Tests for OSX aren't supported now
+        case 'MacOS':
+            // Tests for MacOS aren't supported now
             break;
         default:
             // Tests for Linux aren't supported now
@@ -213,7 +213,7 @@ def executeTestCommand(String osName, String asicName, Map options)
                         """
                     }
                     break;
-                case 'OSX':
+                case 'MacOS':
                     dir('scripts')
                     {
                         withEnv(["LD_LIBRARY_PATH=../rprSdk:\$LD_LIBRARY_PATH"]) {
@@ -441,21 +441,21 @@ def executeBuildWindows(Map options)
     GithubNotificator.updateStatus("Build", "Windows", "success", env, options, "RadeonProRenderSDK package was successfully created.", "${BUILD_URL}/artifact/binWin64.zip")
 }
 
-def executeBuildOSX(Map options)
+def executeBuildMacOS(Map options)
 {
-    GithubNotificator.updateStatus("Build", "OSX", "pending", env, options, "Creating RadeonProRenderSDK package.", "${BUILD_URL}/artifact/Build-OSX.log")
+    GithubNotificator.updateStatus("Build", "MacOS", "pending", env, options, "Creating RadeonProRenderSDK package.", "${BUILD_URL}/artifact/Build-MacOS.log")
     dir('RadeonProRenderSDK/RadeonProRender/binMacOS')
     {
         zip archive: true, dir: '.', glob: '', zipFile: 'binMacOS.zip'
-        stash includes: 'binMacOS.zip', name: 'OSXSDK'
-        options.pluginOSXSha = sha1 'binMacOS.zip'
+        stash includes: 'binMacOS.zip', name: 'MacOSSDK'
+        options.pluginMacOSSha = sha1 'binMacOS.zip'
     }
     if (options.sendToUMS) {
         dir("jobs_launcher") {
-            sendToMINIO(options, "OSX", "../RadeonProRenderSDK/RadeonProRender/binWin64", "binMacOS.zip")                            
+            sendToMINIO(options, "MacOS", "../RadeonProRenderSDK/RadeonProRender/binWin64", "binMacOS.zip")                            
         }
     }
-    GithubNotificator.updateStatus("Build", "OSX", "success", env, options, "RadeonProRenderSDK package was successfully created.", "${BUILD_URL}/artifact/binMacOS.zip")
+    GithubNotificator.updateStatus("Build", "MacOS", "success", env, options, "RadeonProRenderSDK package was successfully created.", "${BUILD_URL}/artifact/binMacOS.zip")
 }
 
 def executeBuildLinux(Map options)
@@ -527,8 +527,8 @@ def executeBuild(String osName, Map options)
             case 'Windows':
                 executeBuildWindows(options);
                 break;
-            case 'OSX':
-                executeBuildOSX(options);
+            case 'MacOS':
+                executeBuildMacOS(options);
                 break;
             default:
                 executeBuildLinux(options);

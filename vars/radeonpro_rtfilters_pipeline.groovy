@@ -14,7 +14,7 @@ def executeTestCommand(String osName, Map options)
                 call Release\\RTF_UnitTests.exe --gtest_output=xml:../../${STAGE_NAME}.gtest.xml >> ..\\..\\${STAGE_NAME}.log 2>&1
                 """
                 break;
-            case 'OSX':
+            case 'MacOS':
                 echo "pass"
                 break;
             default:
@@ -67,7 +67,7 @@ def executeBuildWindows(Map options)
     """
 }
 
-def executeBuildOSX(Map options)
+def executeBuildMacOS(Map options)
 {
     sh """
     mkdir Build
@@ -118,8 +118,8 @@ def executeBuild(String osName, Map options)
         case 'Windows': 
             executeBuildWindows(options); 
             break;
-        case 'OSX':
-            executeBuildOSX(options);
+        case 'MacOS':
+            executeBuildMacOS(options);
             break;
         default: 
             executeBuildLinux(options);

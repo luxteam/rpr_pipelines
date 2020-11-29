@@ -100,7 +100,7 @@ def executeBuildWindows(Map options)
 }
 
 
-def executeBuildOSX(Map options)
+def executeBuildMacOS(Map options)
 {
     sh """
         mkdir Build
@@ -179,8 +179,8 @@ def executeBuild(String osName, Map options)
         case 'Windows':
             executeBuildWindows(options);
             break;
-        case 'OSX':
-            executeBuildOSX(options);
+        case 'MacOS':
+            executeBuildMacOS(options);
             break;
         default:
             executeBuildLinux(options, osName);

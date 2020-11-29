@@ -10,7 +10,7 @@ def executeGenTestRefCommand(String asicName, String osName, Map options)
                     ..\\bin\\RprTest -quality ${options.RENDER_QUALITY} -genref 1 --gtest_output=xml:../../${STAGE_NAME}.${options.RENDER_QUALITY}.gtest.xml >> ..\\..\\${STAGE_NAME}.${options.RENDER_QUALITY}.log 2>&1
                     """
                     break;
-                case 'OSX':
+                case 'MacOS':
                     sh """
                     export LD_LIBRARY_PATH=../bin:\$LD_LIBRARY_PATH
                     ../bin/RprTest -quality ${options.RENDER_QUALITY} -genref 1 --gtest_output=xml:../../${STAGE_NAME}.${options.RENDER_QUALITY}.gtest.xml >> ../../${STAGE_NAME}.${options.RENDER_QUALITY}.log 2>&1
@@ -37,7 +37,7 @@ def executeGenTestRefCommand(String asicName, String osName, Map options)
                         ..\\bin\\RprTest ${options.enableRTX} -genref 1 --gtest_output=xml:../../${STAGE_NAME}.gtest.xml >> ..\\..\\${STAGE_NAME}.log 2>&1
                     """
                     break;
-                case 'OSX':
+                case 'MacOS':
                     sh """
                         export LD_LIBRARY_PATH=../bin:\$LD_LIBRARY_PATH
                         ../bin/RprTest ${options.enableRTX} -genref 1 --gtest_output=xml:../../${STAGE_NAME}.gtest.xml >> ../../${STAGE_NAME}.log 2>&1
@@ -65,7 +65,7 @@ def executeTestCommand(String asicName, String osName, Map options)
                         ..\\bin\\RprTest -quality ${options.RENDER_QUALITY} --gtest_output=xml:../../${STAGE_NAME}.${options.RENDER_QUALITY}.gtest.xml >> ..\\..\\${STAGE_NAME}.${options.RENDER_QUALITY}.log 2>&1
                     """
                     break;
-                case 'OSX':
+                case 'MacOS':
                     sh """
                         export LD_LIBRARY_PATH=../bin:\$LD_LIBRARY_PATH
                         ../bin/RprTest -quality ${options.RENDER_QUALITY} --gtest_output=xml:../../${STAGE_NAME}.${options.RENDER_QUALITY}.gtest.xml >> ../../${STAGE_NAME}.${options.RENDER_QUALITY}.log 2>&1
@@ -92,7 +92,7 @@ def executeTestCommand(String asicName, String osName, Map options)
                         ..\\bin\\RprTest ${options.enableRTX} --gtest_output=xml:../../${STAGE_NAME}.gtest.xml >> ..\\..\\${STAGE_NAME}.log 2>&1
                     """
                     break;
-                case 'OSX':
+                case 'MacOS':
                     sh """
                         export LD_LIBRARY_PATH=../bin:\$LD_LIBRARY_PATH
                         ../bin/RprTest ${options.enableRTX} --gtest_output=xml:../../${STAGE_NAME}.gtest.xml >> ../../${STAGE_NAME}.log 2>&1
@@ -254,7 +254,7 @@ def executeBuildWindows(Map options)
     """
 }
 
-def executeBuildOSX(Map options)
+def executeBuildMacOS(Map options)
 {
     sh """
     mkdir Build
@@ -297,8 +297,8 @@ def executeBuild(String osName, Map options)
         case 'Windows':
             executeBuildWindows(options);
             break;
-        case 'OSX':
-            executeBuildOSX(options);
+        case 'MacOS':
+            executeBuildMacOS(options);
             break;
         default:
             executeBuildLinux(options);

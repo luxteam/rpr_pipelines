@@ -7,7 +7,7 @@ def executeGenTestRefCommand(String osName)
         bat """
         """
         break;
-    case 'OSX':
+    case 'MacOS':
         sh """
         """
         break;
@@ -25,7 +25,7 @@ def executeTestCommand(String osName)
         bat """
         """
         break;
-    case 'OSX':
+    case 'MacOS':
         sh """
         """
         break;
@@ -101,7 +101,7 @@ def executeBuildWindows()
     """
 }
 
-def executeBuildOSX()
+def executeBuildMacOS()
 {
     sh """
     uname -a > ${STAGE_NAME}.log
@@ -129,8 +129,8 @@ def executeBuild(String osName, Map options)
         case 'Windows': 
             executeBuildWindows(); 
             break;
-        case 'OSX':
-            executeBuildOSX();
+        case 'MacOS':
+            executeBuildMacOS();
             break;
         default: 
             executeBuildLinux();

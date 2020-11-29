@@ -21,7 +21,7 @@ def executeGenTestRefCommand(String osName, Map options)
                 make_results_baseline.bat
                 """
                 break;
-            case 'OSX':
+            case 'MacOS':
                 sh """
                 echo 'sample image' > ./ReferenceImages/sample_image.txt
                 """
@@ -45,7 +45,7 @@ def buildRenderCache(String osName)
             bat "build_rpr_cache_2018.bat >> ../${STAGE_NAME}.log  2>&1"
         }
         break;
-    case 'OSX':
+    case 'MacOS':
         echo "pass"
         break;
     default:
@@ -67,7 +67,7 @@ def executeTestCommand(String osName, Map options)
                 """
             }
             break;
-        case 'OSX':
+        case 'MacOS':
             sh """
                 echo 'sample image' > ./OutputImages/sample_image.txt
             """
@@ -205,7 +205,7 @@ def executeBuildWindows(Map options)
     }
 }
 
-def executeBuildOSX(Map options)
+def executeBuildMacOS(Map options)
 {
     dir('RadeonProRenderMayaPlugin/ThirdParty')
     {
@@ -217,7 +217,7 @@ def executeBuildOSX(Map options)
     dir('RadeonProRenderPkgPlugin/MayaPkg')
     {
         sh """
-        ./build_osx_installer.sh >> ../../${STAGE_NAME}.log 2>&1
+        ./build_macos_installer.sh >> ../../${STAGE_NAME}.log 2>&1
         """
 
         dir('.installer_build')
@@ -241,10 +241,10 @@ def executeBuildOSX(Map options)
                 echo "Rename build"
             }
             archiveArtifacts "RadeonProRender*.dmg"
-            // TODO: uncomment when OSX test port will be finished
+            // TODO: uncomment when MacOS test port will be finished
             // sh "cp RadeonProRender*.dmg RadeonProRenderMaya.dmg"
             // stash includes: 'RadeonProRenderMaya.dmg', name: "app${osName}"
-            // options.pluginOSXSha = sha1 'RadeonProRenderBlender.dmg'
+            // options.pluginMacOSSha = sha1 'RadeonProRenderBlender.dmg'
         }
     }
 }
@@ -277,8 +277,8 @@ def executeBuild(String osName, Map options)
         case 'Windows':
             executeBuildWindows(options);
             break;
-        case 'OSX':
-            executeBuildOSX(options);
+        case 'MacOS':
+            executeBuildMacOS(options);
             break;
         default:
             executeBuildLinux(options);

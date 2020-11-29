@@ -177,7 +177,7 @@ class utils {
                     rename \"${oldName}\" \"${newName}\"
                 """
                 break;
-            // OSX & Ubuntu18
+            // MacOS & Ubuntu18
             default:
                 self.sh """
                     mv ${oldName} ${newName}
@@ -202,7 +202,7 @@ class utils {
                     move \"${source}\" \"${destination}\"
                 """
                 break;
-            // OSX & Ubuntu18
+            // MacOS & Ubuntu18
             default:
                 self.sh """
                     mv ${source} ${destination}

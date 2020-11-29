@@ -21,7 +21,7 @@ def executeGenTestRefCommand(String osName, Map options)
                 make_results_baseline.bat
                 """
                 break;
-            case 'OSX':
+            case 'MacOS':
                 sh """
                 echo 'sample image' > ./ReferenceImages/sample_image.txt
                 """
@@ -137,7 +137,7 @@ def buildRenderCache(String osName)
             bat "build_rpr_cache.bat"
         }
         break;
-    case 'OSX':
+    case 'MacOS':
         echo "pass"
         break;
     default:
@@ -166,7 +166,7 @@ def executeTestCommand(String osName, Map options)
             """
         }
         break;
-    case 'OSX':
+    case 'MacOS':
         sh """
         echo 'sample image' > ./OutputImages/sample_image.txt
         """
@@ -316,7 +316,7 @@ def executeBuildWindows(Map options)
     }
 }
 
-def executeBuildOSX(Map options)
+def executeBuildMacOS(Map options)
 {
 
 }
@@ -341,8 +341,8 @@ def executeBuild(String osName, Map options)
         case 'Windows':
             executeBuildWindows(options);
             break;
-        case 'OSX':
-            executeBuildOSX(options);
+        case 'MacOS':
+            executeBuildMacOS(options);
             break;
         default:
             executeBuildLinux(options);

@@ -46,8 +46,8 @@ def getViewerTool(String osName, Map options)
 
             break;
 
-        case 'OSX':
-            println "OSX isn't supported"
+        case 'MacOS':
+            println "MacOS isn't supported"
             break;
 
         default:
@@ -90,7 +90,7 @@ def executeGenTestRefCommand(String osName, Map options, Boolean delete)
                 make_results_baseline.bat ${delete}
                 """
                 break;
-            case 'OSX':
+            case 'MacOS':
                 sh """
                 ./make_results_baseline.sh ${delete}
                 """
@@ -149,8 +149,8 @@ def executeTestCommand(String osName, String asicName, Map options)
                     }
                     break;
 
-                case 'OSX':
-                    echo "OSX is not supported"
+                case 'MacOS':
+                    echo "MacOS is not supported"
                     break;
 
                 default:
@@ -503,8 +503,8 @@ def executeBuild(String osName, Map options)
             case 'Windows':
                 executeBuildWindows(options);
                 break;
-            case 'OSX':
-                println "OSX isn't supported."
+            case 'MacOS':
+                println "MacOS isn't supported."
                 break;
             default:
                 executeBuildLinux(options);

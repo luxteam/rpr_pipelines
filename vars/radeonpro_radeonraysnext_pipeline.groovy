@@ -8,7 +8,7 @@ def executeTestCommand(String osName)
         call Release\\UnitTests.exe  --gtest_output=xml:..\\..\\${STAGE_NAME}.gtest.xml >> ..\\..\\${STAGE_NAME}.log  2>&1
         """
         break;
-    case 'OSX':
+    case 'MacOS':
         sh """
         cd ../build/unittests
         ./UnitTests --gtest_output=xml:../../${STAGE_NAME}.gtest.xml >> ../../${STAGE_NAME}.log  2>&1
@@ -61,7 +61,7 @@ def executeBuildWindows()
     """
 }
 
-def executeBuildOSX()
+def executeBuildMacOS()
 {
     sh """
     mkdir build
@@ -108,8 +108,8 @@ def executeBuild(String osName, Map options)
         case 'Windows': 
             executeBuildWindows(); 
             break;
-        case 'OSX':
-            executeBuildOSX();
+        case 'MacOS':
+            executeBuildMacOS();
             break;
         default: 
             executeBuildLinux();

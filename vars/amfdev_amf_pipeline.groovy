@@ -33,28 +33,28 @@ def getAmfTool(String osName, String build_name, Map options)
 
             break;
 
-        case 'OSX':
+        case 'MacOS':
 
             if (!fileExists("${CIS_TOOLS}/../PluginsBinaries/${options[build_name + 'sha']}.zip")) {
 
                 clearBinariesUnix()
 
                 println "[INFO] The plugin does not exist in the storage. Unstashing and copying..."
-                unstash "AMF_OSX_${build_name}"
+                unstash "AMF_MacOS_${build_name}"
                 
                 sh """
                     mkdir -p "${CIS_TOOLS}/../PluginsBinaries"
-                    cp binOSX.zip "${CIS_TOOLS}/../PluginsBinaries/${options[build_name + 'sha']}.zip"
+                    cp binMacOS.zip "${CIS_TOOLS}/../PluginsBinaries/${options[build_name + 'sha']}.zip"
                 """ 
 
             } else {
                 println "[INFO] The plugin ${options[build_name + 'sha']}.zip exists in the storage."
                 sh """
-                    cp "${CIS_TOOLS}/../PluginsBinaries/${options[build_name + 'sha']}.zip" binOSX.zip
+                    cp "${CIS_TOOLS}/../PluginsBinaries/${options[build_name + 'sha']}.zip" binMacOS.zip
                 """
             }
 
-            unzip zipFile: "binOSX.zip", dir: "AMF", quiet: true
+            unzip zipFile: "binMacOS.zip", dir: "AMF", quiet: true
 
             break;
             
@@ -80,7 +80,7 @@ def executeTestCommand(String osName, String build_name, Map options)
                 """
             }
             break;
-        case 'OSX':
+        case 'MacOS':
             dir('AMF')
             {
                 sh """
@@ -107,7 +107,7 @@ def renameLog(String osName, String build_name)
                 rename out.log ${STAGE_NAME}.${build_name}.out.log
             """
             break;
-        case 'OSX':
+        case 'MacOS':
             sh """
                 mv AMF/out.log ${STAGE_NAME}.${build_name}.out.log
             """
@@ -127,8 +127,8 @@ def executeTests(String osName, String asicName, Map options) {
             case 'Windows':
                 executeTestsWindows(osName, asicName, options)
                 break;
-            case 'OSX':
-                executeTestsOSX(osName, asicName, options)
+            case 'MacOS':
+                executeTestsMacOS(osName, asicName, options)
                 break;
             default:
                 
@@ -213,27 +213,27 @@ def executeTestsWindows(String osName, String asicName, Map options) {
 }
 
 
-def executeTestsOSX(String osName, String asicName, Map options) {
+def executeTestsMacOS(String osName, String asicName, Map options) {
     cleanWS(osName)
-    options.buildConfiguration.each() { osx_build_conf ->
-        options.osxTool.each() { osx_tool ->
-            options.osxLibraryType.each() { osx_lib_type ->
+    options.buildConfiguration.each() { macos_build_conf ->
+        options.macosTool.each() { macos_tool ->
+            options.macosLibraryType.each() { macos_lib_type ->
 
-                println "Current build configuration: ${osx_build_conf}."
-                println "Current tool: ${osx_tool}."
-                println "Current library type: ${osx_lib_type}."
+                println "Current build configuration: ${macos_build_conf}."
+                println "Current tool: ${macos_tool}."
+                println "Current library type: ${macos_lib_type}."
 
-                String osx_build_name = generateBuildNameOSX(osx_build_conf, osx_tool, osx_lib_type)
+                String macos_build_name = generateBuildNameMacOS(macos_build_conf, macos_tool, macos_lib_type)
 
                 try {
-                    if (!options[osx_build_name + 'sha']) {
+                    if (!options[macos_build_name + 'sha']) {
                         println("[ERROR] Can't find info for saved stash of this configuration. It'll be skipped")
                         return
                     }
 
                     timeout(time: "5", unit: 'MINUTES') {
                         try {
-                            getAmfTool(osName, osx_build_name, options)
+                            getAmfTool(osName, macos_build_name, options)
                         } catch(e) {
                             println("[ERROR] Failed to prepare tests on ${env.NODE_NAME}")
                             println(e.toString())
@@ -241,26 +241,26 @@ def executeTestsOSX(String osName, String asicName, Map options) {
                         }
                     }
 
-                    executeTestCommand(osName, osx_build_name, options)
+                    executeTestCommand(osName, macos_build_name, options)
 
                 } catch (e) {
                     println(e.toString())
                     println(e.getMessage())
-                    options.failureMessage = "Failed during testing ${osx_build_name} on ${asicName}-${osName}"
+                    options.failureMessage = "Failed during testing ${macos_build_name} on ${asicName}-${osName}"
                     options.failureError = e.getMessage()
                     currentBuild.result = "FAILURE"
                 } finally {
                     try {
-                        renameLog(osName, osx_build_name)
+                        renameLog(osName, macos_build_name)
                     } catch (e) {
                         println("[ERROR] Failed to copy logs")
                         println(e.toString())
                     }
                     try {
-                        String outputJsonName = "${STAGE_NAME}.${osx_build_name}.json"
+                        String outputJsonName = "${STAGE_NAME}.${macos_build_name}.json"
                         def outputJson = readJSON file: outputJsonName
                         outputJson["platform"] = env.STAGE_NAME.replace("Test-", "")
-                        outputJson["configuration"] = osx_build_name
+                        outputJson["configuration"] = macos_build_name
                         outputJson["hostname"] = env.NODE_NAME
                         JSON serializedJson = JSONSerializer.toJSON(outputJson, new JsonConfig());
                         writeJSON file: outputJsonName, json: serializedJson, pretty: 4
@@ -270,7 +270,7 @@ def executeTestsOSX(String osName, String asicName, Map options) {
                     }
                     sh """
                         rm -rf AMF
-                        rm -rf binOSX.zip
+                        rm -rf binMacOS.zip
                     """
                 }
             }
@@ -373,79 +373,79 @@ def executeBuildWindows(Map options) {
 }
 
 
-def generateBuildNameOSX(String osx_build_conf, String osx_tool, String osx_lib_type) {
-    if (osx_tool == "xcode") {
-        return "${osx_tool}_${osx_lib_type}"
+def generateBuildNameMacOS(String macos_build_conf, String macos_tool, String macos_lib_type) {
+    if (macos_tool == "xcode") {
+        return "${macos_tool}_${macos_lib_type}"
     } else {
-        return "${osx_build_conf}_${osx_tool}_${osx_lib_type}"
+        return "${macos_build_conf}_${macos_tool}_${macos_lib_type}"
     }
 }
 
 
-def executeBuildOSX(Map options) {
-    options.buildConfiguration.each() { osx_build_conf ->
-        options.osxTool.each() { osx_tool ->
-            options.osxLibraryType.each() { osx_lib_type ->
+def executeBuildMacOS(Map options) {
+    options.buildConfiguration.each() { macos_build_conf ->
+        options.macosTool.each() { macos_tool ->
+            options.macosLibraryType.each() { macos_lib_type ->
 
-                println "Current build configuration: ${osx_build_conf}."
-                println "Current tool: ${osx_tool}."
-                println "Current library type: ${osx_lib_type}."
+                println "Current build configuration: ${macos_build_conf}."
+                println "Current tool: ${macos_tool}."
+                println "Current library type: ${macos_lib_type}."
 
-                osx_build_name = generateBuildNameOSX(osx_build_conf, osx_tool, osx_lib_type)
+                macos_build_name = generateBuildNameMacOS(macos_build_conf, macos_tool, macos_lib_type)
 
                 dir("amf/public/proj/OpenAMF_Autotests") {
 
                     try {
 
-                        if (osx_tool == "cmake") {
-                            if (!fileExists("generate-mac-${osx_lib_type}.sh")) {
+                        if (macos_tool == "cmake") {
+                            if (!fileExists("generate-mac-${macos_lib_type}.sh")) {
                                 println("[INFO] This configuration isn't supported now. It'll be skipped")
                                 return
                             }
                             sh """
-                                chmod u+x generate-mac-${osx_lib_type}.sh
-                                ./generate-mac-${osx_lib_type}.sh ${osx_build_conf.capitalize()} >> ../../../../${STAGE_NAME}.${osx_build_name}.log 2>&1
+                                chmod u+x generate-mac-${macos_lib_type}.sh
+                                ./generate-mac-${macos_lib_type}.sh ${macos_build_conf.capitalize()} >> ../../../../${STAGE_NAME}.${macos_build_name}.log 2>&1
                             """
-                        } else if (osx_tool == "xcode") {
+                        } else if (macos_tool == "xcode") {
                             // skip double building if release and debug were chosen
-                            if (!fileExists("generate-xcode-${osx_lib_type}.sh") || (osx_build_conf == 'debug' && buildConfiguration.size() == 2)) {
+                            if (!fileExists("generate-xcode-${macos_lib_type}.sh") || (macos_build_conf == 'debug' && buildConfiguration.size() == 2)) {
                                 println("[INFO] This configuration isn't supported now. It'll be skipped")
                                 return
                             }
                             sh """
-                                chmod u+x generate-xcode-${osx_lib_type}.sh
-                                ./generate-xcode-${osx_lib_type}.sh >> ../../../../${STAGE_NAME}.${osx_build_name}.log 2>&1
+                                chmod u+x generate-xcode-${macos_lib_type}.sh
+                                ./generate-xcode-${macos_lib_type}.sh >> ../../../../${STAGE_NAME}.${macos_build_name}.log 2>&1
                             """
                         }
 
                         sh """
                             chmod u+x build-mac.sh
-                            ./build-mac.sh >> ../../../../${STAGE_NAME}.${osx_build_name}.log 2>&1
+                            ./build-mac.sh >> ../../../../${STAGE_NAME}.${macos_build_name}.log 2>&1
                         """
 
                         sh """
-                            mkdir binOSX
-                            cp build/autotests binOSX/autotests
+                            mkdir binMacOS
+                            cp build/autotests binMacOS/autotests
                         """
 
-                        if (osx_lib_type == 'shared') {
+                        if (macos_lib_type == 'shared') {
                             sh """
-                                cp build/openAmf/libopenAmf.dylib binOSX/libopenAmf.dylib
+                                cp build/openAmf/libopenAmf.dylib binMacOS/libopenAmf.dylib
                             """
-                        } else if (osx_lib_type == 'static') {
+                        } else if (macos_lib_type == 'static') {
                             sh """
-                                cp build/openAmf/libopenAmf.a binOSX/libopenAmf.a
+                                cp build/openAmf/libopenAmf.a binMacOS/libopenAmf.a
                             """
                         }
                         
-                        zip archive: true, dir: "binOSX", glob: '', zipFile: "OSX_${osx_build_name}.zip"
+                        zip archive: true, dir: "binMacOS", glob: '', zipFile: "MacOS_${macos_build_name}.zip"
 
                         sh """
-                            mv OSX_${osx_build_name}.zip binOSX.zip
+                            mv MacOS_${macos_build_name}.zip binMacOS.zip
                         """
-                        stash includes: "binOSX.zip", name: "AMF_OSX_${osx_build_name}"
-                        options[osx_build_name + 'sha'] = sha1 "binOSX.zip"
-                        println "[INFO] Saved sha: ${options[osx_build_name + 'sha']}"
+                        stash includes: "binMacOS.zip", name: "AMF_MacOS_${macos_build_name}"
+                        options[macos_build_name + 'sha'] = sha1 "binMacOS.zip"
+                        println "[INFO] Saved sha: ${options[macos_build_name + 'sha']}"
 
                     } catch (FlowInterruptedException error) {
                         println "[INFO] Job was aborted during build stage"
@@ -454,11 +454,11 @@ def executeBuildOSX(Map options) {
                         println(e.toString());
                         println(e.getMessage());
                         currentBuild.result = "FAILED"
-                        println "[ERROR] Failed to build AMF on OSX"
+                        println "[ERROR] Failed to build AMF on MacOS"
                     } finally {
                         sh """
-                            rm -rf binOSX
-                            rm -f binOSX.zip
+                            rm -rf binMacOS
+                            rm -f binMacOS.zip
                         """
                     }
                 }
@@ -554,9 +554,9 @@ def executeBuild(String osName, Map options) {
             case 'Windows':
                 executeBuildWindows(options);
                 break;
-            case 'OSX':
+            case 'MacOS':
                 withEnv(["PATH=$WORKSPACE:$PATH"]) {
-                    executeBuildOSX(options);
+                    executeBuildMacOS(options);
                 }
                 break;
             default:
@@ -682,12 +682,12 @@ def executeDeploy(Map options, List platformList, List testResultList) {
 
 def call(String projectBranch = "",
     String projectRepo = "git@github.com:amfdev/AMF.git",
-    String platforms = 'Windows:AMD_WX7100,AMD_WX9100,AMD_RXVEGA,AMD_RadeonVII,AMD_RX5700XT,NVIDIA_RTX2080TI;OSX:AMD_RXVEGA',
+    String platforms = 'Windows:AMD_WX7100,AMD_WX9100,AMD_RXVEGA,AMD_RadeonVII,AMD_RX5700XT,NVIDIA_RTX2080TI;MacOS:AMD_RXVEGA',
     String buildConfiguration = "release,debug",
     String winVisualStudioVersion = "2017,2019",
     String winLibraryType = "shared,static",
-    String osxTool = "cmake,xcode",
-    String osxLibraryType = "shared,static",
+    String macosTool = "cmake,xcode",
+    String macosLibraryType = "shared,static",
     String linuxLibraryType = "shared,static",
     Boolean incrementVersion = true,
     Boolean forceBuild = false,
@@ -713,16 +713,16 @@ def call(String projectBranch = "",
         buildConfiguration = buildConfiguration.split(',')
         winVisualStudioVersion = winVisualStudioVersion.split(',')
         winLibraryType = winLibraryType.split(',')
-        osxTool = osxTool.split(',')
-        osxLibraryType = osxLibraryType.split(',')
+        macosTool = macosTool.split(',')
+        macosLibraryType = macosLibraryType.split(',')
         linuxLibraryType = linuxLibraryType.split(',')
 
         println "Win build configuration: ${buildConfiguration}"
         println "Win visual studio version: ${winVisualStudioVersion}"
         println "Win library type: ${winLibraryType}"
 
-        println "OSX visual studio version: ${osxTool}"
-        println "OSX library type: ${osxLibraryType}"
+        println "MacOS visual studio version: ${macosTool}"
+        println "MacOS library type: ${macosLibraryType}"
 
         println "Linux library type: ${linuxLibraryType}"
 
@@ -736,8 +736,8 @@ def call(String projectBranch = "",
                                 buildConfiguration:buildConfiguration,
                                 winVisualStudioVersion:winVisualStudioVersion,
                                 winLibraryType:winLibraryType,
-                                osxTool:osxTool,
-                                osxLibraryType:osxLibraryType,
+                                macosTool:macosTool,
+                                macosLibraryType:macosLibraryType,
                                 linuxLibraryType:linuxLibraryType,
                                 gpusCount:gpusCount,
                                 TEST_TIMEOUT:90,

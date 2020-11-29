@@ -63,7 +63,7 @@ def executeBuild(String osName, Map options)
             case 'Windows':
                 executeBuildWindows(options);
                 break;
-            case 'OSX':
+            case 'MacOS':
                 println "OS isn't supported."
                 break;
             default:

@@ -24,11 +24,11 @@ def executeBuildWindows()
     """
 }
 
-def executeBuildOSX()
+def executeBuildMacOS()
 {
      sh """
-    chmod +x Tools/premake/osx/premake5
-    Tools/premake/osx/premake5 gmake   >> ${STAGE_NAME}.log 2>&1
+    chmod +x Tools/premake/macos/premake5
+    Tools/premake/macos/premake5 gmake   >> ${STAGE_NAME}.log 2>&1
     cd Build
     make config=release_x64 >> ../${STAGE_NAME}.log 2>&1
     """
@@ -73,8 +73,8 @@ def executeBuild(String osName, Map options)
         case 'Windows':
             executeBuildWindows();
             break;
-        case 'OSX':
-            executeBuildOSX();
+        case 'MacOS':
+            executeBuildMacOS();
             break;
         default:
             executeBuildLinux();
@@ -115,7 +115,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 }
 
 def call(String projectBranch = "",
-         String platforms = 'Windows;Ubuntu18;OSX',
+         String platforms = 'Windows;Ubuntu18;MacOS',
          Boolean updateRefs = false, Boolean enableNotifications = true) {
 
     String PRJ_NAME="RadeonProRender-GLTF"

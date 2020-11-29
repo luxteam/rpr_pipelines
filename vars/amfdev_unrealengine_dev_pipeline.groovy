@@ -140,8 +140,8 @@ def executeTests(String osName, String asicName, Map options) {
         case 'Windows':
             executeTestsWindows(osName, asicName, options)
             break;
-        case 'OSX':
-            println("[WARNING] OSX is not supported")
+        case 'MacOS':
+            println("[WARNING] MacOS is not supported")
             break;
         default:
             println("[WARNING] ${osName} is not supported")
@@ -336,8 +336,8 @@ def executeBuild(String osName, Map options)
         case 'Windows': 
             executeBuildWindows(options)
             break;
-        case 'OSX':
-            println("[WARNING] OSX is not supported")
+        case 'MacOS':
+            println("[WARNING] MacOS is not supported")
             break;
         default: 
             println("[WARNING] ${osName} is not supported")

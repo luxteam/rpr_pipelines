@@ -15,7 +15,7 @@ def executeTestCommand(String osName)
                     }
                 }
                 break;
-            case 'OSX':
+            case 'MacOS':
                 ['mtl', 'native'].each() {
                     outputEnvironmentInfo(osName, "../${STAGE_NAME}.${it}")
                     try{
@@ -84,12 +84,12 @@ def executeBuildWindows()
     // TODO: on dev request implement second build with -DBUILD_PROPRIETARY=ON
 }
 
-def executeBuildOSX()
+def executeBuildMacOS()
 {
     sh """
     mkdir Build
     cd Build
-    cmake -DENABLE_MTL=ON -DENABLE_TESTING=ON -DEMBEDDED_KERNELS=ON -DCMAKE_CXX_FLAGS="-std=c++17" -DCMAKE_MACOSX_RPATH=ON -DCMAKE_BUILD_TYPE=Release .. >> ../${STAGE_NAME}.log 2>&1
+    cmake -DENABLE_MTL=ON -DENABLE_TESTING=ON -DEMBEDDED_KERNELS=ON -DCMAKE_CXX_FLAGS="-std=c++17" -DCMAKE_MACMacOS_RPATH=ON -DCMAKE_BUILD_TYPE=Release .. >> ../${STAGE_NAME}.log 2>&1
     make -j 4 >> ../${STAGE_NAME}.log 2>&1
     """
 }
@@ -140,8 +140,8 @@ def executeBuild(String osName, Map options)
         case 'Windows': 
             executeBuildWindows(); 
             break;
-        case 'OSX':
-            executeBuildOSX();
+        case 'MacOS':
+            executeBuildMacOS();
             break;
         default: 
             executeBuildLinux();
@@ -167,7 +167,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
 def call(String projectBranch = "",
          String projectURL = 'git@github.com:Radeon-Pro/RadeonRays.git',
-         String platforms = 'Windows:AMD_RadeonVII;OSX;Ubuntu18:AMD_RadeonVII',
+         String platforms = 'Windows:AMD_RadeonVII;MacOS;Ubuntu18:AMD_RadeonVII',
          Boolean enableNotifications = true)
 {
     String PRJ_ROOT="rpr-core"

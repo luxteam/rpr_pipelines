@@ -6,7 +6,7 @@ def executeUnitTestsCommand(String osName, Map options)
                 tests.exe --gtest_output=xml:${STAGE_NAME}.gtest.xml >> ${STAGE_NAME}.UnitTests.log 2>&1
             """
             break;
-        case 'OSX':
+        case 'MacOS':
             sh """
                 chmod +x tests
                 export LD_LIBRARY_PATH=\$PWD:\$LD_LIBRARY_PATH
@@ -171,12 +171,12 @@ def executeBuildWindows(Map options)
 }
 
 
-def executeOSXBuildCommand(Map options, String build_type){
+def executeMacOSBuildCommand(Map options, String build_type){
     
     sh """
         mkdir build-${build_type}
         cd build-${build_type}
-        cmake -DCMAKE_BUILD_TYPE=${build_type} ${options.cmakeKeysOSX} .. >> ../${STAGE_NAME}_${build_type}.log 2>&1
+        cmake -DCMAKE_BUILD_TYPE=${build_type} ${options.cmakeKeysMacOS} .. >> ../${STAGE_NAME}_${build_type}.log 2>&1
         make -j 4 >> ../${STAGE_NAME}_${build_type}.log 2>&1
     """
     
@@ -197,17 +197,17 @@ def executeOSXBuildCommand(Map options, String build_type){
 }
 
 
-def executeBuildOSX(Map options)
+def executeBuildMacOS(Map options)
 {
     sh """
         cp -r ../RML_thirdparty/MIOpen/* ./third_party/miopen
         cp -r ../RML_thirdparty/tensorflow/* ./third_party/tensorflow
     """
 
-    options.cmakeKeysOSX = "-DRML_DIRECTML=OFF -DRML_MIOPEN=OFF -DRML_TENSORFLOW_CPU=ON -DRML_TENSORFLOW_CUDA=OFF -DRML_MPS=ON -DRML_TENSORFLOW_DIR=${WORKSPACE}/third_party/tensorflow -DMIOpen_INCLUDE_DIR=${WORKSPACE}/third_party/miopen -DMIOpen_LIBRARY_DIR=${WORKSPACE}/third_party/miopen"
+    options.cmakeKeysMacOS = "-DRML_DIRECTML=OFF -DRML_MIOPEN=OFF -DRML_TENSORFLOW_CPU=ON -DRML_TENSORFLOW_CUDA=OFF -DRML_MPS=ON -DRML_TENSORFLOW_DIR=${WORKSPACE}/third_party/tensorflow -DMIOpen_INCLUDE_DIR=${WORKSPACE}/third_party/miopen -DMIOpen_LIBRARY_DIR=${WORKSPACE}/third_party/miopen"
     
-    executeOSXBuildCommand(options, "Release")
-    executeOSXBuildCommand(options, "Debug")
+    executeMacOSBuildCommand(options, "Release")
+    executeMacOSBuildCommand(options, "Debug")
 
 }
 
@@ -341,8 +341,8 @@ def executeBuild(String osName, Map options)
                 case 'Windows':
                     executeBuildWindows(options);
                     break;
-                case 'OSX':
-                    executeBuildOSX(options);
+                case 'MacOS':
+                    executeBuildMacOS(options);
                     break;
                 default:
                     executeBuildLinux(options);
@@ -381,7 +381,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 def call(String projectBranch = "",
          String testsBranch = "master",
          String assestsBranch = "master",
-         String platforms = 'Windows:AMD_RadeonVII,NVIDIA_RTX2080;Ubuntu18:AMD_RadeonVII,NVIDIA_RTX2070;CentOS7;OSX:AMD_RXVEGA',
+         String platforms = 'Windows:AMD_RadeonVII,NVIDIA_RTX2080;Ubuntu18:AMD_RadeonVII,NVIDIA_RTX2070;CentOS7;MacOS:AMD_RXVEGA',
          String projectRepo='git@github.com:Radeon-Pro/RadeonML.git',
          Boolean enableNotifications = true,
          Boolean executeFT = true)

@@ -5,7 +5,7 @@ def executeTestCommand(String osName)
     case 'Windows':
         bat "..\\Build\\bin\\Release\\UnitTest.exe  --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ..\\${STAGE_NAME}.log  2>&1"
         break;
-    case 'OSX':
+    case 'MacOS':
         sh """
         export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:../Build/bin
         ../Build/bin/UnitTest           --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../${STAGE_NAME}.log  2>&1
@@ -57,7 +57,7 @@ def executeBuildWindows()
     """
 }
 
-def executeBuildOSX()
+def executeBuildMacOS()
 {
     sh """
     mkdir Build
@@ -104,8 +104,8 @@ def executeBuild(String osName, Map options)
         case 'Windows': 
             executeBuildWindows(); 
             break;
-        case 'OSX':
-            executeBuildOSX();
+        case 'MacOS':
+            executeBuildMacOS();
             break;
         default: 
             executeBuildLinux();
@@ -128,7 +128,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 }
 
 def call(String projectBranch = "", String projectURL = 'git@github.com:GPUOpen-LibrariesAndSDKs/RadeonRays_SDK.git',
-         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;OSX:AMD_RXVEGA;Ubuntu18',
+         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;MacOS:AMD_RXVEGA;Ubuntu18',
          String PRJ_NAME="RadeonRays_SDK",
          Boolean enableNotifications = true) {
 

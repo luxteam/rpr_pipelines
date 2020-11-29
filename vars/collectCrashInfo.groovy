@@ -15,7 +15,7 @@ def call(String osName, Map options, Integer retryNumber){
                 ps | sort -des cpu | select -f 200 | ft -a >> ${logName}
             """
             break;
-        case 'OSX':
+        case 'MacOS':
             // sudo fs_usage -f filesys | head -n 200 >> ${logName}
             sh """
                 echo ${env.NODE_NAME} >> ${logName}

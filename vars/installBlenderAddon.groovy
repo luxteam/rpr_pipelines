@@ -62,7 +62,7 @@ def checkExistenceOfBlenderAddon(String osName, String tool_version, Map options
                 blenderAddonCommitHash = python3("getInstallerCommitHash.py").split('\r\n')[2].trim()
                 break;
 
-            case 'OSX':
+            case 'MacOS':
                 // Reading commit hash from installed addon
                 sh """
                     echo import os >> getInstallerCommitHash.py
@@ -165,7 +165,7 @@ def uninstallBlenderAddon(String osName, String tool_version, Map options)
 
                 break;
             
-            case 'OSX':
+            case 'MacOS':
                 try 
                 {
                     timeout(time: "5", unit: 'MINUTES') {
@@ -272,11 +272,11 @@ def installBlenderAddon(String osName, String tool_version, Map options)
             """
             break;
       
-        case "OSX":
+        case "MacOS":
             if (options['isPreBuilt']) {
-                addon_name = "${options.pluginOSXSha}"
+                addon_name = "${options.pluginMacOSSha}"
             } else {
-                addon_name = "${options.commitSHA}_OSX"
+                addon_name = "${options.commitSHA}_MacOS"
             }
             sh """
                 echo "Installing RPR Addon in Blender" >> \"${options.stageName}_${options.currentTry}.install.log\"

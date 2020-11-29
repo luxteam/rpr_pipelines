@@ -57,7 +57,7 @@ def executeBuildWindows(Map options)
     bat "MakePackage.bat >> ${STAGE_NAME}.log 2>&1"
 }
 
-def executeBuildOSX(Map options)
+def executeBuildMacOS(Map options)
 {
 
 }
@@ -98,8 +98,8 @@ def executeBuild(String osName, Map options)
         case 'Windows': 
             executeBuildWindows(options); 
             break;
-        case 'OSX':
-            executeBuildOSX(options);
+        case 'MacOS':
+            executeBuildMacOS(options);
             break;
         default: 
             executeBuildLinux(options);

@@ -41,32 +41,32 @@ def getMayaPluginInstaller(String osName, Map options)
 
             break;
 
-        case "OSX":
+        case "MacOS":
 
-            if (!options.pluginOSXSha) {
-                options.pluginOSXSha = "unknown"
+            if (!options.pluginMacOSSha) {
+                options.pluginMacOSSha = "unknown"
             }
 
-            if(!fileExists("${CIS_TOOLS}/../PluginsBinaries/${options.pluginOSXSha}.dmg"))
+            if(!fileExists("${CIS_TOOLS}/../PluginsBinaries/${options.pluginMacOSSha}.dmg"))
             {
                 clearBinariesUnix()
 
                 if (options['isPreBuilt']) {
                     println "[INFO] The plugin does not exist in the storage. Downloading and copying..."
                     downloadPlugin(osName, "Maya", options)
-                    osx_addon_name = options.pluginOSXSha
+                    macos_addon_name = options.pluginMacOSSha
                 } else {
                     println "[INFO] The plugin does not exist in the storage. Unstashing and copying..."
-                    unstash "appOSX"
+                    unstash "appMacOS"
                 }
 
                 sh """
                     mkdir -p "${CIS_TOOLS}/../PluginsBinaries"
-                    mv RadeonProRenderMaya*.dmg "${CIS_TOOLS}/../PluginsBinaries/${options.pluginOSXSha}.dmg"
+                    mv RadeonProRenderMaya*.dmg "${CIS_TOOLS}/../PluginsBinaries/${options.pluginMacOSSha}.dmg"
                 """
 
             } else {
-                println "[INFO] The plugin ${options.pluginOSXSha}.dmg exists in the storage."
+                println "[INFO] The plugin ${options.pluginMacOSSha}.dmg exists in the storage."
             }
 
             break;
@@ -99,7 +99,7 @@ def executeGenTestRefCommand(String osName, Map options)
                 make_results_baseline.bat
                 """
                 break;
-            // OSX 
+            // MacOS 
             default:
                 sh """
                 ./make_results_baseline.sh
@@ -117,7 +117,7 @@ def buildRenderCache(String osName, String toolVersion, String log_name)
             case 'Windows':
                 bat "build_rpr_cache.bat ${toolVersion} >> ..\\${log_name}.cb.log  2>&1"
                 break;
-            case 'OSX':
+            case 'MacOS':
                 sh "./build_rpr_cache.sh ${toolVersion} >> ../${log_name}.cb.log 2>&1"
                 break;
             default:
@@ -138,7 +138,7 @@ def executeTestCommand(String osName, Map options)
                 """
             }
             break;
-        case 'OSX':
+        case 'MacOS':
             dir('scripts')
             {
                 sh """
@@ -334,12 +334,12 @@ def executeBuildWindows(Map options)
     }
 }
 
-def executeBuildOSX(Map options)
+def executeBuildMacOS(Map options)
 {
     dir('RadeonProRenderMayaPlugin/MayaPkg')
     {
         sh """
-            ./build_osx_installer.sh >> ../../${STAGE_NAME}.log 2>&1
+            ./build_macos_installer.sh >> ../../${STAGE_NAME}.log 2>&1
         """
 
         dir('.installer_build')
@@ -356,11 +356,11 @@ def executeBuildOSX(Map options)
             rtp nullAction: '1', parserName: 'HTML', stableText: """<h3><a href="${BUILD_URL}/artifact/${BUILD_NAME}">[BUILD: ${BUILD_ID}] ${BUILD_NAME}</a></h3>"""
 
             sh "cp RadeonProRender*.dmg RadeonProRenderMaya.dmg"
-            stash includes: 'RadeonProRenderMaya.dmg', name: "appOSX"
+            stash includes: 'RadeonProRenderMaya.dmg', name: "appMacOS"
 
             // TODO: detect ID of installed plugin
             options.productCode = "unknown"
-            options.pluginOSXSha = sha1 'RadeonProRenderMaya.dmg'
+            options.pluginMacOSSha = sha1 'RadeonProRenderMaya.dmg'
         }
     }
 }
@@ -395,8 +395,8 @@ def executeBuild(String osName, Map options)
         case 'Windows':
             executeBuildWindows(options);
             break;
-        case 'OSX':
-            executeBuildOSX(options);
+        case 'MacOS':
+            executeBuildMacOS(options);
             break;
         default:
             echo "[WARNING] ${osName} is not supported"
@@ -765,7 +765,7 @@ def appendPlatform(String filteredPlatforms, String platform) {
 def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderMayaPlugin.git",
         String projectBranch = "",
         String testsBranch = "master",
-        String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;OSX:AMD_RXVEGA',
+        String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;MacOS:AMD_RXVEGA',
         Boolean updateRefs = false,
         Boolean enableNotifications = false,
         Boolean incrementVersion = false,
@@ -782,7 +782,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
         String iter = '50',
         String theshold = '0.05',
         String customBuildLinkWindows = "",
-        String customBuildLinkOSX = "")
+        String customBuildLinkMacOS = "")
 {
     resX = (resX == 'Default') ? '0' : resX
     resY = (resY == 'Default') ? '0' : resY
@@ -792,7 +792,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
     def nodeRetry = []
     try
     {
-        Boolean isPreBuilt = customBuildLinkWindows || customBuildLinkOSX
+        Boolean isPreBuilt = customBuildLinkWindows || customBuildLinkMacOS
 
         if (isPreBuilt)
         {
@@ -812,8 +812,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                         filteredPlatforms = appendPlatform(filteredPlatforms, platform)
                     }
                     break;
-                case 'OSX':
-                    if (customBuildLinkOSX)
+                case 'MacOS':
+                    if (customBuildLinkMacOS)
                     {
                         filteredPlatforms = appendPlatform(filteredPlatforms, platform)
                     }
@@ -875,7 +875,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                                 iter: iter,
                                 theshold: theshold,
                                 customBuildLinkWindows: customBuildLinkWindows,
-                                customBuildLinkOSX: customBuildLinkOSX,
+                                customBuildLinkMacOS: customBuildLinkMacOS,
                                 engine: '2',
                                 nodeRetry: nodeRetry
                                 ])

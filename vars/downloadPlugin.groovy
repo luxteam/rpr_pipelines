@@ -9,8 +9,8 @@ def call(String osName, String tool, Map options, String credentialsId = '')
             customBuildLink = options['customBuildLinkWindows']
             extentsion = "msi"
             break;
-        case 'OSX':
-            customBuildLink = options['customBuildLinkOSX']
+        case 'MacOS':
+            customBuildLink = options['customBuildLinkMacOS']
             extentsion = "dmg"
             break;
         default:
@@ -31,9 +31,9 @@ def call(String osName, String tool, Map options, String credentialsId = '')
                 bat """
                     curl -L -o RadeonProRender${tool}_${osName}.${extentsion} -u %USERNAME%:%PASSWORD% "${options['customBuildLinkWindows']}"
                 """
-            } else if (osName == "OSX") {
+            } else if (osName == "MacOS") {
                 sh """
-                    curl -L -o RadeonProRender${tool}_${osName}.${extentsion} -u $USERNAME:$PASSWORD "${options['customBuildLinkOSX']}"
+                    curl -L -o RadeonProRender${tool}_${osName}.${extentsion} -u $USERNAME:$PASSWORD "${options['customBuildLinkMacOS']}"
                 """
             } else {
                 sh """
@@ -49,9 +49,9 @@ def call(String osName, String tool, Map options, String credentialsId = '')
                 bat """
                     curl -L -o RadeonProRender${tool}_${osName}.${extentsion} -u %USERNAME%:%PASSWORD% "${options['customBuildLinkWindows']}"
                 """
-            } else if (osName == "OSX") {
+            } else if (osName == "MacOS") {
                 sh """
-                    curl -L -o RadeonProRender${tool}_${osName}.${extentsion} -u $USERNAME:$PASSWORD "${options['customBuildLinkOSX']}"
+                    curl -L -o RadeonProRender${tool}_${osName}.${extentsion} -u $USERNAME:$PASSWORD "${options['customBuildLinkMacOS']}"
                 """
             } else {
                 sh """
@@ -68,9 +68,9 @@ def call(String osName, String tool, Map options, String credentialsId = '')
                     bat """
                         curl -L -o RadeonProRender${tool}_${osName}.${extentsion} -u %USERNAME%:%PASSWORD% "${options['customBuildLinkWindows']}"
                     """
-                } else if (osName == "OSX") {
+                } else if (osName == "MacOS") {
                     sh """
-                        curl -L -o RadeonProRender${tool}_${osName}.${extentsion} -u $USERNAME:$PASSWORD "${options['customBuildLinkOSX']}"
+                        curl -L -o RadeonProRender${tool}_${osName}.${extentsion} -u $USERNAME:$PASSWORD "${options['customBuildLinkMacOS']}"
                     """
                 } else {
                     sh """
@@ -83,9 +83,9 @@ def call(String osName, String tool, Map options, String credentialsId = '')
                 bat """
                     curl -L -o RadeonProRender${tool}_${osName}.${extentsion} "${options['customBuildLinkWindows']}"
                 """
-            } else if (osName == "OSX") {
+            } else if (osName == "MacOS") {
                 sh """
-                    curl -L -o RadeonProRender${tool}_${osName}.${extentsion} "${options['customBuildLinkOSX']}"
+                    curl -L -o RadeonProRender${tool}_${osName}.${extentsion} "${options['customBuildLinkMacOS']}"
                 """
             } else {
                 sh """
@@ -104,8 +104,8 @@ def call(String osName, String tool, Map options, String credentialsId = '')
         case 'Windows':
             options['pluginWinSha'] = pluginSha
             break;
-        case 'OSX':
-            options['pluginOSXSha'] = pluginSha
+        case 'MacOS':
+            options['pluginMacOSSha'] = pluginSha
             break;
         default:
             options['pluginUbuntuSha'] = pluginSha

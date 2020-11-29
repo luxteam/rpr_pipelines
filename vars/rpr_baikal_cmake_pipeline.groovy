@@ -8,7 +8,7 @@ def executeGenTestRefCommand(String osName, Map options)
                     ..\\Build\\bin\\Release\\BaikalTest.exe -genref 1 --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ..\\Baikal${STAGE_NAME}.log 2>&1
                     """
                     break;
-                case 'OSX':
+                case 'MacOS':
                     sh """
                         export LD_LIBRARY_PATH=`pwd`/../Build/bin/:\$LD_LIBRARY_PATH
                         ../Build/bin/BaikalTest -genref 1 --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../Baikal${STAGE_NAME}.log 2>&1
@@ -30,7 +30,7 @@ def executeGenTestRefCommand(String osName, Map options)
                     ..\\Build\\bin\\Release\\RprTest.exe -genref 1 --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ..\\Rpr${STAGE_NAME}.log 2>&1
                     """
                     break;
-                case 'OSX':
+                case 'MacOS':
                     sh """
                         export LD_LIBRARY_PATH=`pwd`/../Build/bin/:\$LD_LIBRARY_PATH
                         ../Build/bin/RprTest -genref 1 --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../Rpr${STAGE_NAME}.log 2>&1
@@ -57,7 +57,7 @@ def executeTestCommand(String osName, Map options)
                     ..\\Build\\bin\\Release\\BaikalTest.exe --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ..\\Baikal${STAGE_NAME}.log 2>&1
                 """
                 break;
-            case 'OSX':
+            case 'MacOS':
                 sh """
                     export LD_LIBRARY_PATH=`pwd`/../Build/bin/:\$LD_LIBRARY_PATH
                     ../Build/bin/BaikalTest --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../Baikal${STAGE_NAME}.log 2>&1
@@ -79,7 +79,7 @@ def executeTestCommand(String osName, Map options)
                     ..\\Build\\bin\\Release\\RprTest.exe --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ..\\Rpr${STAGE_NAME}.log 2>&1
                     """
                     break;
-                case 'OSX':
+                case 'MacOS':
                     sh """
                         export LD_LIBRARY_PATH=`pwd`/../Build/bin/:\$LD_LIBRARY_PATH
                         ../Build/bin/RprTest --gtest_output=xml:../${STAGE_NAME}.gtest.xml >> ../Rpr${STAGE_NAME}.log 2>&1
@@ -184,7 +184,7 @@ def executeBuildWindows(Map options)
     """
 }
 
-def executeBuildOSX(Map options)
+def executeBuildMacOS(Map options)
 {
     sh """
     mkdir Build
@@ -232,8 +232,8 @@ def executeBuild(String osName, Map options)
         case 'Windows': 
             executeBuildWindows(options); 
             break;
-        case 'OSX':
-            executeBuildOSX(options);
+        case 'MacOS':
+            executeBuildMacOS(options);
             break;
         default: 
             executeBuildLinux(options);
@@ -333,7 +333,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 }
 
 def call(String projectBranch = "", 
-         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;OSX:Intel_Iris,AMD_WX9100;CentOS7',
+         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;MacOS:Intel_Iris,AMD_WX9100;CentOS7',
          String PRJ_ROOT='rpr-core',
          String PRJ_NAME='RadeonProRender-Baikal',
          String projectRepo='git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRender-Baikal.git',

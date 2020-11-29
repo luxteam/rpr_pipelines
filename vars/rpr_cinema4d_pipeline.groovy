@@ -20,7 +20,7 @@ def executeBuildWindows(Map options)
 }
 
 
-def executeBuildOSX(Map options)
+def executeBuildMacOS(Map options)
 {
     sh """ 
         cd $CIS_TOOLS/../cinema4d_r23_project_tool_314356_win-macos
@@ -55,8 +55,8 @@ def executeBuild(String osName, Map options)
             case 'Windows':
                 executeBuildWindows(options);
                 break;
-            case 'OSX':
-                executeBuildOSX(options);
+            case 'MacOS':
+                executeBuildMacOS(options);
                 break;
             default:
                 println "OS isn't supported."
@@ -128,7 +128,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
 def call(String projectBranch = "",
          String testsBranch = "master",
-         String platforms = 'Windows;OSX',
+         String platforms = 'Windows;MacOS',
          Boolean updateRefs = false,
          Boolean enableNotifications = true)
 {

@@ -25,9 +25,9 @@ def executeBuildWindows(String osName, Map options)
 }
 
 
-def executeBuildOSX(String osName, Map options)
+def executeBuildMacOS(String osName, Map options)
 {
-    println "OSX build is not supported"
+    println "MacOS build is not supported"
 }
 
 
@@ -152,8 +152,8 @@ def executeBuild(String osName, Map options)
             case 'Windows':
                 executeBuildWindows(osName, options);
                 break;
-            case 'OSX':
-                executeBuildOSX(osName, options);
+            case 'MacOS':
+                executeBuildMacOS(osName, options);
                 break;
             case 'Ubuntu18':
                 executeBuildUbuntu(osName, options);

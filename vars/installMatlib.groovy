@@ -10,7 +10,7 @@ def call(String osName, Map options)
             installMSI("${CIS_TOOLS}/../PluginsBinaries/RadeonProMaterialLibrary.msi", options.stageName)
             break;
 
-        case 'OSX':
+        case 'MacOS':
             println "not supported"
             break;
 

@@ -47,8 +47,8 @@ class UniverseClient {
             "name": "custom build link linux"
         ],
         [
-            "key": "customBuildLinkOSX",
-            "name": "custom build link osx"
+            "key": "customBuildLinkMacOS",
+            "name": "custom build link macos"
         ],
         [
             "key": "toolVersion",

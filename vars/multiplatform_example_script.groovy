@@ -7,7 +7,7 @@ def executeGenTestRefCommand(String osName)
         echo 'sample image' > .\\ReferenceImages\\sample_image.txt
         """
         break;
-    case 'OSX':
+    case 'MacOS':
         sh """
         echo 'sample image' > ./ReferenceImages/sample_image.txt
         """
@@ -28,7 +28,7 @@ def executeTestCommand(String osName)
         echo 'sample image' > .\\OutputImages\\sample_image.txt
         """
         break;
-    case 'OSX':
+    case 'MacOS':
         sh """
         echo 'sample image' > ./OutputImages/sample_image.txt
         """
@@ -104,7 +104,7 @@ def executeBuildWindows()
     """
 }
 
-def executeBuildOSX()
+def executeBuildMacOS()
 {
     sh """
     uname -a > ${STAGE_NAME}.log
@@ -130,8 +130,8 @@ def executeBuild(String osName, Map options)
         case 'Windows': 
             executeBuildWindows(); 
             break;
-        case 'OSX':
-            executeBuildOSX();
+        case 'MacOS':
+            executeBuildMacOS();
             break;
         default: 
             executeBuildLinux();
@@ -156,7 +156,7 @@ def executeDeploy(Map options)
 }
 
 def call(String projectBranch = "", 
-         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;OSX:Intel_Iris;Ubuntu;AMD_RX460', 
+         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;MacOS:Intel_Iris;Ubuntu;AMD_RX460', 
          Boolean updateRefs = false, Boolean enableNotifications = true) {
     
     multiplatform_pipeline(platforms, this.&executeBuild, this.&executeTests, null, 

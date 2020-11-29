@@ -19,7 +19,7 @@ def executeTestCommand(String osName, String libType, Boolean testPerformance)
                 }
             }
             break;
-        case 'OSX':
+        case 'MacOS':
             dir("unittest")
             {
                 sh "mkdir testSave"
@@ -74,7 +74,7 @@ def executeTestsForCustomLib(String osName, String libType, Map options)
                         rename rif_performance_*.csv ${STAGE_NAME}.${libType}.csv
                     """
                     break;
-                case 'OSX':
+                case 'MacOS':
                     sh """
                         mv unittest/rif_performance_*.csv ./${STAGE_NAME}.${libType}.csv
                     """
@@ -325,7 +325,7 @@ def executeBuild(String osName, Map options)
         case 'Windows':
             executeBuildWindows(options.cmakeKeys, osName, options);
             break;
-        case 'OSX':
+        case 'MacOS':
             executeBuildUnix(options.cmakeKeys, osName, options, 'clang');
             break;
         case 'CentOS7':
@@ -417,7 +417,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 }
 
 def call(String projectBranch = "",
-         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI,AMD_RadeonVII,AMD_RX5700XT;Ubuntu18:NVIDIA_RTX2070;OSX:AMD_RXVEGA;CentOS7;Ubuntu18-Clang',
+         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI,AMD_RadeonVII,AMD_RX5700XT;Ubuntu18:NVIDIA_RTX2070;MacOS:AMD_RXVEGA;CentOS7;Ubuntu18-Clang',
          Boolean updateRefs = false,
          Boolean enableNotifications = true,
          String cmakeKeys = '',
@@ -426,7 +426,7 @@ def call(String projectBranch = "",
     println "TAG_NAME: ${env.TAG_NAME}"
 
     def deployStage = env.TAG_NAME || testPerformance ? this.&executeDeploy : null
-    platforms = env.TAG_NAME ? "Windows;Ubuntu18;OSX;CentOS7;" : platforms
+    platforms = env.TAG_NAME ? "Windows;Ubuntu18;MacOS;CentOS7;" : platforms
 
     def nodeRetry = []
 

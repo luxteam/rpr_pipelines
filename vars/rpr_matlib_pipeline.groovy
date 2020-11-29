@@ -15,11 +15,11 @@ def executeBuildWindows()
     }
 }
 
-def executeBuildOSX()
+def executeBuildMacOS()
 {
     sh """
     pushd MatLibPkg
-    ./build_osx_installer.sh >> ../${STAGE_NAME}.log 2>&1
+    ./build_macos_installer.sh >> ../${STAGE_NAME}.log 2>&1
     cp ./.installer_build/RadeonProRenderMaterialLibrary_2.0.0.dmg ../RadeonProRenderMaterialLibrary.dmg
     popd
     """
@@ -71,8 +71,8 @@ def executeBuild(String osName, Map options)
         case 'Windows': 
             executeBuildWindows(); 
             break;
-        case 'OSX':
-            executeBuildOSX();
+        case 'MacOS':
+            executeBuildMacOS();
             break;
         default: 
             executeBuildLinux();
@@ -93,7 +93,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
 def call(String projectBranch = "",
          String projectURL = 'git@github.com:Radeon-Pro/RadeonProRenderPkgPlugin.git',
-         String platforms = 'Windows;OSX;Ubuntu18',
+         String platforms = 'Windows;MacOS;Ubuntu18',
          Boolean enableNotifications = true)
 {
     String PRJ_ROOT="rpr-plugins"

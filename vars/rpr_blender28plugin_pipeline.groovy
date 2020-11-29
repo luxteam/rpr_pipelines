@@ -72,15 +72,15 @@ def getBlenderAddonInstaller(String osName, Map options)
 
             break;
 
-        case "OSX":
+        case "MacOS":
 
             if (options['isPreBuilt']) {
 
-                println "[INFO] PluginOSXSha: ${options['pluginOSXSha']}"
+                println "[INFO] PluginMacOSSha: ${options['pluginMacOSSha']}"
 
-                if (options['pluginOSXSha']) {
-                    if (fileExists("${CIS_TOOLS}/../PluginsBinaries/${options.pluginOSXSha}.zip")) {
-                        println "[INFO] The plugin ${options['pluginOSXSha']}.zip exists in the storage."
+                if (options['pluginMacOSSha']) {
+                    if (fileExists("${CIS_TOOLS}/../PluginsBinaries/${options.pluginMacOSSha}.zip")) {
+                        println "[INFO] The plugin ${options['pluginMacOSSha']}.zip exists in the storage."
                     } else {
                         clearBinariesUnix()
 
@@ -89,7 +89,7 @@ def getBlenderAddonInstaller(String osName, Map options)
 
                         sh """
                             mkdir -p "${CIS_TOOLS}/../PluginsBinaries"
-                            mv RadeonProRenderBlender*.zip "${CIS_TOOLS}/../PluginsBinaries/${options.pluginOSXSha}.zip"
+                            mv RadeonProRenderBlender*.zip "${CIS_TOOLS}/../PluginsBinaries/${options.pluginMacOSSha}.zip"
                         """
                     }
                 } else {
@@ -100,7 +100,7 @@ def getBlenderAddonInstaller(String osName, Map options)
 
                     sh """
                         mkdir -p "${CIS_TOOLS}/../PluginsBinaries"
-                        mv RadeonProRenderBlender*.zip "${CIS_TOOLS}/../PluginsBinaries/${options.pluginOSXSha}.zip"
+                        mv RadeonProRenderBlender*.zip "${CIS_TOOLS}/../PluginsBinaries/${options.pluginMacOSSha}.zip"
                     """
                 }
 
@@ -111,7 +111,7 @@ def getBlenderAddonInstaller(String osName, Map options)
                     clearBinariesUnix()
 
                     println "[INFO] The plugin does not exist in the storage. Unstashing and copying..."
-                    unstash "appOSX"
+                    unstash "appMacOS"
                    
                     sh """
                         mkdir -p "${CIS_TOOLS}/../PluginsBinaries"
@@ -126,7 +126,7 @@ def getBlenderAddonInstaller(String osName, Map options)
 
             if (options['isPreBuilt']) {
 
-                println "[INFO] PluginOSXSha: ${options['pluginUbuntuSha']}"
+                println "[INFO] PluginMacOSSha: ${options['pluginUbuntuSha']}"
 
                 if (options['pluginUbuntuSha']) {
                     if (fileExists("${CIS_TOOLS}/../PluginsBinaries/${options.pluginUbuntuSha}.zip")) {
@@ -185,7 +185,7 @@ def executeGenTestRefCommand(String osName, Map options, Boolean delete)
             make_results_baseline.bat ${delete}
             """
             break;
-        // OSX & Ubuntu18
+        // MacOS & Ubuntu18
         default:
             sh """
             ./make_results_baseline.sh ${delete}
@@ -249,7 +249,7 @@ def executeTestCommand(String osName, String asicName, Map options)
                         """
                     }
                     break;
-                // OSX & Ubuntu18
+                // MacOS & Ubuntu18
                 default:
                     dir("scripts")
                     {
@@ -555,13 +555,13 @@ def executeBuildWindows(Map options)
     }
 }
 
-def executeBuildOSX(Map options)
+def executeBuildMacOS(Map options)
 {
     dir('RadeonProRenderBlenderAddon/BlenderPkg')
     {
-        GithubNotificator.updateStatus("Build", "OSX", "pending", env, options, "Building the plugin.", "${BUILD_URL}/artifact/Build-OSX.log")
+        GithubNotificator.updateStatus("Build", "MacOS", "pending", env, options, "Building the plugin.", "${BUILD_URL}/artifact/Build-MacOS.log")
         sh """
-            ./build_osx.sh >> ../../${STAGE_NAME}.log  2>&1
+            ./build_macos.sh >> ../../${STAGE_NAME}.log  2>&1
         """
 
         dir('.build')
@@ -584,7 +584,7 @@ def executeBuildOSX(Map options)
 
             if (options.sendToUMS) {
                 dir("../../../jobs_launcher") {
-                    sendToMINIO(options, "OSX", "../RadeonProRenderBlenderAddon/BlenderPkg/.build", BUILD_NAME)                            
+                    sendToMINIO(options, "MacOS", "../RadeonProRenderBlenderAddon/BlenderPkg/.build", BUILD_NAME)                            
                 }
             }
 
@@ -592,9 +592,9 @@ def executeBuildOSX(Map options)
                 mv RadeonProRender*zip RadeonProRenderBlender_MacOS.zip
             """
 
-            stash includes: "RadeonProRenderBlender_MacOS.zip", name: "appOSX"
+            stash includes: "RadeonProRenderBlender_MacOS.zip", name: "appMacOS"
 
-            GithubNotificator.updateStatus("Build", "OSX", "success", env, options, "The plugin was successfully built and published.", pluginUrl)
+            GithubNotificator.updateStatus("Build", "MacOS", "success", env, options, "The plugin was successfully built and published.", pluginUrl)
         }
     }
 }
@@ -696,14 +696,14 @@ def executeBuild(String osName, Map options)
                 case 'Windows':
                     executeBuildWindows(options);
                     break;
-                case 'OSX':
+                case 'MacOS':
                     if(!fileExists("python3"))
                     {
                         sh "ln -s /usr/local/bin/python3.7 python3"
                     }
                     withEnv(["PATH=$WORKSPACE:$PATH"])
                     {
-                        executeBuildOSX(options);
+                        executeBuildMacOS(options);
                     }
                     break;
                 default:
@@ -1372,7 +1372,7 @@ def appendPlatform(String filteredPlatforms, String platform) {
 def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderBlenderAddon.git",
     String projectBranch = "",
     String testsBranch = "master",
-    String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;Ubuntu18:AMD_RadeonVII;OSX:AMD_RXVEGA',
+    String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;Ubuntu18:AMD_RadeonVII;MacOS:AMD_RXVEGA',
     String updateRefs = 'No',
     Boolean enableNotifications = true,
     Boolean incrementVersion = true,
@@ -1389,7 +1389,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
     String theshold = '0.05',
     String customBuildLinkWindows = "",
     String customBuildLinkLinux = "",
-    String customBuildLinkOSX = "",
+    String customBuildLinkMacOS = "",
     String enginesNames = "Tahoe,Northstar",
     String tester_tag = "Blender2.8",
     String toolVersion = "2.90",
@@ -1436,7 +1436,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                 }
             }
 
-            Boolean isPreBuilt = customBuildLinkWindows || customBuildLinkOSX || customBuildLinkLinux
+            Boolean isPreBuilt = customBuildLinkWindows || customBuildLinkMacOS || customBuildLinkLinux
 
             if (isPreBuilt)
             {
@@ -1456,8 +1456,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                             filteredPlatforms = appendPlatform(filteredPlatforms, platform)
                         }
                         break;
-                    case 'OSX':
-                        if (customBuildLinkOSX)
+                    case 'MacOS':
+                        if (customBuildLinkMacOS)
                         {
                             filteredPlatforms = appendPlatform(filteredPlatforms, platform)
                         }
@@ -1545,7 +1545,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                         theshold: theshold,
                         customBuildLinkWindows: customBuildLinkWindows,
                         customBuildLinkLinux: customBuildLinkLinux,
-                        customBuildLinkOSX: customBuildLinkOSX,
+                        customBuildLinkMacOS: customBuildLinkMacOS,
                         engines: formattedEngines,
                         enginesNames:enginesNames,
                         nodeRetry: nodeRetry,

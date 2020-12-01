@@ -153,7 +153,7 @@ def executeTestsCustomQuality(String osName, String asicName, Map options)
             println("Exception during [${options.RENDER_QUALITY}] quality tests execution")
             try {
                 dir('HTML_Report') {
-                    checkOutBranchOrScm('master', 'git@github.com:luxteam/HTMLReportsShared')
+                    checkOutBranchOrScm('inemankov/core_unit_tests', 'git@github.com:luxteam/HTMLReportsShared')
                     python3("-m pip install --user -r requirements.txt")
                     python3("hybrid_report.py --xml_path ../${STAGE_NAME}.${options.RENDER_QUALITY}.gtest.xml --images_basedir ../BaikalNext/RprTest --report_path ../${asicName}-${osName}-${options.RENDER_QUALITY}_failures")
                 }

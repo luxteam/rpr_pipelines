@@ -126,7 +126,7 @@ def executeUnitTestCommand(String osName)
             dir("RadeonProRenderSDK/Northstar/UnitTest")
             {
                 bat """
-                ..\\dist\\release\\bin\\x86_64\\UnitTest64.exe -referencePath ..\\..\\frUnittestdata\\northstar\\gpu\\ --gtest_filter=*NEXT_* --gtest_output=xml:..\\..\\..\\${STAGE_NAME}.gtest.xml >> ..\\..\\..\\${STAGE_NAME}.log  2>&1
+                ..\\dist\\release\\bin\\x86_64\\UnitTest64.exe -referencePath ..\\..\\..\\frUnittestdata\\northstar\\gpu\\ --gtest_filter=*NEXT_* --gtest_output=xml:..\\..\\..\\${STAGE_NAME}.gtest.xml >> ..\\..\\..\\${STAGE_NAME}.log  2>&1
                 """
             }
             break;

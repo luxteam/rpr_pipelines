@@ -793,12 +793,13 @@ def executeDeploy(Map options, List platformList, List testResultList) {
             String branchName = env.BRANCH_NAME ?: options.projectBranch
             checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
 
-        dir("amf/public/proj/OpenAMF_Autotests/Reports") {
-            bat """
-            set PATH=c:\\python35\\;c:\\python35\\scripts\\;%PATH%
-            pip install --user -r requirements.txt >> ${STAGE_NAME}.requirements.log 2>&1
-            python MakeReport.py --commit_hash "${options.commitSHA}" --branch_name "${branchName}" --commit_datetime "${options.commitDatetime}" --commit_message "${escapeCharsByUnicode(options.commitMessage)}" --test_results ..\\..\\..\\..\\..\\..\\testResults\\
-            """
+            dir("amf/public/proj/OpenAMF_Autotests/Reports") {
+                bat """
+                set PATH=c:\\python35\\;c:\\python35\\scripts\\;%PATH%
+                pip install --user -r requirements.txt >> ${STAGE_NAME}.requirements.log 2>&1
+                python MakeReport.py --commit_hash "${options.commitSHA}" --branch_name "${branchName}" --commit_datetime "${options.commitDatetime}" --commit_message "${escapeCharsByUnicode(options.commitMessage)}" --test_results ..\\..\\..\\..\\..\\..\\testResults\\
+                """
+            }
         }
 
         utils.publishReport(this, "${BUILD_URL}", "testResults", "mainPage.html", "Test Report", "Summary Report")

@@ -808,13 +808,13 @@ def executeDeploy(Map options, List platformList, List testResultList) {
 
 def call(String projectBranch = "",
     String projectRepo = "git@github.com:amfdev/AMF.git",
-    String platforms = 'Windows:AMD_WX7100,AMD_WX9100,AMD_RXVEGA,AMD_RadeonVII,AMD_RX5700XT,NVIDIA_RTX2080TI;OSX:AMD_RXVEGA',
+    String platforms = 'Windows:AMD_RXVEGA,AMD_RadeonVII,AMD_RX5700XT,NVIDIA_GF1080TI,NVIDIA_RTX2080TI;OSX:AMD_RXVEGA',
     String buildConfiguration = "release,debug",
     String winVisualStudioVersion = "2017,2019",
-    String winLibraryType = "shared,static",
-    String osxTool = "cmake,xcode",
-    String osxLibraryType = "shared,static",
-    String linuxLibraryType = "shared,static",
+    String winLibraryType = "static",
+    String osxTool = "cmake",
+    String osxLibraryType = "static",
+    String linuxLibraryType = "static",
     Boolean incrementVersion = true,
     Boolean forceBuild = false,
     String testsFilter = "*") {

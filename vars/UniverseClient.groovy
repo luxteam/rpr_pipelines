@@ -325,6 +325,10 @@ class UniverseClient {
             this.context.echo "SPLITTED JOB NAME = ${splittedJobName}"
             this.context.echo "JOB_NAME = ${splittedJobName[0]}"
 
+            def references = [
+                "jenkins_report": "${env.JENKINS_URL}${env.JOB_NAME}/${env.BUILD_NUMBER}"
+            ]
+
             def tags = []
 
             String tag = "Other"
@@ -367,6 +371,7 @@ class UniverseClient {
             
             buildBody['upd_baselines'] = updRefs
             buildBody['parameters'] = parameters
+            buildBody['references'] = references
             buildBody['info'] = info
             
             

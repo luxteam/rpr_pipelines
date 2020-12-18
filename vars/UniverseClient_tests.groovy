@@ -1,12 +1,19 @@
 def test_create_build() {
-    String UMS_URL = "http://172.26.157.233:5002"
-    String IS_URL = "http://172.26.157.233:8001"
+    withCredentials([
+        string(credentialsId: 'testing2UniverseURL', variable: 'TEST2_UMS_URL'),
+        string(credentialsId: 'imageServiceURL', variable: 'IS_URL')
+    ]) {
+        String UMS_URL  = "${PROD_UMS_URL}"
+        String IS_URL = "${IS_URL}"
+    }
     String product_name = "AMD%20Radeon™%20ProRender%20for%20Maya"
     
     parent = new UniverseClient(this, UMS_URL, env, product_name)
+    parent.tokenSetup()
     parent.createBuild('', '', false, ["projectRepo":"https://github.com"])
-    
+
     child = new UniverseClient(this, UMS_URL, env, IS_URL, product_name, 'NorthStar', parent)
+    child.tokenSetup()
     child.createBuild(["Windows-AMD", "Windows-OSX"], ["Smoke", "Sanity"], false)
 }
 

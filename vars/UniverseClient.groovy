@@ -395,7 +395,7 @@ class UniverseClient {
             this.build = content["build"];
             this.context.echo content["msg"];
             
-            if (this.parent || (!this.child_of && !this.parent)) {
+            if (this.is_parent || (!this.child_of && !this.is_parent)) {
                 this.context.currentBuild.description += "<a href='${this.url}/${this.build.job_id}/${this.build.id}/summary'>UMS Link</a>"
             }
 

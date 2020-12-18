@@ -393,6 +393,11 @@ class UniverseClient {
             def content = jsonSlurper.parseText(res.content);
             this.build = content["build"];
             this.context.echo content["msg"];
+            
+            if (this.parent || (!this.child_of && !this.parent)) {
+                this.context.currentBuild.description += "<a href='${this.url}/${this.build.job_id}/${this.build.id}/summary'>UMS Link</a>"
+            }
+
             return res;
         }
         retryWrapper(request)

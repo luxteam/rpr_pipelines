@@ -182,6 +182,7 @@ class UniverseClient {
         this.env = env;
         this.is_url = is_url;
         this.product = product;
+        this.child_of = false;
         this.is_parent = false;
     }
 

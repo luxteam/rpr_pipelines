@@ -334,7 +334,7 @@ class UniverseClient {
             this.context.echo "JOB_NAME = ${splittedJobName[0]}"
 
             def references = [
-                "jenkins_report": "${env.JENKINS_URL}${env.JOB_NAME}/${env.BUILD_NUMBER}"
+                "jenkins_report": "${env.JENKINS_URL}job/${env.JOB_NAME}/${env.BUILD_NUMBER}"
             ]
 
             def tags = []

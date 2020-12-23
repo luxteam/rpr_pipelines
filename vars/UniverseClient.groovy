@@ -407,7 +407,7 @@ class UniverseClient {
                     this.context.currentBuild.description = ""
                 }
         
-                this.context.currentBuild.description += "<a href='${this.url_map[this.url]}/products/${this.build.job_id}/${this.build.id}/summary' target='_blank'>UMS Report</a>"
+                this.context.currentBuild.description += "<br><a href='${this.url_map[this.url]}/products/${this.build.job_id}/${this.build.id}/summary' target='_blank'>UMS Report</a>"
             }
 
             return res;

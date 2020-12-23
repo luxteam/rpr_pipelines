@@ -18,10 +18,10 @@ class UniverseClient {
     def engine;
     def child_of;
     def url_map = [
-        "http://172.26.157.233:5001/": "https://ums.cistest.luxoft.com",
-        "http://172.26.157.233:5002/": "https://ums2.cistest.luxoft.com",
-        "http://172.26.157.233:5003/": "https://ums3.cistest.luxoft.com",
-        "http://172.26.157.248:5000/": "https://ums.stvcis.luxoft.com",
+        "http://172.26.157.233:5001": "https://ums.cistest.luxoft.com",
+        "http://172.26.157.233:5002": "https://ums2.cistest.luxoft.com",
+        "http://172.26.157.233:5003": "https://ums3.cistest.luxoft.com",
+        "http://172.26.157.248:5000": "https://ums.stvcis.luxoft.com",
     ]
     
     def major_keys = [

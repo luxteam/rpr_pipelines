@@ -559,7 +559,6 @@ def executePreBuild(Map options) {
             githubNotificator.initPreBuild("${BUILD_URL}")
         } else if (env.BRANCH_NAME == "master" || env.BRANCH_NAME == "develop") {
            println "[INFO] ${env.BRANCH_NAME} branch was detected"
-           options.enableNotifications = true
            options.executeBuild = true
            options.executeTests = true
            options.testsPackage = "Full.json"
@@ -881,7 +880,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
         Boolean splitTestsExecution = false,
         Boolean incrementVersion = true,
         String parallelExecutionTypeString = "TakeOneNodePerGPU",
-        Boolean enableNotifications = true,
+        Boolean enableNotifications = false,
         Boolean forceBuild = false
         )
 {

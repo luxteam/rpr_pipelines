@@ -295,7 +295,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/BlenderUS
     String testsBranch = "master",
     String platforms = 'Windows',
     String updateRefs = 'No',
-    Boolean enableNotifications = true,
+    Boolean enableNotifications = false,
     Boolean incrementVersion = true,
     Boolean forceBuild = false
     )

@@ -39,7 +39,7 @@ def call(Map blockOptions, Closure code) {
 
     try {
         if (configuration.begin?.message) {
-            GithubNotificator.updateStatus(options["stage"], title, "success",
+            GithubNotificator.updateStatus(options["stage"], title, "pending",
                 options, configuration["begin"]["message"], beginUrl)
         }
 

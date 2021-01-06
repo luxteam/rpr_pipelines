@@ -345,7 +345,7 @@ def executeTests(String osName, String asicName, Map options)
 }
 
 def executeBuildWindows(Map options) {
-    withNotifications(title: "OSX", options: options, beginUrl: "${BUILD_URL}/artifact/Build-Windows.log",
+    withNotifications(title: "Windows", options: options, beginUrl: "${BUILD_URL}/artifact/Build-Windows.log",
         endUrl: "${BUILD_URL}/artifact/binWin64.zip", configuration: NotificationConfiguration.BUILDING_RPR_SDK_PACKAGE) {
         dir("RadeonProRenderSDK/RadeonProRender/binWin64") {
             zip archive: true, dir: ".", glob: "", zipFile: "binWin64.zip"
@@ -377,7 +377,7 @@ def executeBuildOSX(Map options) {
 }
 
 def executeBuildLinux(Map options) {
-    withNotifications(title: "OSX", options: options, beginUrl: "${BUILD_URL}/artifact/Build-Ubuntu18.log",
+    withNotifications(title: "Ubuntu18", options: options, beginUrl: "${BUILD_URL}/artifact/Build-Ubuntu18.log",
         endUrl: "${BUILD_URL}/artifact/binUbuntu18.zip", configuration: NotificationConfiguration.BUILDING_RPR_SDK_PACKAGE) {
         dir("RadeonProRenderSDK/RadeonProRender/binUbuntu18") {
             zip archive: true, dir: ".", glob: "", zipFile: "binUbuntu18.zip"

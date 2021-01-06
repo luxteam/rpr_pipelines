@@ -67,24 +67,19 @@ def call(Map blockOptions, Closure code) {
                     }
                 }
                 if (exceptionFound) {
+                    if (!printMessage && options.problemMessageManager) {
+                        saveProblemMessage(options, exception, exception["problemMessage"], options["stage"], options["osName"])
+                    } else {
+                        println(exception["problemMessage"])
+                    }
                     switch(exception["rethrow"]) {
                         case ExceptionThrowType.RETHROW:
-                            if (!printMessage && options.problemMessageManager) {
-                                saveProblemMessage(options, exception, exception["problemMessage"], options["stage"], options["osName"])
-                            } else {
-                                println(exception["problemMessage"])
-                            }
                             throw e
                             break
                         case ExceptionThrowType.THROW_IN_WRAPPER:
                             throw new ExpectedExceptionWrapper(exception["problemMessage"], e)
                             break
                         default:
-                            if (!printMessage && options.problemMessageManager) {
-                                saveProblemMessage(options, exception, exception["problemMessage"], options["stage"], options["osName"])
-                            } else {
-                                println(exception["problemMessage"])
-                            }
                             println(e.toString())
                             println(e.getMessage())
                     }

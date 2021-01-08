@@ -164,7 +164,7 @@ def executeUnitTests(String osName, String asicName, Map options)
     }
 
     try {
-        GithubNotificator.updateStatus("Test", options['stageName'], "pending", options, NotificationConfiguration.EXECUTING_UNIT_TESTS, "${BUILD_URL}")
+        GithubNotificator.updateStatus("Test", options['stageName'], "pending", options, NotificationConfiguration.EXECUTE_UNIT_TESTS, "${BUILD_URL}")
         executeUnitTestCommand(osName)
     } catch (e) {
         dir("HTML_Report") {
@@ -395,7 +395,7 @@ def executeTests(String osName, String asicName, Map options)
 def executeBuildWindows(Map options) {
     withNotifications(title: "WIndows", options: options, beginUrl: "${BUILD_URL}/artifact/Build-Windows.log",
         endUrl: "${BUILD_URL}/artifact/binWin64.zip", configuration: NotificationConfiguration.BUILDING_RPR_SDK_PACKAGE) {
-        dir("RadeonProRenderSDK/RadeonProRender/binWin64") {
+        dir("RadeonProRenderSDK/RPR/RadeonProRender/lib/x64") {
             zip archive: true, dir: ".", glob: "", zipFile: "binWin64.zip"
             stash includes: "binWin64.zip", name: 'WindowsSDK'
             options.pluginWinSha = sha1 "binWin64.zip"
@@ -451,7 +451,7 @@ def executeBuild(String osName, Map options)
         dir("RadeonProRenderSDK")
         {
             withNotifications(title: osName, options: options, configuration: NotificationConfiguration.DOWNLOAD_PLUGIN_REPO) {
-                checkOutBranchOrScm(options["projectBranch"], options["projectRepo"], false, options["prBranchName"], options["prRepoName"])
+                checkOutBranchOrScm(options["projectBranch"], "git@github.com:amdadvtech/RadeonProRenderSDKInternal.git", false, options["prBranchName"], options["prRepoName"])
             }
         }
 

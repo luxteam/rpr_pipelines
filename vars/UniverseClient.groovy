@@ -455,7 +455,12 @@ class UniverseClient {
     def changeStatus(status) {
         this.context.println("[INFO] START TO CHANGE UMS BUILD STATUS. PLEASE, DO NOT ABORT JOB")
         def request = {
+            
             status = status ?: "SUCCESS"
+            
+            // TODO: fix this statuses duct tape
+            // or just move into seporated module/function
+            
             def mapStatuses = [
                 "FAILURE": "error",
                 "FAILED": "error",
@@ -464,6 +469,7 @@ class UniverseClient {
                 "SUCCESS": "passed",
                 "SUCCESSFUL": "passed"
             ]
+            
             this.context.println("[INFO] Sending build status - \"${mapStatuses[status]}\"")
 
             def buildBody = [

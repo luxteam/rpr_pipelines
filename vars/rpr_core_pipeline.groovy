@@ -76,22 +76,22 @@ def getCoreSDK(String osName, Map options)
                 clearBinariesUnix()
 
                 println "[INFO] The plugin does not exist in the storage. Unstashing and copying..."
-                unstash "Ubuntu18SDK"
+                unstash "Ubuntu20SDK"
 
                 sh """
                     mkdir -p "${CIS_TOOLS}/../PluginsBinaries"
-                    cp binUbuntu18.zip "${CIS_TOOLS}/../PluginsBinaries/${options.pluginUbuntuSha}.zip"
+                    cp binUbuntu20.zip "${CIS_TOOLS}/../PluginsBinaries/${options.pluginUbuntuSha}.zip"
                 """
 
             } else {
 
                 println "[INFO] The plugin ${options.pluginUbuntuSha}.zip exists in the storage."
                 sh """
-                    cp "${CIS_TOOLS}/../PluginsBinaries/${options.pluginUbuntuSha}.zip" binUbuntu18.zip
+                    cp "${CIS_TOOLS}/../PluginsBinaries/${options.pluginUbuntuSha}.zip" binUbuntu20.zip
                 """
             }
 
-            unzip zipFile: "binUbuntu18.zip", dir: "rprSdk", quiet: true
+            unzip zipFile: "binUbuntu20.zip", dir: "rprSdk", quiet: true
 
             break;
     }
@@ -311,7 +311,7 @@ def executeTests(String osName, String asicName, Map options)
                                 // remove brocken core package
                                 removeInstaller(osName: osName, options: options, extension: "zip")
                                 collectCrashInfo(osName, options, options.currentTry)
-                                if (osName == "Ubuntu18"){
+                                if (osName == "Ubuntu20"){
                                     sh """
                                         echo "Restarting Unix Machine...."
                                         hostname
@@ -379,16 +379,16 @@ def executeBuildOSX(Map options) {
 }
 
 def executeBuildLinux(Map options) {
-    withNotifications(title: "Ubuntu18", options: options, logUrl: "${BUILD_URL}/artifact/Build-Ubuntu18.log",
-        artifactUrl: "${BUILD_URL}/artifact/binUbuntu18.zip", configuration: NotificationConfiguration.BUILD_PACKAGE) {
+    withNotifications(title: "Ubuntu20", options: options, logUrl: "${BUILD_URL}/artifact/Build-Ubuntu20.log",
+        artifactUrl: "${BUILD_URL}/artifact/binUbuntu20.zip", configuration: NotificationConfiguration.BUILD_PACKAGE) {
         dir("RadeonProRenderSDK/RadeonProRender/binUbuntu18") {
-            zip archive: true, dir: ".", glob: "", zipFile: "binUbuntu18.zip"
-            stash includes: "binUbuntu18.zip", name: "Ubuntu18SDK"
-            options.pluginUbuntuSha = sha1 "binUbuntu18.zip"
+            zip archive: true, dir: ".", glob: "", zipFile: "binUbuntu20.zip"
+            stash includes: "binUbuntu20.zip", name: "Ubuntu20SDK"
+            options.pluginUbuntuSha = sha1 "binUbuntu20.zip"
         }
         if (options.sendToUMS) {
             dir("jobs_launcher") {
-                sendToMINIO(options, "Ubuntu18", "../RadeonProRenderSDK/RadeonProRender/binUbuntu18", "binUbuntu18.zip", false)                            
+                sendToMINIO(options, "Ubuntu20", "../RadeonProRenderSDK/RadeonProRender/binUbuntu20", "binUbuntu20.zip", false)                            
             }
         }
     }
@@ -792,7 +792,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
 def call(String projectBranch = "",
          String testsBranch = "master",
-         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,AMD_RadeonVII,AMD_RX5700XT,NVIDIA_GF1080TI,NVIDIA_RTX2080TI;OSX:AMD_RXVEGA;Ubuntu18:AMD_RadeonVII,NVIDIA_RTX2070',
+         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,AMD_RadeonVII,AMD_RX5700XT,NVIDIA_GF1080TI,NVIDIA_RTX2080TI;OSX:AMD_RXVEGA;Ubuntu20:AMD_RadeonVII,NVIDIA_RTX2070',
          String updateRefs = 'No',
          Boolean enableNotifications = true,
          String renderDevice = "gpu",

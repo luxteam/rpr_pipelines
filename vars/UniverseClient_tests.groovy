@@ -17,7 +17,7 @@ def test_create_build() {
 
         child1 = new UniverseClient(this, umsURL, env, isURL, productName, 'Northstar', parent)
         child1.tokenSetup()
-        child1.createBuild(["Windows-AMD", "OSX-AMD_7100"], ["Smoke", "Sanity"], false)
+        child1.createBuild(["Windows-AMD"], ["Smoke"], false)
 
         
         cleanWS("Ubuntu")

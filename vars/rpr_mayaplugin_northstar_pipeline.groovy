@@ -160,7 +160,6 @@ def executeTests(String osName, String asicName, Map options)
 
         timeout(time: "5", unit: 'MINUTES') {
             try {
-
                 cleanWS(osName)
                 checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_maya.git')
 
@@ -226,6 +225,7 @@ def executeTests(String osName, String asicName, Map options)
             } catch (e) {
                 println("[WARNING] Baseline doesn't exist.")
             }
+            
             // Northstar baseline
             REF_PATH_PROFILE="${REF_PATH_PROFILE}-NorthStar"
             try {

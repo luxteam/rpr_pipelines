@@ -24,7 +24,7 @@ def test_create_build() {
         checkOutBranchOrScm('ums_tests', 'https://github.com/luxteam/jobs_launcher.git')
 
         sh """
-            ./run_ums_tests.sh >> ../tests.log 2>&1
+            sudo sh run_ums_tests.sh >> ../tests.log 2>&1
         """
 
         child2 = new UniverseClient(this, umsURL, env, isURL, productName, 'Tahoe', parent)

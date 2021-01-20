@@ -21,7 +21,7 @@ def test_create_build() {
         child1.changeStatus("SUCCESS")
         
         cleanWS("Ubuntu")
-        checkOutBranchOrScm('ums_tests', 'https://github.com/luxteam/jobs_launcher.git', false, false, true, 'radeonprorender-github', false)
+        checkOutBranchOrScm('ums_tests', 'https://github.com/luxteam/jobs_launcher.git')
 
         sh """
             ./run_ums_tests.sh >> ../tests.log 2>&1

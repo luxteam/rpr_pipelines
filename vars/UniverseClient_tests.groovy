@@ -20,7 +20,7 @@ def test_create_build() {
         child1.createBuild(["Windows-AMD", "OSX-AMD_7100"], ["Smoke", "Sanity"], false)
         child1.changeStatus("SUCCESS")
         
-        
+        cleanWS("Ubuntu")
         checkOutBranchOrScm('ums_tests', 'git@github.com:luxteam/jobs_launcher.git')
 
         sh """

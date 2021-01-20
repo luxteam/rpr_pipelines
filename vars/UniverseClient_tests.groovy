@@ -19,6 +19,9 @@ def test_create_build() {
         child1.tokenSetup()
         child1.createBuild(["Windows-AMD"], ["Smoke"], false)
 
+        child2 = new UniverseClient(this, umsURL, env, isURL, productName, 'Tahoe', parent)
+        child2.tokenSetup()
+        child2.createBuild(["Windows-AMD"], ["Smoke"], false)
         
         cleanWS("Ubuntu")
         checkOutBranchOrScm('ums_tests', 'https://github.com/luxteam/jobs_launcher.git')
@@ -33,10 +36,6 @@ def test_create_build() {
         sh """
             sudo sh run_ums_tests.sh ${UMS_URL} ${UMS_JOB_ID} ${UMS_ENV_LABEL} ${UMS_LOGIN} ${UMS_PASSWORD} ${UMS_BUILD_ID}>> ../tests.log 2>&1
         """
-
-        child2 = new UniverseClient(this, umsURL, env, isURL, productName, 'Tahoe', parent)
-        child2.tokenSetup()
-        child2.createBuild(["Windows-AMD", "OSX-AMD_7100"], ["Smoke", "Sanity"], false)
         
         // child2.changeStatus("SUCCESS")
         // child1.changeStatus("SUCCESS")

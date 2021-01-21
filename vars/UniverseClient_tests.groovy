@@ -8,11 +8,9 @@ def test_create_build() {
         String isURL = "${IS_URL}"
         String productName = "AMD%20Radeon™%20ProRender%20for%20Maya"
         String UMS_URL='https://umsapi2.cistest.luxoft.com'
-        String UMS_JOB_ID=child1.build.job_id
         String UMS_ENV_LABEL='Windows-AMD'
         String UMS_LOGIN='dm1tryG'
         String UMS_PASSWORD='root'
-        String UMS_BUILD_ID=child1.build.id
         def TEST_FILTER=['Smoke', 'Sanity']
         def ENVS=["Windows-AMD", "OSX-AMD"]
         
@@ -23,6 +21,9 @@ def test_create_build() {
         child1 = new UniverseClient(this, umsURL, env, isURL, productName, 'Northstar', parent)
         child1.tokenSetup()
         child1.createBuild(ENVS, TEST_FILTER, false)
+
+        String UMS_JOB_ID=child1.build.job_id
+        String UMS_BUILD_ID=child1.build.id
 
         // child2 = new UniverseClient(this, umsURL, env, isURL, productName, 'Tahoe', parent)
         // child2.tokenSetup()

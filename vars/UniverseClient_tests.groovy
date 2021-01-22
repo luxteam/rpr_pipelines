@@ -7,7 +7,6 @@ def test_create_build(String instance) {
         String umsURL  = "${TEST_UMS_URL}"
         String isURL = "${IS_URL}"
         String productName = "AMD%20Radeon™%20ProRender%20for%20Maya"
-        String UMS_URL='https://umsapi2.cistest.luxoft.com'
         String UMS_ENV_LABEL='Windows-AMD'
         String UMS_LOGIN='dm1tryG'
         String UMS_PASSWORD='root'
@@ -45,8 +44,8 @@ def test_create_build(String instance) {
     }
 }
 
-def call() {
+def call(String instance) {
     node("UMS") {
-        test_create_build()
+        test_create_build(instance)
     }
 }

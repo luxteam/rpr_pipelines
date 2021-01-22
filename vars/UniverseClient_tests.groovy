@@ -1,10 +1,10 @@
-def test_create_build() {
+def test_create_build(String instance) {
     withCredentials([
-        string(credentialsId: 'testing2UniverseURL', variable: 'TEST2_UMS_URL'),
+        string(credentialsId: 'testing2UniverseURL', variable: 'TEST_UMS_URL'),
         string(credentialsId: 'imageServiceURL', variable: 'IS_URL')
     ]) {
         // configuration
-        String umsURL  = "${TEST2_UMS_URL}"
+        String umsURL  = "${TEST_UMS_URL}"
         String isURL = "${IS_URL}"
         String productName = "AMD%20Radeon™%20ProRender%20for%20Maya"
         String UMS_URL='https://umsapi2.cistest.luxoft.com'
@@ -34,7 +34,7 @@ def test_create_build() {
 
         ENVS.each { env_label ->
             sh """
-                sudo sh run_ums_tests.sh ${UMS_URL} ${UMS_JOB_ID} ${env_label} ${UMS_LOGIN} ${UMS_PASSWORD} ${UMS_BUILD_ID} ${TEST_FILTER.join(',')}>> ../tests.log 2>&1
+                sudo sh run_ums_tests.sh ${umsURL} ${UMS_JOB_ID} ${env_label} ${UMS_LOGIN} ${UMS_PASSWORD} ${UMS_BUILD_ID} ${TEST_FILTER.join(',')}>> ../tests.log 2>&1
             """
         }
         

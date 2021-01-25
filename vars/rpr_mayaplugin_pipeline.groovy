@@ -1264,7 +1264,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
 
             def assetsRepo
             withCredentials([string(credentialsId: 'gitlabURL', variable: 'GITLAB_URL')]){
-                assetsRepo = "${GITLAB_URL}/autotest_assets/rpr_core"
+                assetsRepo = "${GITLAB_URL}/autotest_assets/rpr_maya_autotests"
             }
 
             withNotifications(options: options, configuration: NotificationConfiguration.ENGINES_PARAM) {

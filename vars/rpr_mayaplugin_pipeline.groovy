@@ -260,7 +260,10 @@ def executeTests(String osName, String asicName, Map options)
         }
 
         withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.DOWNLOAD_SCENES) {
-            downloadAssets("${options.PRJ_ROOT}/${options.PRJ_NAME}/MayaAssets/", "MayaAssets")
+            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_maya_autotests" : "C:\\TestResources\\rpr_maya_autotests"
+            dir(assets_dir){
+                checkOutBranchOrScm(options.assetsBranch, options.assetsRepo, true, null, null, false, true, "radeonprorender-gitlab", true)
+            }
         }
 
         try {
@@ -1217,6 +1220,7 @@ def appendPlatform(String filteredPlatforms, String platform) {
 
 def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderMayaPlugin.git",
         String projectBranch = "",
+        String assetsBranch = "master",
         String testsBranch = "master",
         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI;OSX:AMD_RXVEGA',
         String updateRefs = 'No',
@@ -1257,6 +1261,12 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
 
     try {
         withNotifications(options: options, configuration: NotificationConfiguration.INITIALIZATION) {
+
+            def assetsRepo
+            withCredentials([string(credentialsId: 'gitlabURL', variable: 'GITLAB_URL')]){
+                assetsRepo = "${GITLAB_URL}/autotest_assets/rpr_core"
+            }
+
             withNotifications(options: options, configuration: NotificationConfiguration.ENGINES_PARAM) {
                 if (!enginesNames) {
                     throw new Exception()
@@ -1367,6 +1377,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
 
             options << [projectRepo:projectRepo,
                         projectBranch:projectBranch,
+                        assetsBranch:assetsBranch,
+                        assetsRepo:assetsRepo,
                         testsBranch:testsBranch,
                         updateRefs:updateRefs,
                         enableNotifications:enableNotifications,

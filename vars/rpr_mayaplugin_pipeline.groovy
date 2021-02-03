@@ -260,9 +260,13 @@ def executeTests(String osName, String asicName, Map options)
         }
 
         withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.DOWNLOAD_SCENES) {
-            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_maya_autotests" : "C:\\TestResources\\rpr_maya_autotests"
+            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_maya_autotests_assets" : "C:\\TestResources\\rpr_maya_autotests_assets"
             dir(assets_dir){
-                checkOutBranchOrScm(options.assetsBranch, options.assetsRepo, true, null, null, false, true, "radeonprorender-gitlab", true)
+                checkout([$class: 'SubversionSCM', additionalCredentials: [], excludedCommitMessages: '', excludedRegions: '', excludedRevprop: '', 
+                    excludedUsers: '', filterChangelog: false, ignoreDirPropChanges: false, includedRegions: '', 
+                    locations: [[cancelProcessOnExternalsFail: true, credentialsId: "radeonprorender-svn", depthOption: 'infinity', 
+                    ignoreExternalsOption: true, local: '.', remote: options.assetsRepo]], 
+                    quietOperation: true, workspaceUpdater: [$class: 'UpdateUpdater']])
             }
         }
 
@@ -1263,8 +1267,8 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
         withNotifications(options: options, configuration: NotificationConfiguration.INITIALIZATION) {
 
             def assetsRepo
-            withCredentials([string(credentialsId: 'gitlabURL', variable: 'GITLAB_URL')]){
-                assetsRepo = "${GITLAB_URL}/autotest_assets/rpr_maya_autotests"
+            withCredentials([string(credentialsId: 'svnURL', variable: 'SVN_URL')]){
+                assetsRepo = "${SVN_URL}/rpr_maya_autotests_assets"
             }
 
             withNotifications(options: options, configuration: NotificationConfiguration.ENGINES_PARAM) {

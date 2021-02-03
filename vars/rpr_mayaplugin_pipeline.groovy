@@ -270,7 +270,7 @@ def executeTests(String osName, String asicName, Map options)
             }
             try {
                 println("SVN REVISION: ${scm_var.SVN_REVISION}")
-            } catch {
+            } catch(e) {
                 println("FAILED GET SVN_REVISION")
             }
         }

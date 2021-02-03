@@ -260,18 +260,18 @@ def executeTests(String osName, String asicName, Map options)
         }
 
         withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.DOWNLOAD_SCENES) {
-            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_maya_autotests_assets" : "C:\\TestResources\\rpr_maya_autotests_assets"
-            dir(assets_dir){
-                scm_var = checkout([$class: 'SubversionSCM', additionalCredentials: [], excludedCommitMessages: '', excludedRegions: '', excludedRevprop: '', 
-                    excludedUsers: '', filterChangelog: false, ignoreDirPropChanges: false, includedRegions: '', 
-                    locations: [[cancelProcessOnExternalsFail: true, credentialsId: "radeonprorender-svn", depthOption: 'infinity', 
-                    ignoreExternalsOption: true, local: '.', remote: options.assetsRepo]], 
-                    quietOperation: true, workspaceUpdater: [$class: 'UpdateUpdater']])
-            }
             try {
+                String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_maya_autotests_assets" : "C:\\TestResources\\rpr_maya_autotests_assets"
+                dir(assets_dir){
+                    scm_var = checkout([$class: 'SubversionSCM', additionalCredentials: [], excludedCommitMessages: '', excludedRegions: '', excludedRevprop: '', 
+                        excludedUsers: '', filterChangelog: false, ignoreDirPropChanges: false, includedRegions: '', 
+                        locations: [[cancelProcessOnExternalsFail: true, credentialsId: "radeonprorender-svn", depthOption: 'infinity', 
+                        ignoreExternalsOption: true, local: '.', remote: options.assetsRepo]], 
+                        quietOperation: true, workspaceUpdater: [$class: 'UpdateUpdater']])
+                }
                 println("SVN REVISION: ${scm_var.SVN_REVISION}")
             } catch(e) {
-                println("FAILED GET SVN_REVISION")
+                println("[ERROR] Failed to download SVN repo.")
             }
         }
 

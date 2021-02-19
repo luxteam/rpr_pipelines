@@ -413,8 +413,7 @@ def executeBuild(String osName, Map options)
 
         receiveFiles("rpr-ml/MIOpen/${osName}/*", "../RML_thirdparty/MIOpen")
         receiveFiles("rpr-ml/tensorflow/*", "../RML_thirdparty/tensorflow")
-
-        downloadFiles("/volume1/rpr-ml/DirectML/*", "./DirectML")
+        receiveFiles("rpr-ml/DirectML/*", "./DirectML")
 
         withEnv(["CIS_OS=${osName}"]) {
             switch (osName) {

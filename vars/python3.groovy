@@ -7,9 +7,11 @@ def call(String command)
         ret = sh(returnStdout: true, script:"python3 ${command}")
     }
     else
-    {
+    {   
+        echo "${PATH}"
         echo "before withEnv"
         withEnv(["PATH=c:\\python35\\;c:\\python35\\scripts\\;${PATH}"]) {
+            echo "${PATH}"
             echo "before bat"
             ret = bat(
                 script: """

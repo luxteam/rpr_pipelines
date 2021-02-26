@@ -284,7 +284,7 @@ class UniverseClient {
             consoleLogResponseBody: true,
             authentication: 'universeMonitoringSystem',
             httpMode: 'POST',
-            url: "${this.url}/user/login",
+            url: this.url + "/user/login",
             validResponseCodes: '200'
         )
         def token = this.context.readJSON text: "${response.content}"
@@ -321,7 +321,6 @@ class UniverseClient {
                     "major": this.major_keys
                 ]
 
-                println(parameters)
                 // prepare build info
                 info = [:]
                 for (key in this.info_keys) {info[key] = options[key]}
@@ -375,13 +374,10 @@ class UniverseClient {
                 }
             }
 
-            
             buildBody['upd_baselines'] = updRefs
             buildBody['parameters'] = parameters
             buildBody['references'] = references
             buildBody['info'] = info
-            
-            
 
             def res = this.context.httpRequest(
                 consoleLogResponseBody: true,
@@ -392,7 +388,7 @@ class UniverseClient {
                 httpMode: 'POST',
                 requestBody: JsonOutput.toJson(buildBody),
                 ignoreSslErrors: true,
-                url: "${this.url}/api/build?jobName=${this.product}",
+                url: this.url + "/api/build?jobName=${this.product}",
                 validResponseCodes: '0:599'
             )
             
@@ -441,7 +437,7 @@ class UniverseClient {
                 httpMode: 'PUT',
                 requestBody: JsonOutput.toJson(buildBody),
                 ignoreSslErrors: true,
-                url: "${this.url}/api/build?id=${this.build["id"]}&jobId=${this.build["job_id"]}",
+                url: this.url + "/api/build?id=${this.build["id"]}&jobId=${this.build["job_id"]}",
                 validResponseCodes: '0:599'
             )
             return res
@@ -473,7 +469,6 @@ class UniverseClient {
             ]
             
             this.context.println("[INFO] Sending build status - \"${mapStatuses[status]}\"")
-
             long timeMilliseconds = new Date().getTime()
             long timestamp = (long) (timeMilliseconds / 1000)
 
@@ -491,7 +486,7 @@ class UniverseClient {
                 httpMode: 'PUT',
                 requestBody: JsonOutput.toJson(buildBody),
                 ignoreSslErrors: true,
-                url: "${this.url}/api/build?id=${this.build["id"]}&jobId=${this.build["job_id"]}",
+                url: this.url + "/api/build?id=${this.build["id"]}&jobId=${this.build["job_id"]}",
                 validResponseCodes: '0:599'
             )
 
@@ -516,7 +511,7 @@ class UniverseClient {
                 httpMode: 'PUT',
                 requestBody: JsonOutput.toJson(buildBody),
                 ignoreSslErrors: true,
-                url: "${this.url}/api/build?id=${this.build["id"]}&jobId=${this.build["job_id"]}",
+                url: this.url + "/api/build?id=${this.build["id"]}&jobId=${this.build["job_id"]}",
                 validResponseCodes: '0:599'
             )
             return res

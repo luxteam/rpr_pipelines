@@ -163,14 +163,11 @@ def executeTests(String osName, String asicName, Map options)
         }
 
         withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.DOWNLOAD_SCENES) {
-            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_viewer_autotests" : "C:\\TestResources\\rpr_viewer_autotests"
-            dir(assets_dir){
-                checkOutBranchOrScm(options.assetsBranch, options.assetsRepo, true, null, null, false, true, "radeonprorender-gitlab", true)
-            }
+            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_viewer_autotests_assets" : "/mnt/c/TestResources/rpr_viewer_autotests_assets"
+            downloadFiles("/volume1/Assets/rpr_viewer_autotests/", assets_dir)
         }
 
-        String REF_PATH_PROFILE="${options.REF_PATH}/${asicName}-${osName}"
-        String JOB_PATH_PROFILE="${options.JOB_PATH}/${asicName}-${osName}"
+        String REF_PATH_PROFILE="/volume1/Baselines/rpr_viewer_autotests/${asicName}-${osName}"
         options.REF_PATH_PROFILE = REF_PATH_PROFILE
 
         outputEnvironmentInfo(osName, "", options.currentTry)
@@ -179,7 +176,7 @@ def executeTests(String osName, String asicName, Map options)
             withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.EXECUTE_TESTS) {
                 executeTestCommand(osName, asicName, options)
                 executeGenTestRefCommand(osName, options, options["updateRefs"].contains("clean"))
-                sendFiles("./Work/GeneratedBaselines/", REF_PATH_PROFILE)
+                uploadFiles("./Work/GeneratedBaselines/", REF_PATH_PROFILE)
                 // delete generated baselines when they're sent 
                 switch(osName) {
                     case "Windows":
@@ -195,9 +192,9 @@ def executeTests(String osName, String asicName, Map options)
                 println("[INFO] Downloading reference images for ${options.tests}")
                 options.tests.split(" ").each() {
                     if (it.contains(".json")) {
-                        receiveFiles("${REF_PATH_PROFILE}/", baseline_dir)
+                        downloadFiles("${REF_PATH_PROFILE}/", baseline_dir)
                     } else {
-                        receiveFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
+                        downloadFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
                     }
                 }
             }
@@ -777,7 +774,6 @@ def executeDeploy(Map options, List platformList, List testResultList)
 }
 
 def call(String projectBranch = "",
-         String assetsBranch = "master",
          String testsBranch = "master",
          String platforms = 'Windows:AMD_RadeonVII,AMD_RadeonVII_Beta,NVIDIA_RTX2080',
          String updateRefs = 'No',
@@ -802,11 +798,6 @@ def call(String projectBranch = "",
     try {
         withNotifications(options: options, configuration: NotificationConfiguration.INITIALIZATION) {
 
-            def assetsRepo
-            withCredentials([string(credentialsId: 'gitlabURL', variable: 'GITLAB_URL')]){
-                assetsRepo = "${GITLAB_URL}/autotest_assets/rpr_viewer_autotests"
-            }
-
             sendToUMS = updateRefs.contains('Update') || sendToUMS
             
             def universePlatforms = convertPlatforms(platforms);
@@ -821,8 +812,6 @@ def call(String projectBranch = "",
             println "UMS platforms: ${universePlatforms}"
 
             options << [projectBranch:projectBranch,
-                        assetsBranch:assetsBranch,
-                        assetsRepo:assetsRepo,
                         testsBranch:testsBranch,
                         updateRefs:updateRefs,
                         enableNotifications:enableNotifications,

@@ -15,14 +15,12 @@ def call(String local_path, String server_path, String remoteHost = "nasURL") {
         print("Try to upload files with rsync №${retries}")
         try {
             withCredentials([string(credentialsId: remoteHost, variable: 'REMOTE_HOST')]) {
+                // Avoid warnings connected with using Groovy String interpolation with credentials
+                // See docs for more details: https://www.jenkins.io/doc/book/pipeline/jenkinsfile/#string-interpolation
                 if (isUnix()) {
-                    sh """
-                        ${CIS_TOOLS}/uploadFiles.sh \"${local_path}\" ${server_path} ${REMOTE_HOST}
-                    """
+                    sh '$CIS_TOOLS/uploadFiles.sh' + " \"${local_path}\" ${server_path} " + '$REMOTE_HOST'
                 } else {
-                    bat """
-                        %CIS_TOOLS%\\uploadFiles.bat ${local_path} ${server_path} ${REMOTE_HOST}
-                    """
+                    bat '%CIS_TOOLS%\\uploadFiles.bat' + " \"${local_path}\" ${server_path} " + '%REMOTE_HOST%'
                 }
             }
         } catch (FlowInterruptedException error) {

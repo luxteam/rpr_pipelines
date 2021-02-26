@@ -109,15 +109,11 @@ def executeTests(String osName, String asicName, Map options)
         }
 
         withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.DOWNLOAD_SCENES) {
-            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_usdviewer_autotests" : "C:\\TestResources\\rpr_usdviewer_autotests"
-            dir(assets_dir){
-                checkOutBranchOrScm(options.assetsBranch, options.assetsRepo, true, null, null, false, true, "radeonprorender-gitlab", true)
-            }
+            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_usdviewer_autotests_assets" : "/mnt/c/TestResources/rpr_usdviewer_autotests_assets"
+            downloadFiles("/volume1/Assets/rpr_usdviewer_autotests/", assets_dir)
         }
 
-        String REF_PATH_PROFILE="${options.REF_PATH}/${asicName}-${osName}"
-        String JOB_PATH_PROFILE="${options.JOB_PATH}/${asicName}-${osName}"
-
+        String REF_PATH_PROFILE="/volume1/Baselines/rpr_usdviewer_autotests/${asicName}-${osName}"
         options.REF_PATH_PROFILE = REF_PATH_PROFILE
 
         outputEnvironmentInfo(osName, "", options.currentTry)
@@ -126,7 +122,7 @@ def executeTests(String osName, String asicName, Map options)
             withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.EXECUTE_TESTS) {
                 executeTestCommand(osName, asicName, options)
                 executeGenTestRefCommand(osName, options, options["updateRefs"].contains("clean"))
-                sendFiles("./Work/GeneratedBaselines/", REF_PATH_PROFILE)
+                uploadFiles("./Work/GeneratedBaselines/", REF_PATH_PROFILE)
                 // delete generated baselines when they're sent 
                 switch(osName) {
                     case "Windows":
@@ -142,9 +138,9 @@ def executeTests(String osName, String asicName, Map options)
                 println "[INFO] Downloading reference images for ${options.tests}"
                 options.tests.split(" ").each() {
                     if (it.contains(".json")) {
-                        receiveFiles("${REF_PATH_PROFILE}/", baseline_dir)
+                        downloadFiles("${REF_PATH_PROFILE}/", baseline_dir)
                     } else {
-                        receiveFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
+                        downloadFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
                     }
                 }
             }
@@ -648,7 +644,6 @@ def executeDeploy(Map options, List platformList, List testResultList)
 }
 
 def call(String projectBranch = "",
-         String assetsBranch = "master",
          String testsBranch = "master",
          String platforms = 'Windows:AMD_WX9100,AMD_RXVEGA,AMD_RadeonVII,AMD_RX5700XT',
          String updateRefs = 'No',
@@ -670,15 +665,6 @@ def call(String projectBranch = "",
     try {
         withNotifications(options: options, configuration: NotificationConfiguration.INITIALIZATION) {
 
-            def assetsRepo
-            withCredentials([string(credentialsId: 'gitlabURL', variable: 'GITLAB_URL')]){
-                assetsRepo = "${GITLAB_URL}/autotest_assets/rpr_usdviewer_autotests"
-            }
-
-            String PRJ_ROOT='rpr-core'
-            String PRJ_NAME='USDViewer'
-            String projectRepo='git@github.com:Radeon-Pro/RPRViewer.git'
-
             def universePlatforms = convertPlatforms(platforms)
 
             def parallelExecutionType = TestsExecutionType.valueOf(parallelExecutionTypeString)
@@ -689,14 +675,12 @@ def call(String projectBranch = "",
             println "Tests execution type: ${parallelExecutionType}"
 
             options << [projectBranch:projectBranch,
-                        assetsBranch:assetsBranch,
-                        assetsRepo:assetsRepo,
                         testsBranch:testsBranch,
                         updateRefs:updateRefs,
                         enableNotifications:enableNotifications,
-                        PRJ_NAME:PRJ_NAME,
-                        PRJ_ROOT:PRJ_ROOT,
-                        projectRepo:projectRepo,
+                        PRJ_NAME:'USDViewer',
+                        PRJ_ROOT:'rpr-core',
+                        projectRepo:'git@github.com:Radeon-Pro/RPRViewer.git',
                         BUILDER_TAG:'BuilderUSDViewer',
                         TESTER_TAG:tester_tag,
                         executeBuild:true,

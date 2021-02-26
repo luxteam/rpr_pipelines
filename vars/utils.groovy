@@ -264,9 +264,7 @@ class utils {
             self.withCredentials([self.usernamePassword(credentialsId: credentialsId, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                 command += "-u ${self.USERNAME}:${self.PASSWORD} "
             }
-        if (extraParams) {
-            extraParams.each { command += "-${it.key} ${it.value} " }
-        }
+        extraParams?.each { command += "-${it.key} ${it.value} " }
         command += "${filelink}"
         if (self.isUnix()) {
             self.sh command
@@ -294,5 +292,26 @@ class utils {
         return text.replaceAll(unsafeCharsRegex, {
             "\\u${Integer.toHexString(it.codePointAt(0)).padLeft(4, '0')}"
         })
+    }
+
+    static String incrementVersion(Map params) {
+        Object self = params["self"]
+        String currentVersion = params["currentVersion"]
+        Integer index = params["index"] ?: 1
+        String delimiter = params["delimiter"] ?: "\\."
+
+        String[] indexes = currentVersion.split(delimiter)
+        Integer targetIndex = (indexes[index - 1] as Integer) + 1
+        indexes[index - 1] = targetIndex as String
+
+        return indexes.join(delimiter.replace("\\", ""))
+    }
+
+    /**
+     * @param command - executable command
+     * @return clear bat stdout without original command
+     */
+    static String getBatOutput(Object self, String command) {
+        return self.bat(script: "@${command}", returnStdout: true).trim()
     }
 }

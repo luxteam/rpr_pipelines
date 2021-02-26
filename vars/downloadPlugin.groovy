@@ -62,6 +62,17 @@ def call(String osName, String tool, Map options, String credentialsId = '') {
         withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'jenkinsUser', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
             runCurl("curl -L -o ${tool}_${osName}.${extension} -u $USERNAME:$PASSWORD \"${customBuildLink}\"")
         }
+    } else if (customBuildLink.startsWith("/CIS/")) {
+        downloadFiles("/volume1${customBuildLink}", ".")
+        if (isUnix()) {
+            sh """
+                mv ${customBuildLink.split("/")[-1]} ${tool}_${osName}.${extension}
+            """
+        } else {
+            bat """
+                move ${customBuildLink.split("/")[-1]} ${tool}_${osName}.${extension}
+            """
+        }
     } else {
         if (credentialsId) {
             withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: credentialsId, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {

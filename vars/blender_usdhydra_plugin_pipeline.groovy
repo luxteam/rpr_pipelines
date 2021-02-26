@@ -157,10 +157,8 @@ def executeTests(String osName, String asicName, Map options) {
         }
 
         withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.DOWNLOAD_SCENES) {
-            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_blenderusdhydra_autotests" : "C:\\TestResources\\rpr_blenderusdhydra_autotests"
-            dir(assets_dir) {
-                checkOutBranchOrScm(options.assetsBranch, options.assetsRepo, true, null, null, false, true, "radeonprorender-gitlab", true)
-            }
+            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/usd_blender_autotests_assets" : "/mnt/c/TestResources/usd_blender_autotests_assets"
+            downloadFiles("/volume1/Assets/usd_blender_autotests/", assets_dir)
         }
 
         try {
@@ -195,7 +193,7 @@ def executeTests(String osName, String asicName, Map options) {
         }
 
         String enginePostfix = ""
-        String REF_PATH_PROFILE="${options.REF_PATH}/${asicName}-${osName}"
+        String REF_PATH_PROFILE="/volume1/Baselines/usd_blender_autotests/${asicName}-${osName}"
         switch(options.engine) {
             case 'HdRprPlugin':
                 enginePostfix = "RPR"
@@ -214,7 +212,7 @@ def executeTests(String osName, String asicName, Map options) {
             withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.EXECUTE_TESTS) {
                 executeTestCommand(osName, asicName, options)
                 executeGenTestRefCommand(osName, options, options["updateRefs"].contains("clean"))
-                sendFiles("./Work/GeneratedBaselines/", REF_PATH_PROFILE)
+                uploadFiles("./Work/GeneratedBaselines/", REF_PATH_PROFILE)
                 // delete generated baselines when they're sent 
                 switch(osName) {
                     case 'Windows':
@@ -227,14 +225,14 @@ def executeTests(String osName, String asicName, Map options) {
         } else {
             // TODO: receivebaseline for json suite
             withNotifications(title: options["stageName"], printMessage: true, options: options, configuration: NotificationConfiguration.COPY_BASELINES) {
-                String baseline_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_blenderusdhydra_autotests_baselines" : "/mnt/c/TestResources/rpr_blenderusdhydra_autotests_baselines"
+                String baseline_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/usd_blender_autotests_baselines" : "/mnt/c/TestResources/usd_blender_autotests_baselines"
                 baseline_dir = enginePostfix ? "${baseline_dir}-${enginePostfix}" : baseline_dir
                 println "[INFO] Downloading reference images for ${options.parsedTests}"
                 options.parsedTests.split(" ").each() {
                     if (it.contains(".json")) {
-                        receiveFiles("${REF_PATH_PROFILE}/", baseline_dir)
+                        downloadFiles("${REF_PATH_PROFILE}/", baseline_dir)
                     } else {
-                        receiveFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
+                        downloadFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
                     }
                 }
             }
@@ -430,7 +428,7 @@ def executeBuildLinux(String osName, Map options) {
 
 def executeBuild(String osName, Map options) {
     try {
-        receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/3rdparty/${osName}/libs/*", "libs")
+        downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/3rdparty/${osName}/libs/*", "libs")
 
         dir("RadeonProRenderBlenderAddon") {
             withNotifications(title: osName, options: options, configuration: NotificationConfiguration.DOWNLOAD_SOURCE_CODE_REPO) {
@@ -963,7 +961,6 @@ def appendPlatform(String filteredPlatforms, String platform) {
 
 def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/BlenderUSDHydraAddon.git",
     String projectBranch = "",
-    String assetsBranch = "master",
     String testsBranch = "master",
     String platforms = 'Windows;Ubuntu18',
     String updateRefs = 'No',
@@ -1002,11 +999,6 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/BlenderUS
                 if (!enginesNames) {
                     throw new Exception()
                 }
-            }
-
-            def assetsRepo
-            withCredentials([string(credentialsId: 'gitlabURL', variable: 'GITLAB_URL')]) {
-                assetsRepo = "${GITLAB_URL}/autotest_assets/rpr_blenderusdhydra_autotests"
             }
 
             enginesNames = enginesNames.split(",") as List
@@ -1078,8 +1070,6 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/BlenderUS
 
             options << [projectRepo:projectRepo,
                         projectBranch:projectBranch,
-                        assetsBranch:assetsBranch,
-                        assetsRepo:assetsRepo,
                         testsBranch:testsBranch,
                         updateRefs:updateRefs,
                         enableNotifications:enableNotifications,

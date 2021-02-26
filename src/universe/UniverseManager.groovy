@@ -87,11 +87,11 @@ abstract class UniverseManager {
 
             context.withEnv(["UMS_USE=${options.sendToUMS}", "UMS_ENV_LABEL=${osName}-${asicName}",
                 "UMS_BUILD_ID_PROD=${options.buildIdProd}", "UMS_JOB_ID_PROD=${options.jobIdProd}", "UMS_URL_PROD=${universeURLProd}", 
-                "UMS_LOGIN_PROD=${context.UMS_USER}", "UMS_PASSWORD_PROD=${context.UMS_PASSWORD}",
+                "UMS_LOGIN_PROD=" + context.UMS_USER, "UMS_PASSWORD_PROD=" + context.UMS_PASSWORD,
                 "UMS_BUILD_ID_DEV=${options.buildIdDev}", "UMS_JOB_ID_DEV=${options.jobIdDev}", "UMS_URL_DEV=${universeURLDev}",
-                "UMS_LOGIN_DEV=${context.UMS_USER}", "UMS_PASSWORD_DEV=${context.UMS_PASSWORD}",
-                "IS_LOGIN=${context.IS_USER}", "IS_PASSWORD=${context.IS_PASSWORD}", "IS_URL=${imageServiceURL}",
-                "MINIO_ENDPOINT=${context.MINIO_ENDPOINT}", "MINIO_ACCESS_KEY=${context.MINIO_ACCESS_KEY}", "MINIO_SECRET_KEY=${context.MINIO_SECRET_KEY}"]) {
+                "UMS_LOGIN_DEV=" + context.UMS_USER, "UMS_PASSWORD_DEV=" + context.UMS_PASSWORD,
+                "IS_LOGIN=" + context.IS_USER, "IS_PASSWORD=" + context.IS_PASSWORD, "IS_URL=${imageServiceURL}",
+                "MINIO_ENDPOINT=" + context.MINIO_ENDPOINT, "MINIO_ACCESS_KEY=" + context.MINIO_ACCESS_KEY, "MINIO_SECRET_KEY=" + context.MINIO_SECRET_KEY]) {
 
                 code()
 
@@ -158,11 +158,11 @@ abstract class UniverseManager {
 
                     updateIds(options)
 
-                    context.withEnv(["UMS_BUILD_ID_PROD=${options.buildIdProd}", "UMS_JOB_ID_PROD=${options.jobIdProd}", "UMS_URL_PROD=${context.PROD_UMS_URL}", 
-                        "UMS_LOGIN_PROD=${context.UMS_USER}", "UMS_PASSWORD_PROD=${context.UMS_PASSWORD}",
-                        "UMS_BUILD_ID_DEV=${options.buildIdDev}", "UMS_JOB_ID_DEV=${options.jobIdDev}", "UMS_URL_DEV=${context.DEV_UMS_URL}",
-                        "UMS_LOGIN_DEV=${context.UMS_USER}", "UMS_PASSWORD_DEV=${context.UMS_PASSWORD}",
-                        "IS_LOGIN=${context.IS_USER}", "IS_PASSWORD=${context.IS_PASSWORD}", "IS_URL=${context.IS_URL}"]) {
+                    context.withEnv(["UMS_BUILD_ID_PROD=${options.buildIdProd}", "UMS_JOB_ID_PROD=${options.jobIdProd}", "UMS_URL_PROD=" + context.PROD_UMS_URL, 
+                        "UMS_LOGIN_PROD=" + context.UMS_USER, "UMS_PASSWORD_PROD=" + context.UMS_PASSWORD,
+                        "UMS_BUILD_ID_DEV=${options.buildIdDev}", "UMS_JOB_ID_DEV=${options.jobIdDev}", "UMS_URL_DEV=" + context.DEV_UMS_URL,
+                        "UMS_LOGIN_DEV=" + context.UMS_USER, "UMS_PASSWORD_DEV=" + context.UMS_PASSWORD,
+                        "IS_LOGIN=" + context.IS_USER, "IS_PASSWORD=" + context.IS_PASSWORD, "IS_URL=" + context.IS_URL]) {
                         context.bat """
                             send_stubs_to_ums.bat \"${skippedTestsPath}\" \"${lostTestsPath}\" \"${retryInfoPath}\"
                         """
@@ -199,8 +199,8 @@ abstract class UniverseManager {
                         context.usernamePassword(credentialsId: 'minioService', usernameVariable: 'MINIO_ACCESS_KEY', passwordVariable: 'MINIO_SECRET_KEY')]) {
                         context.withEnv(["UMS_BUILD_ID_PROD=${options.buildIdProd}", "UMS_JOB_ID_PROD=${options.jobIdProd}",
                             "UMS_BUILD_ID_DEV=${options.buildIdDev}", "UMS_JOB_ID_DEV=${options.jobIdDev}",
-                            "MINIO_ENDPOINT=${context.MINIO_ENDPOINT}", "MINIO_ACCESS_KEY=${context.MINIO_ACCESS_KEY}",
-                            "MINIO_SECRET_KEY=${context.MINIO_SECRET_KEY}"]) {
+                            "MINIO_ENDPOINT=" + context.MINIO_ENDPOINT, "MINIO_ACCESS_KEY=" + context.MINIO_ACCESS_KEY,
+                            "MINIO_SECRET_KEY=" + context.MINIO_SECRET_KEY]) {
                             switch(osName) {
                                 case "Windows":
                                     filesPath = filesPath.replace('/', '\\\\')
@@ -237,5 +237,14 @@ abstract class UniverseManager {
                 }
             }
         }
+    }
+
+    String toString() {
+        return """
+            productName: ${productName}
+            universeURLProd: ${universeURLProd}
+            universeURLDev: ${universeClientDev}
+            imageServiceURL: ${imageServiceURL}
+        """
     }
 }

@@ -132,10 +132,8 @@ def executeTests(String osName, String asicName, Map options)
         }
 
         withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.DOWNLOAD_SCENES) {
-            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_max_autotests" : "C:\\TestResources\\rpr_max_autotests"
-            dir(assets_dir){
-                checkOutBranchOrScm(options.assetsBranch, options.assetsRepo, true, null, null, false, true, "radeonprorender-gitlab", true)
-            }
+            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_max_autotests_assets" : "/mnt/c/TestResources/rpr_max_autotests_assets"
+            downloadFiles("/volume1/Assets/rpr_max_autotests/", assets_dir)
         }
 
         withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.INSTALL_PLUGIN) {
@@ -147,8 +145,7 @@ def executeTests(String osName, String asicName, Map options)
             }
         }
 
-        String REF_PATH_PROFILE="${options.REF_PATH}/${asicName}-${osName}"
-        String JOB_PATH_PROFILE="${options.JOB_PATH}/${asicName}-${osName}"
+        String REF_PATH_PROFILE="/volume1/Baselines/rpr_max_autotests/${asicName}-${osName}"
 
         options.REF_PATH_PROFILE = REF_PATH_PROFILE
 
@@ -158,7 +155,7 @@ def executeTests(String osName, String asicName, Map options)
             withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.EXECUTE_TESTS) {
                 executeTestCommand(osName, asicName, options)
                 executeGenTestRefCommand(osName, options, options["updateRefs"].contains("clean"))
-                sendFiles("./Work/GeneratedBaselines/", REF_PATH_PROFILE)
+                uploadFiles("./Work/GeneratedBaselines/", REF_PATH_PROFILE)
                 // delete generated baselines when they're sent 
                 switch(osName) {
                     case "Windows":
@@ -174,9 +171,9 @@ def executeTests(String osName, String asicName, Map options)
                 println "[INFO] Downloading reference images for ${options.tests}"
                 options.tests.split(" ").each() {
                     if (it.contains(".json")) {
-                        receiveFiles("${REF_PATH_PROFILE}/", baseline_dir)
+                        downloadFiles("${REF_PATH_PROFILE}/", baseline_dir)
                     } else {
-                        receiveFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
+                        downloadFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
                     }
                 }
             }
@@ -754,7 +751,6 @@ def appendPlatform(String filteredPlatforms, String platform) {
 
 def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonProRenderMaxPlugin.git",
         String projectBranch = "",
-        String assetsBranch = "master",
         String testsBranch = "master",
         String platforms = 'Windows:AMD_RXVEGA,AMD_WX9100,AMD_WX7100,NVIDIA_GF1080TI',
         String updateRefs = 'No',
@@ -792,11 +788,6 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
     
     try {
         withNotifications(options: options, configuration: NotificationConfiguration.INITIALIZATION) {
-
-            def assetsRepo
-            withCredentials([string(credentialsId: 'gitlabURL', variable: 'GITLAB_URL')]){
-                assetsRepo = "${GITLAB_URL}/autotest_assets/rpr_max_autotests"
-            }
 
             sendToUMS = updateRefs.contains('Update') || sendToUMS
 
@@ -855,8 +846,6 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
 
             options << [projectRepo:projectRepo,
                         projectBranch:projectBranch,
-                        assetsBranch:assetsBranch,
-                        assetsRepo:assetsRepo,
                         testsBranch:testsBranch,
                         updateRefs:updateRefs,
                         enableNotifications:enableNotifications,

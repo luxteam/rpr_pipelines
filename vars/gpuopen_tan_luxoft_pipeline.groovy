@@ -130,14 +130,10 @@ def executeTests(String osName, String asicName, Map options) {
             }
         }
 
-        String assetsDir = isUnix() ? "${CIS_TOOLS}/../TestResources/gpuopen_tan_autotests" : "C:\\TestResources\\gpuopen_tan_autotests"
-        dir(assetsDir){
-            checkOutBranchOrScm(options.assetsBranch, options.assetsRepo, true, null, null, false, true, "radeonprorender-gitlab", true)
-        }
+        String assetsDir = isUnix() ? "${CIS_TOOLS}/../TestResources/gpuopen_tan_autotests_assets" : "C:\\TestResources\\gpuopen_tan_autotests_assets"
+        downloadFiles("/volume1/Assets/gpuopen_tan_autotests/", assetsDir)
 
         String REF_PATH_PROFILE="${options.REF_PATH}/${asicName}-${osName}"
-        String JOB_PATH_PROFILE="${options.JOB_PATH}/${asicName}-${osName}"
-
         options.REF_PATH_PROFILE = REF_PATH_PROFILE
 
         outputEnvironmentInfo(osName)
@@ -168,9 +164,9 @@ def executeTests(String osName, String asicName, Map options) {
 
 def executeBuildWindows(Map options) {
 
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/*", "./thirdparty/OpenCL-Headers")
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", "./thirdparty/portaudio")
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5-dll64/*", "./tan/tanlibrary/src/fftw-3.3.5-dll64")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/", "./thirdparty/OpenCL-Headers")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", "./thirdparty/portaudio")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5-dll64/*", "./tan/tanlibrary/src/fftw-3.3.5-dll64")
 
     bat """
         mkdir thirdparty\\Qt\\Qt5.9.9\\5.9.9\\msvc2017_64
@@ -286,9 +282,9 @@ def executeBuildWindows(Map options) {
 
 def executeBuildOSX(Map options) {
 
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/*", './thirdparty/OpenCL-Headers')
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", './thirdparty/portaudio')
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5/*", './tan/tanlibrary/src/fftw-3.3.5')
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/", "./thirdparty/OpenCL-Headers")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", "./thirdparty/portaudio")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5-dll64/*", "./tan/tanlibrary/src/fftw-3.3.5-dll64")
 
     options.buildConfiguration.each() { osx_build_conf ->
         options.ipp.each() { osx_cur_ipp ->
@@ -370,9 +366,9 @@ def executeBuildOSX(Map options) {
 
 def executeBuildLinux(String osName, Map options) {
 
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/*", './thirdparty/OpenCL-Headers')
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", './thirdparty/portaudio')
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5/*", './tan/tanlibrary/src/fftw-3.3.5')
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/", "./thirdparty/OpenCL-Headers")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", "./thirdparty/portaudio")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5-dll64/*", "./tan/tanlibrary/src/fftw-3.3.5-dll64")
 
     options.buildConfiguration.each() { ub18_build_conf ->
         options.ipp.each() { ub18_cur_ipp ->
@@ -560,7 +556,7 @@ def executeDeploy(Map options, List platformList, List testResultList) {
         if (options['executeTests'] && testResultList) {
             checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_tan.git')
 
-            receiveFiles("bin_storage/allure/*", "allure")
+            downloadFiles("/volume1/CIS/bin_storage/allure/*", "allure")
     
             dir("allure-results") {
                 testResultList.each() {
@@ -607,7 +603,6 @@ def executeDeploy(Map options, List platformList, List testResultList) {
 
 
 def call(String projectBranch = "",
-    String assetsBranch = "master",
     String testsBranch = "master",
     String platforms = 'Windows;OSX;Ubuntu18',
     String buildConfiguration = "release",
@@ -635,11 +630,6 @@ def call(String projectBranch = "",
             }
         }
 
-        def assetsRepo
-        withCredentials([string(credentialsId: 'gitlabURL', variable: 'GITLAB_URL')]){
-            assetsRepo = "${GITLAB_URL}/autotest_assets/gpuopen_tan_autotests"
-        }
-
         buildConfiguration = buildConfiguration.split(',')
         ipp = ipp.split(',')
         winTool = winTool.split(',')
@@ -656,8 +646,6 @@ def call(String projectBranch = "",
 
         multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy,
                                [projectBranch:projectBranch,
-                                assetsBranch:assetsBranch,
-                                assetsRepo:assetsRepo,
                                 testsBranch:testsBranch,
                                 enableNotifications:enableNotifications,
                                 incrementVersion:incrementVersion,

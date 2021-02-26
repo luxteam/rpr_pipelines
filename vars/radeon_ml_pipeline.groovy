@@ -211,8 +211,8 @@ def executeWindowsBuildCommand(Map options, String buildType){
     outputEnvironmentInfo("Windows", "${STAGE_NAME}_${buildType}")
 
     bat """
-        SET DIRECTML_INCLUDE_PATH=".\\DirectML"
-        SET DIRECTML_LIBRARY_PATH=".\\DirectML"
+        :: SET DIRECTML_INCLUDE_PATH=".\\DirectML"
+        :: SET DIRECTML_LIBRARY_PATH=".\\DirectML"
         mkdir build-${buildType}
         cd build-${buildType}
         cmake ${options.cmakeKeysWin} -DRML_TENSORFLOW_DIR=${WORKSPACE}/third_party/tensorflow -DMIOpen_INCLUDE_DIR=${WORKSPACE}/third_party/miopen -DMIOpen_LIBRARY_DIR=${WORKSPACE}/third_party/miopen .. >> ..\\${STAGE_NAME}_${buildType}.log 2>&1
@@ -260,8 +260,8 @@ def executeOSXBuildCommand(Map options, String buildType){
     outputEnvironmentInfo("OSX", "${STAGE_NAME}_${buildType}")
 
     sh """
-        export DIRECTML_INCLUDE_PATH="./DirectML"
-        export DIRECTML_LIBRARY_PATH="./DirectML"
+        #export DIRECTML_INCLUDE_PATH="./DirectML"
+        #export DIRECTML_LIBRARY_PATH="./DirectML"
         mkdir build-${buildType}
         cd build-${buildType}
         cmake -DCMAKE_buildType=${buildType} ${options.cmakeKeysOSX} .. >> ../${STAGE_NAME}_${buildType}.log 2>&1
@@ -307,8 +307,8 @@ def executeLinuxBuildCommand(Map options, String buildType){
     outputEnvironmentInfo("Linux", "${STAGE_NAME}_${buildType}")
 
     sh """
-        export DIRECTML_INCLUDE_PATH="./DirectML"
-        export DIRECTML_LIBRARY_PATH="./DirectML"
+        #export DIRECTML_INCLUDE_PATH="./DirectML"
+        #export DIRECTML_LIBRARY_PATH="./DirectML"
         mkdir build-${buildType}
         cd build-${buildType}
         cmake -DCMAKE_buildType=${buildType} ${options.cmakeKeysLinux[CIS_OS]} -DRML_TENSORFLOW_DIR=${WORKSPACE}/third_party/tensorflow -DMIOpen_INCLUDE_DIR=${WORKSPACE}/third_party/miopen -DMIOpen_LIBRARY_DIR=${WORKSPACE}/third_party/miopen .. >> ../${STAGE_NAME}_${buildType}.log 2>&1

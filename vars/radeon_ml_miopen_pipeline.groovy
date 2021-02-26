@@ -148,7 +148,7 @@ def executeBuild(String osName, Map options)
         }
 
         if (options.updateBinaries) {
-            sendFiles("release/*", "${options.PRJ_ROOT}/${options.PRJ_NAME}/${osName}")
+            uploadFiles("release/*", "/volume1/CIS/rpr-ml/MIOpen/${osName}")
         }
 
     } catch (e) {

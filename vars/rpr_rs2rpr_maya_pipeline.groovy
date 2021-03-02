@@ -1,7 +1,6 @@
 def getMayaPluginInstaller(String osName, Map options)
 {
-    switch(osName)
-    {
+    switch(osName) {
         case 'Windows':
 
             println "PluginSHA: ${options.pluginWinSha}"
@@ -11,7 +10,7 @@ def getMayaPluginInstaller(String osName, Map options)
                 clearBinariesWin()
                 
                 println "[INFO] The plugin does not exist in the storage. Downloading and copying..."
-                downloadPlugin(osName, "Maya", options)
+                downloadPlugin(osName, "RadeonProRenderMaya", options)
 
                 bat """
                     IF NOT EXIST "${CIS_TOOLS}\\..\\PluginsBinaries" mkdir "${CIS_TOOLS}\\..\\PluginsBinaries"
@@ -22,26 +21,24 @@ def getMayaPluginInstaller(String osName, Map options)
                 println "[INFO] The plugin ${options.pluginWinSha}.msi exists in the storage."
             }
 
-            break;
+            break
 
         default:
-            echo "[WARNING] ${osName} is not supported"
+            println "[WARNING] ${osName} is not supported"
     }
 }
 
 def executeGenTestRefCommand(String osName, Map options)
 {
-    dir('scripts')
-    {
-        switch(osName)
-        {
+    dir('scripts') {
+        switch(osName) {
             case 'Windows':
                 bat """
                     make_rpr_baseline.bat
                 """
-                break;
+                break
             default:
-                echo "[WARNING] ${osName} is not supported"
+                println "[WARNING] ${osName} is not supported"
         }
     }
 }
@@ -55,9 +52,9 @@ def buildRenderCache(String osName, String toolVersion, String log_name)
                 bat """
                     build_rpr_cache.bat ${toolVersion} >> ..\\${log_name}.cb.log  2>&1
                 """
-                break;
+                break
             default:
-                echo "[WARNING] ${osName} is not supported"
+                println "[WARNING] ${osName} is not supported"
         }
     }
 }
@@ -65,18 +62,16 @@ def buildRenderCache(String osName, String toolVersion, String log_name)
 
 def executeTestCommand(String osName, Map options)
 {
-    switch(osName)
-    {
+    switch(osName) {
         case 'Windows':
-            dir('scripts')
-            {
+            dir('scripts') {
                 bat """
                     render_rpr.bat ${options.testsPackage} \"${options.tests}\">> ../${STAGE_NAME}.log  2>&1
                 """
             }
-            break;
+            break
         default:
-            echo "[WARNING] ${osName} is not supported"
+            println "[WARNING] ${osName} is not supported"
     }
 }
 
@@ -88,13 +83,11 @@ def executeTests(String osName, String asicName, Map options)
     Boolean stashResults = true
 
     try {
-
         timeout(time: "5", unit: 'MINUTES') {
             try {
                 cleanWS(osName)
                 checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_rs2rpr.git')
-                dir('jobs/Scripts')
-                {
+                dir('jobs/Scripts') {
                     unstash "conversionScript"
                 }
             } catch(e) {
@@ -138,35 +131,27 @@ def executeTests(String osName, String asicName, Map options)
 
         outputEnvironmentInfo(osName)
 
-        if(options['updateORRefs'])
-        {
-            dir('scripts')
-            {
+        if (options['updateORRefs']) {
+            dir('scripts') {
                 bat """
                     render_or.bat ${options.testsPackage} \"${options.tests}\">> ../${STAGE_NAME}.log  2>&1
                 """
                 bat "make_original_baseline.bat"
             }
             sendFiles('./Work/Baseline/', REF_PATH_PROFILE_OR)
-        }
-        else if (options['updateRefs'])
-        {
+        } else if (options['updateRefs']) {
             executeTestCommand(osName, options)
             executeGenTestRefCommand(osName, options)
             sendFiles('./Work/Baseline/', REF_PATH_PROFILE)
-        }
-        else
-        {	
-            try
-            {
+        } else {	
+            try {
                 options.tests.split(" ").each() {
                     receiveFiles("${REF_PATH_PROFILE}/${it}", './Work/Baseline/')
                 }
             } catch (e) {
                 println("[WARNING] Baseline doesn't exist.")
             }
-            try
-            {
+            try {
                 options.tests.split(" ").each() {
                     receiveFiles("${REF_PATH_PROFILE_OR}/${it}", './Work/Baseline/')
                 }
@@ -187,16 +172,14 @@ def executeTests(String osName, String asicName, Map options)
     } finally {
         archiveArtifacts artifacts: "*.log", allowEmptyArchive: true
         if (stashResults) {
-            dir('Work')
-            {
+            dir('Work') {
                 if (fileExists("Results/rs2rpr/session_report.json")) {
 
                     def sessionReport = null
                     sessionReport = readJSON file: 'Results/rs2rpr/session_report.json'
 
                     // if none launched tests - mark build failed
-                    if (sessionReport.summary.total == 0)
-                    {
+                    if (sessionReport.summary.total == 0) {
                         options.failureMessage = "None test was finished for: ${asicName}-${osName}"
                     }
 
@@ -205,7 +188,7 @@ def executeTests(String osName, String asicName, Map options)
                         installMSIPlugin(osName, "Maya", options, false, true)
                     }
 
-                    echo "Stashing test results to : ${options.testResultsName}"
+                    println("Stashing test results to : ${options.testResultsName}")
                     stash includes: '**/*', name: "${options.testResultsName}", allowEmpty: true
                 }
             }
@@ -237,8 +220,7 @@ def executePreBuild(Map options)
         }
     }
 
-    dir('RS2RPRConvertTool')
-    {
+    dir('RS2RPRConvertTool') {
         checkOutBranchOrScm(options['projectBranch'], 'git@github.com:luxteam/RS2RPRConvertTool.git')
 
         stash includes: "convertRS2RPR.py", name: "conversionScript"
@@ -260,7 +242,7 @@ def executePreBuild(Map options)
         options.pluginVersion = version_read("convertRS2RPR.py", 'RS2RPR_CONVERTER_VERSION = ')
         
         if (options['incrementVersion']) {
-            if(env.BRANCH_NAME == "develop" && options.commitAuthor != "radeonprorender") {
+            if (env.BRANCH_NAME == "develop" && options.commitAuthor != "radeonprorender") {
 
                 println "[INFO] Incrementing version of change made by ${options.commitAuthor}."
                 println "[INFO] Current build version: ${options.pluginVersion}"
@@ -295,35 +277,14 @@ def executePreBuild(Map options)
 
     }
 
-    if (env.BRANCH_NAME && (env.BRANCH_NAME == "master" || env.BRANCH_NAME == "develop")) {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    } else if (env.BRANCH_NAME && env.BRANCH_NAME != "master" && env.BRANCH_NAME != "develop") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '3']]]);
-    } else if (env.JOB_NAME == "Redshift2RPRConvertToolWeekly-Maya") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '15']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
-    }
-
     println "[INFO] Test package: ${options.testsPackage}"
 
     def tests = []
-    if(options.testsPackage != "none")
-    {
-        dir('jobs_test_rs2rpr')
-        {
+    if (options.testsPackage != "none") {
+        dir('jobs_test_rs2rpr') {
             checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_rs2rpr.git')
             // json means custom test suite. Split doesn't supported
-            if(options.testsPackage.endsWith('.json'))
-            {
+            if (options.testsPackage.endsWith('.json')) {
                 options.testsList = ['']
             }
             println "${options.testsPackage}"
@@ -336,11 +297,8 @@ def executePreBuild(Map options)
             options.testsList = tests
             options.testsPackage = "none"
         }
-    }
-    else
-    {
-        options.tests.split(" ").each()
-        {
+    } else {
+        options.tests.split(" ").each() {
             tests << "${it}"
         }
         options.testsList = tests
@@ -351,24 +309,18 @@ def executePreBuild(Map options)
 def executeDeploy(Map options, List platformList, List testResultList)
 {
     try {
-        if(options['executeTests'] && testResultList)
-        {
+        if (options['executeTests'] && testResultList) {
             checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_rs2rpr.git')
 
-            dir("summaryTestResults")
-            {
-                testResultList.each()
-                {
-                    dir("$it".replace("testResult-", ""))
-                    {
-                        try
-                        {
+            dir("summaryTestResults") {
+                testResultList.each() {
+                    dir("$it".replace("testResult-", "")) {
+                        try {
                             unstash "$it"
-                        }catch(e)
-                        {
+                        } catch(e) {
                             echo "Can't unstash ${it}"
-                            println(e.toString());
-                            println(e.getMessage());
+                            println(e.toString())
+                            println(e.getMessage())
                         }
 
                     }
@@ -378,11 +330,10 @@ def executeDeploy(Map options, List platformList, List testResultList)
             String branchName = env.BRANCH_NAME ?: options.projectBranch
 
             try {
-                withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"])
-                {
+                withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"]) {
                     dir("jobs_launcher") {
                         bat """
-                        build_reports.bat ..\\summaryTestResults RS2RPR ${options.commitSHA} ${branchName} \"${escapeCharsByUnicode(options.commitMessage)}\"
+                            build_reports.bat ..\\summaryTestResults RS2RPR ${options.commitSHA} ${branchName} \"${utils.escapeCharsByUnicode(options.commitMessage)}\"
                         """
                     }
                 }
@@ -392,21 +343,17 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 println(e.getMessage())
             }
 
-            try
-            {
+            try {
                 dir("jobs_launcher") {
                     bat "get_status.bat ..\\summaryTestResults"
                 }
-            }
-            catch(e)
-            {
+            } catch(e) {
                 println("ERROR during slack status generation")
                 println(e.toString())
                 println(e.getMessage())
             }
 
-            try
-            {
+            try {
                 def summaryReport = readJSON file: 'summaryTestResults/summary_status.json'
                 if (summaryReport.error > 0) {
                     println("[INFO] Some tests marked as error. Build result = FAILURE.")
@@ -416,21 +363,16 @@ def executeDeploy(Map options, List platformList, List testResultList)
                     println("[INFO] Some tests marked as failed. Build result = UNSTABLE.")
                     currentBuild.result = "UNSTABLE"
                 }
-            }
-            catch(e)
-            {
+            } catch(e) {
                 println(e.toString())
                 println(e.getMessage())
                 println("CAN'T GET TESTS STATUS")
                 currentBuild.result = "UNSTABLE"
             }
 
-            try
-            {
+            try {
                 options.testsStatus = readFile("summaryTestResults/slack_status.json")
-            }
-            catch(e)
-            {
+            } catch(e) {
                 println(e.toString())
                 println(e.getMessage())
                 options.testsStatus = ""
@@ -438,14 +380,11 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
             utils.publishReport(this, "${BUILD_URL}", "summaryTestResults", "summary_report.html", "Test Report", "Summary Report")
         }
-    }
-    catch (e) {
-        println(e.toString());
-        println(e.getMessage());
+    } catch (e) {
+        println(e.toString())
+        println(e.getMessage())
         throw e
-    }
-    finally
-    {}
+    } finally {}
 }
 
 def call(String customBuildLinkWindows = "",
@@ -461,11 +400,9 @@ def call(String customBuildLinkWindows = "",
          String toolVersion = "2020",
          Boolean isPreBuilt = true,
          Boolean forceBuild = false) {
-    try
-    {
+    try {
         if (!customBuildLinkWindows) {
-            withCredentials([string(credentialsId: 'buildsURL', variable: 'BUILDS_URL')])
-            {
+            withCredentials([string(credentialsId: 'buildsURL', variable: 'BUILDS_URL')]) {
                 customBuildLinkWindows = "${BUILDS_URL}/bin_storage/RadeonProRenderMaya_2.9.8.msi"
             }
         }
@@ -491,11 +428,10 @@ def call(String customBuildLinkWindows = "",
                                 reportName:'Test_20Report',
                                 TESTER_TAG:"RedshiftMaya",
                                 TEST_TIMEOUT:120])
-    }
-    catch(e) {
+    } catch(e) {
         currentBuild.result = "FAILED"
-        println(e.toString());
-        println(e.getMessage());
+        println(e.toString())
+        println(e.getMessage())
         throw e
     }
 }

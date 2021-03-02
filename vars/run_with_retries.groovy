@@ -52,8 +52,7 @@ def call(String labels, def stageTimeout, def retringFunction, Boolean reuseLast
         title = "Building test report"
     }
 
-    for (int i = 0; i < tries; i++)
-    {
+    for (int i = 0; i < tries; i++) {
         String nodeName = ""
         options['currentTry'] = i
         options['nodeReallocateTries'] = tries
@@ -72,18 +71,13 @@ def call(String labels, def stageTimeout, def retringFunction, Boolean reuseLast
                     continue
                 }
             }
-            node(labels)
-            {
-                timeout(time: "${stageTimeout}", unit: 'MINUTES')
-                {
-                    ws("WS/${options.PRJ_NAME}_${stageName}") 
-                    {
+            node(labels) {
+                timeout(time: "${stageTimeout}", unit: 'MINUTES') {
+                    ws("WS/${options.PRJ_NAME}_${stageName}") {
                         nodeName = env.NODE_NAME
                         retringFunction(nodesList, i)
                         successCurrentNode = true
-                        if (GithubNotificator.getCurrentStatus(stageName, title, options) == "failure") {
-                            GithubNotificator.updateStatus(stageName, title, "error", options)
-                        }
+                        def currentStatus = GithubNotificator.getCurrentStatus(stageName, title, options)
                         if (stageName != 'Test' && options.problemMessageManager) {
                             options.problemMessageManager.clearErrorReasons(stageName, osName) 
                         }
@@ -91,6 +85,21 @@ def call(String labels, def stageTimeout, def retringFunction, Boolean reuseLast
                 }
             }
         } catch(Exception e) {
+            if (e instanceof ExpectedExceptionWrapper) {
+                if (e.abortCurrentOS) {
+                    println("[ERROR] Detected abortCurrentOS flag in catched exception. Abort next tests on ${osName} OS")
+                    i = tries + 1
+                }
+                e = e.getCause()
+                if (e instanceof ExpectedExceptionWrapper) {
+                    if (e.abortCurrentOS) {
+                        println("[ERROR] Detected abortCurrentOS flag in catched exception. Abort next tests on ${osName} OS")
+                        i = tries + 1
+                    }
+                    e = e.getCause()
+                }
+            }
+
             String exceptionClassName = e.getClass().toString()
 
             if (exceptionClassName.contains("FlowInterruptedException")) {
@@ -138,17 +147,18 @@ def call(String labels, def stageTimeout, def retringFunction, Boolean reuseLast
                 GithubNotificator.updateStatus(stageName, title, "failure", options, NotificationConfiguration.LOST_CONNECTION_WITH_MACHINE)
             }
 
-            println "[ERROR] Failed on ${env.NODE_NAME} node"
-            println "Exception: ${e.toString()}"
-            println "Exception message: ${e.getMessage()}"
-            println "Exception cause: ${e.getCause()}"
-            println "Exception stack trace: ${e.getStackTrace()}"
+            println("[ERROR] Failed on ${env.NODE_NAME} node")
+            println("Exception: ${e.toString()}")
+            println("Exception message: ${e.getMessage()}")
+            println("Exception cause: ${e.getCause()}")
+            println("Exception stack trace: ${e.getStackTrace()}")
 
             if (utils.isTimeoutExceeded(e)) {
-                GithubNotificator.updateStatus(stageName, title, "failure", options, NotificationConfiguration.STAGE_TIMEOUT_EXCEEDED)
+                GithubNotificator.updateStatus(stageName, title, "timed_out", options, NotificationConfiguration.STAGE_TIMEOUT_EXCEEDED)
             } else {
                 // save unknown reason if any other reason wasn't set
-                if (GithubNotificator.getCurrentStatus(stageName, title, options) != "failure") {
+                def currentStatus = GithubNotificator.getCurrentStatus(stageName, title, options)
+                if (currentStatus == "failure" || currentStatus == "timed_out") {
                     GithubNotificator.updateStatus(stageName, title, "failure", options, NotificationConfiguration.REASON_IS_NOT_IDENTIFIED)
                 }
             }
@@ -174,7 +184,7 @@ def call(String labels, def stageTimeout, def retringFunction, Boolean reuseLast
                             options.problemMessageManager.saveGeneralFailReason(NotificationConfiguration.UNKNOWN_REASON, stageName, osName)
                         }
                     }
-                    GithubNotificator.updateStatus(stageName, title, "error", options)
+                    GithubNotificator.updateStatus(stageName, title, "action_required", options)
                     if (stageName == 'Build') {
                         GithubNotificator.failPluginBuilding(options, osName)
                     }
@@ -197,7 +207,7 @@ def call(String labels, def stageTimeout, def retringFunction, Boolean reuseLast
                         options.problemMessageManager.saveGeneralFailReason(NotificationConfiguration.UNKNOWN_REASON, stageName, osName)
                     }
                 }
-                GithubNotificator.updateStatus(stageName, title, "error", options)
+                GithubNotificator.updateStatus(stageName, title, "action_required", options)
                 if (stageName == 'Build') {
                     GithubNotificator.failPluginBuilding(options, osName)
                 }

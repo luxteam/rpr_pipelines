@@ -36,11 +36,11 @@ def executeTests(String osName, String asicName, Map options)
         unstash "shaders${osName}"
         
         if (options['updateRefs']) {
-            echo "Updating Reference Images"
+            println("Updating Reference Images")
             executeGenTestRefCommand(osName, options)
             
         } else {
-            echo "Execute Tests"
+            println("Execute Tests")
             executeTestCommand(osName, options)
         }
     } catch (e) {
@@ -95,18 +95,6 @@ def executePreBuild(Map options)
         println "Commit message: ${commitMessage}"
         println "Commit SHA: ${options.commitSHA}"
     }
-
-    if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    } else if (env.BRANCH_NAME) {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '90', numToKeepStr: '3']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '180', numToKeepStr: '10']]]);
-    }
-
 }
 
 def executeBuild(String osName, Map options)
@@ -115,26 +103,23 @@ def executeBuild(String osName, Map options)
         checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
         outputEnvironmentInfo(osName)
 
-        switch(osName)
-        {
-        case 'Windows': 
-            executeBuildWindows(options); 
-            break;
-        case 'OSX':
-            executeBuildOSX(options);
-            break;
-        default: 
-            executeBuildLinux(options);
+        switch(osName) {
+            case 'Windows': 
+                executeBuildWindows(options) 
+                break
+            case 'OSX':
+                executeBuildOSX(options)
+                break
+            default: 
+                executeBuildLinux(options)
         }
         
         stash includes: 'Build/**/*', name: "app${osName}"
         stash includes: 'shaders/**/*/', name: "shaders${osName}"
-    }
-    catch (e) {
+    } catch (e) {
         currentBuild.result = "FAILED"
         throw e
-    }
-    finally {
+    } finally {
         archiveArtifacts "*.log"
         //zip archive: true, dir: 'Build', glob: '', zipFile: "${osName}Build.zip"
     }                        
@@ -142,17 +127,13 @@ def executeBuild(String osName, Map options)
 
 def executeDeploy(Map options, List platformList, List testResultList)
 {
-    if(options['executeTests'] && testResultList)
-    {
+    if (options['executeTests'] && testResultList) {
         cleanWS()
 
-        dir("BuildsArtifacts")
-        {
-            platformList.each()
-            {
+        dir("BuildsArtifacts") {
+            platformList.each() {
                 try {
-                    dir(it)
-                    {
+                    dir(it) {
                         unstash "app${it}"
                     }
                 } catch(e) {

@@ -7,7 +7,9 @@ import org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper
 public class GithubNotificator {
 
     def context
-    def pullRequest
+    String repositoryUrl
+    String commitSHA
+    GithubApiProvider githubApiProvider
     List buildCases = []
     List testCases = []
     Boolean hasDeployStage
@@ -18,11 +20,28 @@ public class GithubNotificator {
      * Main constructor
      *
      * @param context
-     * @param pullRequest Object of PR
+     * @param options Options map
      */
-    GithubNotificator(context, pullRequest) {
+    GithubNotificator(def context, Map options) {
         this.context = context
-        this.pullRequest = pullRequest
+        githubApiProvider = new GithubApiProvider(context)
+        // format as a http url
+        this.repositoryUrl = options["projectRepo"].replace("git@github.com:", "https://github.com/").replaceAll(".git\$", "")
+    }
+
+    /**
+     * Initialization of GithubNotificator object
+     *
+     * @param options Options map
+     */
+    def init(Map options) {
+        // check that it's PR or not
+        if (context.env.CHANGE_URL) {
+            this.commitSHA = githubApiProvider.getPullRequest(context.env.CHANGE_URL)["head"]["sha"]
+        } else {
+            this.commitSHA = options["commitSHA"]
+        }
+        context.println("Github Notificator initialized for commit ${commitSHA} in repo ${repositoryUrl}")
     }
 
     /**
@@ -33,8 +52,18 @@ public class GithubNotificator {
     def initPreBuild(String url) {
         try {
             context.println("[INFO] Started initialization of notification for PreBuild stage")
-            String statusTitle = "[PREBUILD] Version increment"
-            pullRequest.createStatus("pending", statusTitle, "Status check for PreBuild stage initiialized.", url)
+            String statusTitle = "[PREBUILD] Jenkins build configuration"
+            githubApiProvider.createOrUpdateStatusCheck(
+                repositoryUrl: repositoryUrl,
+                status: "in_progress",
+                name: statusTitle,
+                head_sha: commitSHA,
+                details_url: url,
+                output: [
+                    title: "Status check for PreBuild stage initialized.",
+                    summary: "Use link below to check build details"
+                ]
+            )
             context.println("[INFO] Finished initialization of notification for PreBuild stage")
         } catch (e) {
             context.println("[ERROR] Failed to notification for PreBuild stage")
@@ -50,7 +79,7 @@ public class GithubNotificator {
      * @param url Build url
      * @param hasDeployStage Specify that status for deploy stage should be created or not
      */
-    def initPR(Map options, String url, Boolean hasDeployStage = true) {
+    def initChecks(Map options, String url, Boolean hasDeployStage = true) {
         try {
             context.println("[INFO] Started initialization of PR notifications")
             this.hasDeployStage = hasDeployStage
@@ -95,18 +124,30 @@ public class GithubNotificator {
             }
 
             String statusTitle = ""
+
+            Map paramsBase = [
+                repositoryUrl: repositoryUrl,
+                status: "queued",
+                head_sha: commitSHA,
+                details_url: url,
+                output: [
+                    title: "This stage will be executed later...",
+                    summary: "Use link below to check build details"
+                ]
+            ]
+
             for (buildCase in buildCases) {
-                statusTitle = "[BUILD] ${buildCase}"
-                pullRequest.createStatus("pending", statusTitle, "This stage will be executed later...", url)
+                paramsBase["name"] = "[BUILD] ${buildCase}"
+                githubApiProvider.createOrUpdateStatusCheck(paramsBase)
             }
 
             for (testCase in testCases) {
-                statusTitle = "[TEST] ${testCase}"
-                pullRequest.createStatus("pending", statusTitle, "This stage will be executed later...", url)
+                paramsBase["name"] = "[TEST] ${testCase}"
+                githubApiProvider.createOrUpdateStatusCheck(paramsBase)
             }
             if (hasDeployStage) {
-                statusTitle = "[DEPLOY] Building test report"
-                pullRequest.createStatus("pending", statusTitle, "This stage will be executed later...", url)
+                paramsBase["name"] = "[DEPLOY] Building test report"
+                githubApiProvider.createOrUpdateStatusCheck(paramsBase)
             }
             context.println("[INFO] Finished initialization of PR notifications")
         } catch (e) {
@@ -130,11 +171,11 @@ public class GithubNotificator {
      */
     static def updateStatus(String stageName, String title, String status, Map options, String message = "", String url = "") {
         if (options.githubNotificator) {
-            options.githubNotificator.updateStatusPr(stageName, title, status, options.commitSHA, message, url)
+            options.githubNotificator.updateStatusPr(stageName, title, status, message, url)
         }
     }
 
-    private def updateStatusPr(String stageName, String title, String status, String commitSHA, String message = "", String url = "") {
+    private def updateStatusPr(String stageName, String title, String status, String message = "", String url = "") {
         String statusTitle = "[${stageName.toUpperCase()}] ${title}"
         try {
             // prevent updating of checks by errors which are generated by aborted build
@@ -152,19 +193,41 @@ public class GithubNotificator {
                 statusTitle = statusTitle.replace(".json", "")
             }
 
-            for (prStatus in pullRequest.statuses) {
-                if (statusTitle == prStatus.context) {
-                    if (!url) {
-                        url = prStatus.targetUrl
+            def statusChecks = githubApiProvider.getStatusChecks(
+                repositoryUrl: repositoryUrl,
+                head_sha: commitSHA
+            )
+
+            Boolean checkFound = false
+            if (statusChecks["total_count"] > 0) {
+                for (prStatus in statusChecks["check_runs"]) {
+                    if (statusTitle == prStatus["name"]) {
+                        checkFound = true
+                        if (!url) {
+                            url = prStatus["details_url"] ?: ""
+                        }
+                        if (!message) {
+                            message = prStatus["output"]["title"] ?: ""
+                        }
+                        break
                     }
-                    if (!message) {
-                        message = prStatus.description
-                    }
-                    break
                 }
             }
+            if (!checkFound) {
+                throw new Exception("Could not find suitable status check")
+            }
 
-            pullRequest.createStatus(status, statusTitle, message, url)
+            githubApiProvider.createOrUpdateStatusCheck(
+                repositoryUrl: repositoryUrl,
+                status: status,
+                name: statusTitle,
+                head_sha: commitSHA,
+                details_url: url,
+                output: [
+                    title: message,
+                    summary: "Use link below to check build details"
+                ]
+            )
         } catch (e) {
             context.println("[ERROR] Failed to update status for ${statusTitle}")
             context.println(e.toString())
@@ -188,10 +251,36 @@ public class GithubNotificator {
     private def getCurrentStatusPr(String stageName, String title) {
         String statusTitle = "[${stageName.toUpperCase()}] ${title}"
         try {
-            for (prStatus in pullRequest.statuses) {
-                if (statusTitle == prStatus.context) {
-                    return prStatus.state
+            if (statusTitle.contains("~")) {
+                String[] statusTitleParts = statusTitle.split("~")
+                String engine = ""
+                if (statusTitleParts.length == 2 && statusTitleParts[1].contains("-")) {
+                    engine = statusTitleParts[1].split("-")[1]
                 }
+                statusTitle = engine ? "${statusTitleParts[0]}-${engine}" : "${statusTitleParts[0]}"
+                statusTitle = statusTitle.replace(".json", "")
+            }
+
+            def statusChecks = githubApiProvider.getStatusChecks(
+                repositoryUrl: repositoryUrl,
+                head_sha: commitSHA
+            )
+
+            Boolean checkFound = false
+            if (statusChecks["total_count"] > 0) {
+                for (prStatus in statusChecks["check_runs"]) {
+                    if (statusTitle == prStatus["name"]) {
+                        checkFound = true
+                        if (prStatus["conclusion"]) {
+                            return prStatus["conclusion"]
+                        } else {
+                            return prStatus["status"]
+                        }
+                    }
+                }
+            } 
+            if (!checkFound) {
+                throw new Exception("Could not find suitable status check")
             }
         } catch (e) {
             context.println("[ERROR] Failed to get status for ${statusTitle}")
@@ -210,34 +299,47 @@ public class GithubNotificator {
      */
     static def closeUnfinishedSteps(Map options, String message = "") {
         if (options.githubNotificator) {
-            options.githubNotificator.closeUnfinishedStepsPr(options.commitSHA, message)
+            options.githubNotificator.closeUnfinishedStepsPr(message)
         }
     }
 
-    private def closeUnfinishedStepsPr(String commitSHA, String message = "") {
+    private def closeUnfinishedStepsPr(String message = "") {
         try {
             if(statusesClosed.compareAndSet(false, true)) {
                 if (isBuildWithSameSHA(commitSHA)) {
                     context.println("[INFO] Found next build which has same SHA of target commit as this commit. Status checks won't be closed")
                     return
                 }
-                //FIXME: get only first stages with each name (it's github API issue: check can't be deleted or updated)
                 List stagesList = []
-                stagesList << "[PREBUILD] Version increment"
+                stagesList << "[PREBUILD] Jenkins build configuration"
                 buildCases.each { stagesList << "[BUILD] " + it }
                 testCases.each { stagesList << "[TEST] " + it }
                 if (hasDeployStage) {
                     stagesList << "[DEPLOY] Building test report"
                 }
-                for (prStatus in pullRequest.statuses) {
-                    if (stagesList.contains(prStatus.context)) {
-                        if (prStatus.state == "pending" || prStatus.state == "failure") {
+                def statusChecks = githubApiProvider.getStatusChecks(
+                    repositoryUrl: repositoryUrl,
+                    head_sha: commitSHA
+                )
+                for (prStatus in statusChecks["check_runs"]) {
+                    if (stagesList.contains(prStatus["name"])) {
+                        if (prStatus["status"] == "in_progress" || prStatus["status"] == "queued" || prStatus["conclusion"] == "failure" || prStatus["timed_out"] == "failure") {
                             if (!message) {
-                                message = prStatus.description
+                                message = prStatus["output"]["title"]
                             }
-                            pullRequest.createStatus("error", prStatus.context, message, prStatus.url)
+                            githubApiProvider.createOrUpdateStatusCheck(
+                                repositoryUrl: repositoryUrl,
+                                status: "error",
+                                name: prStatus["name"],
+                                head_sha: commitSHA,
+                                details_url: prStatus["details_url"] ?: "",
+                                output: [
+                                    title: message,
+                                    summary: "Use link below to check build details"
+                                ]
+                            )
                         }
-                        stagesList.remove(prStatus.context)
+                        stagesList.remove(prStatus["name"])
                     }
                     if (stagesList.size() == 0) {
                         break
@@ -258,7 +360,7 @@ public class GithubNotificator {
             RunWrapper nextBuild = context.currentBuild.getNextBuild()
             while(nextBuild) {
                 String nextBuildSHA = ""
-                nextBuildSHA = getBuildCommit()
+                nextBuildSHA = commitSHA
                 //if it isn't possible to find commit SHA in description - it isn't initialized yet. Wait 1 minute
                 if(!nextBuildSHA) {
                     context.sleep(60)
@@ -279,19 +381,6 @@ public class GithubNotificator {
         return false
     }
 
-    private String getBuildCommit() {
-        String commitSHA = ""
-        def description = context.currentBuild.description
-        String[] descriptionParts = description.split('<br/>')
-        for (part in descriptionParts) {
-            if (part.contains('Commit SHA')) {
-                commitSHA = part.split(':')[1].replace('<b>', '').replace('</b>', '').trim()
-                break
-            }
-        }
-        return commitSHA
-    }
-
     /**
      * Function for close status checks which represents test stages on some OS
      * It can be useful if building on some OS didn't finish successfully
@@ -307,9 +396,23 @@ public class GithubNotificator {
 
     private def failPluginBuildingPr(String osName) {
         try {
-            for (prStatus in pullRequest.statuses) {
-                if (prStatus.context.contains("[TEST]") && prStatus.context.contains(osName)) {
-                    pullRequest.createStatus("error", prStatus.context, "Building stage was failed", prStatus.url)
+            def statusChecks = githubApiProvider.getStatusChecks(
+                repositoryUrl: repositoryUrl,
+                head_sha: commitSHA
+            )
+            for (prStatus in statusChecks["check_runs"]) {
+                if (prStatus["name"].contains("[TEST]") && prStatus["name"].contains(osName)) {
+                    githubApiProvider.createOrUpdateStatusCheck(
+                        repositoryUrl: repositoryUrl,
+                        status: "error",
+                        name: prStatus["name"],
+                        head_sha: commitSHA,
+                        details_url: prStatus["details_url"] ?: "",
+                        output: [
+                            title: prStatus["output"]["title"] ?: "",
+                            summary: "Use link below to check build details"
+                        ]
+                    )
                 }
             }
             context.println("[INFO] Test steps were closed")

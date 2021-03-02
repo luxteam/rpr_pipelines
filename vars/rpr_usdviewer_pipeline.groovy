@@ -1,5 +1,5 @@
 import groovy.transform.Field
-import groovy.json.JsonOutput;
+import groovy.json.JsonOutput
 import net.sf.json.JSON
 import net.sf.json.JSONSerializer
 import net.sf.json.JsonConfig
@@ -44,10 +44,8 @@ def getViewerTool(String osName, Map options)
 
 def executeGenTestRefCommand(String osName, Map options, Boolean delete)
 {
-    dir('scripts')
-    {
-        switch(osName)
-            {
+    dir('scripts') {
+        switch(osName) {
             case 'Windows':
                 bat """
                     make_results_baseline.bat ${delete}
@@ -111,15 +109,11 @@ def executeTests(String osName, String asicName, Map options)
         }
 
         withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.DOWNLOAD_SCENES) {
-            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_usdviewer_autotests" : "C:\\TestResources\\rpr_usdviewer_autotests"
-            dir(assets_dir){
-                checkOutBranchOrScm(options.assetsBranch, options.assetsRepo, true, null, null, false, true, "radeonprorender-gitlab", true)
-            }
+            String assets_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_usdviewer_autotests_assets" : "/mnt/c/TestResources/rpr_usdviewer_autotests_assets"
+            downloadFiles("/volume1/Assets/rpr_usdviewer_autotests/", assets_dir)
         }
 
-        String REF_PATH_PROFILE="${options.REF_PATH}/${asicName}-${osName}"
-        String JOB_PATH_PROFILE="${options.JOB_PATH}/${asicName}-${osName}"
-
+        String REF_PATH_PROFILE="/volume1/Baselines/rpr_usdviewer_autotests/${asicName}-${osName}"
         options.REF_PATH_PROFILE = REF_PATH_PROFILE
 
         outputEnvironmentInfo(osName, "", options.currentTry)
@@ -128,12 +122,12 @@ def executeTests(String osName, String asicName, Map options)
             withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.EXECUTE_TESTS) {
                 executeTestCommand(osName, asicName, options)
                 executeGenTestRefCommand(osName, options, options["updateRefs"].contains("clean"))
-                sendFiles("./Work/GeneratedBaselines/", REF_PATH_PROFILE)
+                uploadFiles("./Work/GeneratedBaselines/", REF_PATH_PROFILE)
                 // delete generated baselines when they're sent 
                 switch(osName) {
                     case "Windows":
                         bat "if exist Work\\GeneratedBaselines rmdir /Q /S Work\\GeneratedBaselines"
-                        break;
+                        break
                     default:
                         sh "rm -rf ./Work/GeneratedBaselines"        
                 }
@@ -144,9 +138,9 @@ def executeTests(String osName, String asicName, Map options)
                 println "[INFO] Downloading reference images for ${options.tests}"
                 options.tests.split(" ").each() {
                     if (it.contains(".json")) {
-                        receiveFiles("${REF_PATH_PROFILE}/", baseline_dir)
+                        downloadFiles("${REF_PATH_PROFILE}/", baseline_dir)
                     } else {
-                        receiveFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
+                        downloadFiles("${REF_PATH_PROFILE}/${it}", baseline_dir)
                     }
                 }
             }
@@ -186,14 +180,14 @@ def executeTests(String osName, String asicName, Map options)
                         sessionReport = readJSON file: 'Results/USDViewer/session_report.json'
 
                         if (sessionReport.summary.error > 0) {
-                            GithubNotificator.updateStatus("Test", options['stageName'], "failure", options, NotificationConfiguration.SOME_TESTS_ERRORED, "${BUILD_URL}")
+                            GithubNotificator.updateStatus("Test", options['stageName'], "action_required", options, NotificationConfiguration.SOME_TESTS_ERRORED, "${BUILD_URL}")
                         } else if (sessionReport.summary.failed > 0) {
                             GithubNotificator.updateStatus("Test", options['stageName'], "failure", options, NotificationConfiguration.SOME_TESTS_FAILED, "${BUILD_URL}")
                         } else {
                             GithubNotificator.updateStatus("Test", options['stageName'], "success", options, NotificationConfiguration.ALL_TESTS_PASSED, "${BUILD_URL}")
                         }
 
-                        echo "Stashing test results to : ${options.testResultsName}"
+                        println("Stashing test results to : ${options.testResultsName}")
                         stash includes: '**/*', name: "${options.testResultsName}", allowEmpty: true
 
                         // reallocate node if there are still attempts
@@ -385,16 +379,13 @@ def executePreBuild(Map options)
     if (env.CHANGE_URL) {
         echo "[INFO] Branch was detected as Pull Request"
         options.testsPackage = "PR.json"
-        GithubNotificator githubNotificator = new GithubNotificator(this, pullRequest)
-        options.githubNotificator = githubNotificator
-        githubNotificator.initPreBuild("${BUILD_URL}")
     } else if(env.BRANCH_NAME && env.BRANCH_NAME == "master") {
         options.testsPackage = "master.json"
     } else if(env.BRANCH_NAME) {
         options.testsPackage = "smoke.json"
     }
 
-    withNotifications(title: "Version increment", options: options, configuration: NotificationConfiguration.DOWNLOAD_SOURCE_CODE_REPO) {
+    withNotifications(title: "Jenkins build configuration", options: options, configuration: NotificationConfiguration.DOWNLOAD_SOURCE_CODE_REPO) {
         checkOutBranchOrScm(options["projectBranch"], options["projectRepo"], true)
     }
 
@@ -416,32 +407,26 @@ def executePreBuild(Map options)
     currentBuild.description += "<b>Commit message:</b> ${options.commitMessage}<br/>"
     currentBuild.description += "<b>Commit SHA:</b> ${options.commitSHA}<br/>"
 
-    if (env.BRANCH_NAME && (env.BRANCH_NAME == "master" || env.BRANCH_NAME == "develop")) {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
-    } else if (env.BRANCH_NAME && env.BRANCH_NAME != "master" && env.BRANCH_NAME != "develop") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '3']]]);
-    } else if (env.JOB_NAME == "RadeonProViewer-WeeklyFull") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
+    if (env.BRANCH_NAME) {
+        withNotifications(title: "Jenkins build configuration", printMessage: true, options: options, configuration: NotificationConfiguration.CREATE_GITHUB_NOTIFICATOR) {
+            GithubNotificator githubNotificator = new GithubNotificator(this, options)
+            githubNotificator.init(options)
+            options["githubNotificator"] = githubNotificator
+            githubNotificator.initPreBuild("${BUILD_URL}")
+        }
     }
 
     def tests = []
     options.timeouts = [:]
 
-    withNotifications(title: "Version increment", options: options, configuration: NotificationConfiguration.CONFIGURE_TESTS) {
+    withNotifications(title: "Jenkins build configuration", options: options, configuration: NotificationConfiguration.CONFIGURE_TESTS) {
         dir('jobs_test_usdviewer') {
             checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_usdviewer.git')
             options['testsBranch'] = bat (script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
             println "[INFO] Test branch hash: ${options['testsBranch']}"
 
             def packageInfo
-
-            if (options.testsPackage != "none")  {
+            if (options.testsPackage != "none") {
                 packageInfo = readJSON file: "jobs/${options.testsPackage}"
                 options.isPackageSplitted = packageInfo["split"]
                 // if it's build of manual job and package can be splitted - use list of tests which was specified in params (user can change list of tests before run build)
@@ -473,7 +458,8 @@ def executePreBuild(Map options)
                         }
                     }
                 }
-                tests.each() {
+                options.tests = utils.uniteSuites(this, "jobs/weights.json", tests)
+                options.tests.each() {
                     def xml_timeout = utils.getTimeoutFromXML(this, "${it}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
                     options.timeouts["${it}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
                 }
@@ -493,8 +479,9 @@ def executePreBuild(Map options)
                     options.timeouts[options.testsPackage] = options.NON_SPLITTED_PACKAGE_TIMEOUT + options.ADDITIONAL_XML_TIMEOUT
                 }
             } else {
-                tests = options.tests.split(" ") as List
-                tests.each() {
+                options.groupsUMS = options.tests.split(" ") as List
+                options.tests = utils.uniteSuites(this, "jobs/weights.json", options.tests.split(" ") as List)
+                options.tests.each() {
                     def xml_timeout = utils.getTimeoutFromXML(this, "${it}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
                     options.timeouts["${it}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
                 }
@@ -541,8 +528,8 @@ def executePreBuild(Map options)
             }
         }
 
-        if (env.CHANGE_URL) {
-            options.githubNotificator.initPR(options, "${BUILD_URL}")
+        if (env.BRANCH_NAME && options.githubNotificator) {
+            options.githubNotificator.initChecks(options, "${BUILD_URL}")
         }
 
         options.testsList = options.tests
@@ -570,8 +557,8 @@ def executeDeploy(Map options, List platformList, List testResultList)
                         }catch(e) {
                             println "[ERROR] Failed to unstash ${it}"
                             lostStashes.add("'$it'".replace("testResult-", ""))
-                            println(e.toString());
-                            println(e.getMessage());
+                            println(e.toString())
+                            println(e.getMessage())
                         }
 
                     }
@@ -580,9 +567,8 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
             try {
                 dir("jobs_launcher") {
-                    def skippedTests = JsonOutput.toJson(options.skippedTests)
                     bat """
-                        count_lost_tests.bat \"${lostStashes}\" .. ..\\summaryTestResults \"${options.splitTestsExecution}\" \"${options.testsPackage}\" \"${options.tests.toString().replace(" ", "")}\" \"\" \"${escapeCharsByUnicode(skippedTests.toString())}\"
+                        count_lost_tests.bat \"${lostStashes}\" .. ..\\summaryTestResults \"${options.splitTestsExecution}\" \"${options.testsPackage}\" \"[]\" \"\" \"{}\"
                     """
                 }
             } catch (e) {
@@ -592,7 +578,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
             String branchName = env.BRANCH_NAME ?: options.projectBranch
 
             try {
-                GithubNotificator.updateStatus("Deploy", "Building test report", "pending", options, NotificationConfiguration.BUILDING_REPORT, "${BUILD_URL}")
+                GithubNotificator.updateStatus("Deploy", "Building test report", "in_progress", options, NotificationConfiguration.BUILDING_REPORT, "${BUILD_URL}")
                 withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}", "BUILD_NAME=${options.baseBuildName}"])
                 {
                     dir("jobs_launcher") {
@@ -602,7 +588,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
                             writeJSON file: 'retry_info.json', json: jsonResponse, pretty: 4
                         }
                         bat """
-                        build_reports.bat ..\\summaryTestResults "USDViewer" ${options.commitSHA} ${branchName} \"${escapeCharsByUnicode(options.commitMessage)}\"
+                        build_reports.bat ..\\summaryTestResults "USDViewer" ${options.commitSHA} ${branchName} \"${utils.escapeCharsByUnicode(options.commitMessage)}\"
                         """
                     }
                 }
@@ -700,14 +686,13 @@ def executeDeploy(Map options, List platformList, List testResultList)
             }
         }
     } catch(e) {
-        println(e.toString());
-        println(e.getMessage());
+        println(e.toString())
+        println(e.getMessage())
         throw e
     }
 }
 
 def call(String projectBranch = "",
-         String assetsBranch = "master",
          String testsBranch = "master",
          String platforms = 'Windows:AMD_WX9100,AMD_RXVEGA,AMD_RadeonVII,AMD_RX5700XT',
          String updateRefs = 'No',
@@ -717,7 +702,7 @@ def call(String projectBranch = "",
          Boolean splitTestsExecution = true,
          String tester_tag = 'USDViewer',
          String parallelExecutionTypeString = "TakeAllNodes",
-         Integer testCaseRetries = 2)
+         Integer testCaseRetries = 3)
 {
     ProblemMessageManager problemMessageManager = new ProblemMessageManager(this, currentBuild)
     Map options = [:]
@@ -729,16 +714,7 @@ def call(String projectBranch = "",
     try {
         withNotifications(options: options, configuration: NotificationConfiguration.INITIALIZATION) {
 
-            def assetsRepo
-            withCredentials([string(credentialsId: 'gitlabURL', variable: 'GITLAB_URL')]){
-                assetsRepo = "${GITLAB_URL}/autotest_assets/rpr_usdviewer_autotests"
-            }
-
-            String PRJ_ROOT='rpr-core'
-            String PRJ_NAME='USDViewer'
-            String projectRepo='git@github.com:Radeon-Pro/RPRViewer.git'
-
-            def universePlatforms = convertPlatforms(platforms);
+            def universePlatforms = convertPlatforms(platforms)
 
             def parallelExecutionType = TestsExecutionType.valueOf(parallelExecutionTypeString)
 
@@ -748,14 +724,12 @@ def call(String projectBranch = "",
             println "Tests execution type: ${parallelExecutionType}"
 
             options << [projectBranch:projectBranch,
-                        assetsBranch:assetsBranch,
-                        assetsRepo:assetsRepo,
                         testsBranch:testsBranch,
                         updateRefs:updateRefs,
                         enableNotifications:enableNotifications,
-                        PRJ_NAME:PRJ_NAME,
-                        PRJ_ROOT:PRJ_ROOT,
-                        projectRepo:projectRepo,
+                        PRJ_NAME:'USDViewer',
+                        PRJ_ROOT:'rpr-core',
+                        projectRepo:'git@github.com:Radeon-Pro/RPRViewer.git',
                         BUILDER_TAG:'BuilderUSDViewer',
                         TESTER_TAG:tester_tag,
                         executeBuild:true,
@@ -781,8 +755,8 @@ def call(String projectBranch = "",
         multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy, options)
     } catch(e) {
         currentBuild.result = "FAILURE"
-        println(e.toString());
-        println(e.getMessage());
+        println(e.toString())
+        println(e.getMessage())
         throw e
     } finally {
         problemMessageManager.publishMessages()

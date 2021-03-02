@@ -1,6 +1,6 @@
 def call(String osName, Map options, Integer retryNumber){
-    String testsOrTestPackage = options['tests'];
-    if (testsOrTestPackage == ''){
+    String testsOrTestPackage = options['tests']
+    if (testsOrTestPackage == '') {
         testsOrTestPackage = options['testsPackage']
     }
     logName = "${testsOrTestPackage}.${env.NODE_NAME}.retry_${retryNumber}.crash.log"
@@ -14,7 +14,7 @@ def call(String osName, Map options, Integer retryNumber){
                 Get-EventLog -LogName Application -Newest 200 >> ${logName}
                 ps | sort -des cpu | select -f 200 | ft -a >> ${logName}
             """
-            break;
+            break
         case 'OSX':
             // sudo fs_usage -f filesys | head -n 200 >> ${logName}
             sh """
@@ -23,7 +23,7 @@ def call(String osName, Map options, Integer retryNumber){
                 log show --no-info --color always --predicate 'eventMessage CONTAINS[c] "radeon" OR eventMessage CONTAINS[c] "gpu" OR eventMessage CONTAINS[c] "amd"' --last 1h >> ${logName}
                 top -l 1 | head -n 200 >> ${logName}
             """
-            break;
+            break
         default:
             sh """
                 echo ${env.NODE_NAME} >> ${logName}
@@ -32,7 +32,6 @@ def call(String osName, Map options, Integer retryNumber){
                 top -b | head -n 200 >> ${logName}
                 sudo iotop --only -b | head -n 200 >> ${logName}
             """
-            break;
     }
     archiveArtifacts artifacts: "*.crash.log"
     stash includes: "${logName}", name: "${logName}"

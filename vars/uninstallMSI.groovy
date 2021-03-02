@@ -1,7 +1,7 @@
 def call(String name, String log, Integer currentTry)
 {
     log = log ?: "${STAGE_NAME}"
-    try{
+    try {
         powershell"""
             \$rpr_plugin = Get-WmiObject -Class Win32_Product -Filter "Name LIKE '${name}'"
             if (\$rpr_plugin) {
@@ -9,13 +9,11 @@ def call(String name, String log, Integer currentTry)
                 \$rpr_plugin_id = \$rpr_plugin.IdentifyingNumber
                 start-process "msiexec.exe" -arg "/X \$rpr_plugin_id /qn /quiet /L+ie ${env.WORKSPACE}\\${log}_${currentTry}.msi.uninstall.log /norestart" -Wait
                 Write "Uninstall completed"
-            }else{
+            } else{
                 Write "Plugin not found or didn't exist"
             }
         """
-    }
-    catch(e)
-    {
+    } catch(e) {
         println("[ERROR] Failed to uninstall ${name} plugin.")
         println(e.toString())
         println(e.getMessage())

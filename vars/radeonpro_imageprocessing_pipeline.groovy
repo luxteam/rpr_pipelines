@@ -1,7 +1,6 @@
 def executeTestCommand(String osName, String libType, Boolean testPerformance)
 {
-    switch(osName)
-    {
+    switch(osName) {
         case 'Windows':
             dir("unittest") {
                 bat "mkdir testSave"
@@ -49,8 +48,8 @@ def executeTestsForCustomLib(String osName, String libType, Map options)
         unstash "app_${libType}_${osName}"
         executeTestCommand(osName, libType, options.testPerformance)
     } catch (e) {
-        println(e.toString());
-        println(e.getMessage());
+        println(e.toString())
+        println(e.getMessage())
         throw e
     } finally {
         archiveArtifacts "*.log"
@@ -89,9 +88,9 @@ def executeTests(String osName, String asicName, Map options)
     } catch (e) {
         println("Error during testing dynamic lib")
         testsFailed = true
-        println(e.toString());
-        println(e.getMessage());
-        println(e.getStackTrace());    
+        println(e.toString())
+        println(e.getMessage())
+        println(e.getStackTrace()) 
     }
 
     try {
@@ -99,9 +98,9 @@ def executeTests(String osName, String asicName, Map options)
     } catch (e) {
         testsFailed = true
         println("Error during testing static lib")
-        println(e.toString());
-        println(e.getMessage());
-        println(e.getStackTrace());    
+        println(e.toString())
+        println(e.getMessage())
+        println(e.getStackTrace())   
     }
 
     if (testsFailed) {
@@ -280,20 +279,8 @@ def executePreBuild(Map options)
     options.samplesName = getArtifactName('samples', options.branch, options.commit)
 
     if (env.CHANGE_URL) {
-        echo "branch was detected as Pull Request"
+        println("Build was detected as Pull Request")
     }
-
-    if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    } else if (env.BRANCH_NAME && env.BRANCH_NAME != "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '90', numToKeepStr: '3']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    }
-
 }
 
 
@@ -306,22 +293,22 @@ def executeBuild(String osName, Map options)
 
         switch(osName) {
             case 'Windows':
-                executeBuildWindows(options.cmakeKeys, osName, options);
+                executeBuildWindows(options.cmakeKeys, osName, options)
                 break
             case 'OSX':
-                executeBuildUnix(options.cmakeKeys, osName, options, 'clang');
+                executeBuildUnix(options.cmakeKeys, osName, options, 'clang')
                 break
             case 'CentOS7':
-                executeBuildUnix(options.cmakeKeys, osName, options);
+                executeBuildUnix(options.cmakeKeys, osName, options)
                 break
             case 'Ubuntu18':
-                executeBuildUnix(options.cmakeKeys, osName, options);
+                executeBuildUnix(options.cmakeKeys, osName, options)
                 break
             case 'Ubuntu18-Clang':
-                executeBuildUnix("${options.cmakeKeys} -DRIF_UNITTEST=OFF -DCMAKE_CXX_FLAGS=\"-D_GLIBCXX_USE_CXX11_ABI=0\"", osName, options, 'clang-5.0');
+                executeBuildUnix("${options.cmakeKeys} -DRIF_UNITTEST=OFF -DCMAKE_CXX_FLAGS=\"-D_GLIBCXX_USE_CXX11_ABI=0\"", osName, options, 'clang-5.0')
                 break
             default:
-                error('Unsupported OS');
+                println('Unsupported OS')
         }
     } catch (e) {
         currentBuild.result = "FAILED"

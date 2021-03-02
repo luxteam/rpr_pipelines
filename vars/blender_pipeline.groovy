@@ -29,21 +29,37 @@ def executeBuildWindows(String osName, Map options)
         }
     }
 
+    dir("lib\\tests"){
+        withNotifications(title: osName, options: options, configuration: NotificationConfiguration.DOWNLOAD_SVN_REPO) {
+            checkout([$class: 'SubversionSCM', additionalCredentials: [], excludedCommitMessages: '', excludedRegions: '', excludedRevprop: '', 
+                excludedUsers: '', filterChangelog: false, ignoreDirPropChanges: false, includedRegions: '', 
+                locations: [[cancelProcessOnExternalsFail: true, credentialsId: '', depthOption: 'infinity', 
+                ignoreExternalsOption: true, local: '.', remote: 'https://svn.blender.org/svnroot/bf-blender/trunk/lib/tests']], 
+                quietOperation: true, workspaceUpdater: [$class: 'UpdateUpdater']])
+        }
+    }
+
     dir("blender"){
         bat """
-            make >> ../${STAGE_NAME}.log 2>&1
+            set msbuild="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\MSBuild\\15.0\\Bin\\MSBuild.exe" >> ${STAGE_NAME}.log 2>&1
+
+            mkdir build_windows
+            cd build_windows
+
+            cmake -G "Visual Studio 15 2017 Win64" -DCYCLES_TEST_DEVICES=OPENCL .. >> ..\\${STAGE_NAME}.log 2>&1
+            %msbuild% INSTALL.vcxproj /property:Configuration=Release /p:platform=x64 >> ..\\${STAGE_NAME}.log 2>&1
         """
     }
 
-    dir("build_windows_x64_vc15_Release"){
+    dir("blender\\build_windows"){
         try {
             bat """
-                ctest -C Release >> ../${STAGE_NAME}.test.log 2>&1
+                ctest -C Release -R opencl >> ..\\${STAGE_NAME}.test.log 2>&1
             """
         } catch (e) {
             currentBuild.result = "UNSTABLE"
         } finally {
-            archiveArtifacts artifacts: "tests/**/*.*", allowEmptyArchive: true
+            archiveArtifacts artifacts: "build_windows\\tests\\**\\*.*", allowEmptyArchive: true
             utils.publishReport(this, "${BUILD_URL}", "tests", "report.html", \
                 "Blender Report", "Test Report")
         }
@@ -67,17 +83,17 @@ def executeBuild(String osName, Map options)
 
         dir("blender") {
             withNotifications(title: osName, options: options, configuration: NotificationConfiguration.DOWNLOAD_SOURCE_CODE_REPO) {
-                checkOutBranchOrScm(options["projectBranch"], "git@github.com:blender/blender.git")
+                checkOutBranchOrScm(options["projectBranch"], options.projectRepo)
             }
         }
 
-        outputEnvironmentInfo(osName)
+        outputEnvironmentInfo(osName, "blender/${STAGE_NAME}")
 
         withNotifications(title: osName, options: options, configuration: NotificationConfiguration.BUILD_SOURCE_CODE) {
             switch(osName) {
                 case "Windows":
                     executeBuildWindows(osName, options);
-                    break;
+                    break
                 default:
                     println("Not supported")
             }
@@ -86,15 +102,16 @@ def executeBuild(String osName, Map options)
         throw e
     }
     finally {
-        archiveArtifacts artifacts: "*.log", allowEmptyArchive: true
+        archiveArtifacts artifacts: "blender\\*.log", allowEmptyArchive: true
     }
 }
 
 
 def executePreBuild(Map options)
 {
-
-    checkOutBranchOrScm(options.projectBranch, "git@github.com:blender/blender.git", true)
+    dir("blender") {
+        checkOutBranchOrScm(options.projectBranch, options.projectRepo, true)
+    }
 
     options.commitAuthor = bat (script: "git show -s --format=%%an HEAD ",returnStdout: true).split('\r\n')[2].trim()
     options.commitMessage = bat (script: "git log --format=%%B -n 1", returnStdout: true).split('\r\n')[2].trim()
@@ -114,20 +131,6 @@ def executePreBuild(Map options)
     currentBuild.description += "<b>Commit author:</b> ${options.commitAuthor}<br/>"
     currentBuild.description += "<b>Commit message:</b> ${options.commitMessage}<br/>"
     currentBuild.description += "<b>Commit SHA:</b> ${options.commitSHA}<br/>"
-
-    if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    } else if (env.BRANCH_NAME && env.BRANCH_NAME != "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '3']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    }
 
 }
 
@@ -156,10 +159,12 @@ def call(String projectBranch = "master",
         withNotifications(options: options, configuration: NotificationConfiguration.INITIALIZATION) {
             println "Platforms: ${platforms}"
 
-            options << [projectBranch:projectBranch,
+            options << [projectRepo:"git@github.com:Radeon-Pro/blender",
+                        projectBranch:projectBranch,
                         testsBranch:testsBranch,
                         updateRefs:updateRefs,
                         BUILDER_TAG:'PC-FACTORY-HAMBURG-WIN10',
+                        BUILD_TIMEOUT:1440,
                         PRJ_NAME:PRJ_NAME,
                         PRJ_ROOT:PRJ_ROOT,
                         problemMessageManager: problemMessageManager,
@@ -170,17 +175,12 @@ def call(String projectBranch = "master",
         }
 
         multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy, options)
-    }
-    catch(e)
-    {
+    } catch(e) {
         currentBuild.result = "FAILURE"
         println(e.toString());
         println(e.getMessage());
-
         throw e
-    }
-    finally
-    {
+    } finally {
         problemMessageManager.publishMessages()
     }
 

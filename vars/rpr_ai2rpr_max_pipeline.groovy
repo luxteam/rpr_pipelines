@@ -2,23 +2,21 @@ def executeGenTestRefCommand(String osName, Map options)
 {
     executeTestCommand(osName, options)
 
-    dir('scripts')
-    {
-        switch(osName)
-        {
+    dir('scripts') {
+        switch(osName) {
             case 'Windows':
                 bat """
-                make_rpr_baseline.bat
+                    make_rpr_baseline.bat
                 """
-                break;
+                break
             case 'OSX':
                 sh """
-                ./make_rpr_baseline.sh
+                    ./make_rpr_baseline.sh
                 """
-                break;
+                break
             default:
                 sh """
-                ./make_rpr_baseline.sh
+                    ./make_rpr_baseline.sh
                 """
         }
     }
@@ -26,26 +24,17 @@ def executeGenTestRefCommand(String osName, Map options)
 
 def executeTestCommand(String osName, Map options)
 {
-    switch(osName)
-    {
-    case 'Windows':
-        dir('scripts')
-        {
-            bat """
-            render_rpr.bat ${options.testsPackage} \"${options.tests}\">> ../${STAGE_NAME}.log  2>&1
-            """
+    switch(osName) {
+        case 'Windows':
+            dir('scripts') {
+                bat """
+                    render_rpr.bat ${options.testsPackage} \"${options.tests}\">> ../${STAGE_NAME}.log  2>&1
+                """
+            }
+            break
+        default:
+            println("Unsupported OS")
         }
-        break;
-    case 'OSX':
-        sh """
-        echo 'sample image' > ./OutputImages/sample_image.txt
-        """
-        break;
-    default:
-        sh """
-        echo 'sample image' > ./OutputImages/sample_image.txt
-        """
-    }
 }
 
 
@@ -53,8 +42,7 @@ def executeTests(String osName, String asicName, Map options)
 {
     try {
         checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_ai2rpr_max.git')
-        dir('jobs/Scripts')
-        {
+        dir('jobs/Scripts') {
             bat "del convertAI2RPR.ms"
             unstash "convertionScript"
         }
@@ -69,56 +57,43 @@ def executeTests(String osName, String asicName, Map options)
 
         outputEnvironmentInfo(osName)
 
-        if(options['updateORRefs'])
-        {
-            dir('scripts')
-            {
+        if (options['updateORRefs']) {
+            dir('scripts') {
                 bat """render_or.bat ${options.testsPackage} \"${options.tests}\">> ../${STAGE_NAME}.log  2>&1"""
                 bat "make_original_baseline.bat"
             }
             sendFiles('./Work/Baseline/', REF_PATH_PROFILE_OR)
-        }
-        else if(options['updateRefs'])
-        {
+        } else if(options['updateRefs']) {
             receiveFiles("bin_storage/RadeonProRender3dsMax_2.3.403.msi", "/mnt/c/TestResources/")
             options.pluginWinSha = 'c:\\TestResources\\RadeonProRender3dsMax_2.3.403'
             installMSIPlugin(osName, 'Max', options, false)
 
             executeGenTestRefCommand(osName, options)
             sendFiles('./Work/Baseline/', REF_PATH_PROFILE)
-        }
-        else
-        {
+        } else {
             receiveFiles("bin_storage/RadeonProRender3dsMax_2.3.403.msi", "/mnt/c/TestResources/")
             options.pluginWinSha = 'c:\\TestResources\\RadeonProRender3dsMax_2.3.403'
             installMSIPlugin(osName, 'Max', options, false)
-            try
-            {
+            try {
                 options.tests.split(" ").each() {
                     receiveFiles("${REF_PATH_PROFILE}/${it}", './Work/Baseline/')
                 }
-            }
-            catch (e) {
-            }
-            try
-            {
+            } catch (e) {}
+            try {
                 options.tests.split(" ").each() {
                     receiveFiles("${REF_PATH_PROFILE_OR}/${it}", './Work/Baseline/')
                 }
             } catch (e) {}
             executeTestCommand(osName, options)
         }
-    }
-    catch (e) {
-        println(e.toString());
-        println(e.getMessage());
+    } catch (e) {
+        println(e.toString())
+        println(e.getMessage())
         throw e
-    }
-    finally {
+    } finally {
         archiveArtifacts artifacts: "*.log", allowEmptyArchive: true
-        echo "Stashing test results to : ${options.testResultsName}"
-        dir('Work')
-        {
+        println("Stashing test results to : ${options.testResultsName}")
+        dir('Work') {
             stash includes: '**/*', name: "${options.testResultsName}", allowEmpty: true
 
             def sessionReport = readJSON file: 'Results/ai2rpr/session_report.json'
@@ -139,17 +114,14 @@ def executeTests(String osName, String asicName, Map options)
 
 def executeBuildWindows(Map options)
 {
-
 }
 
 def executeBuildOSX(Map options)
 {
-
 }
 
 def executeBuildLinux(Map options)
 {
-
 }
 
 def executeBuild(String osName, Map options)
@@ -157,60 +129,44 @@ def executeBuild(String osName, Map options)
     try {
         outputEnvironmentInfo(osName)
 
-        switch(osName)
-        {
-        case 'Windows':
-            executeBuildWindows(options);
-            break;
-        case 'OSX':
-            executeBuildOSX(options);
-            break;
-        default:
-            executeBuildLinux(options);
+        switch(osName) {
+            case 'Windows':
+                executeBuildWindows(options)
+                break
+            case 'OSX':
+                executeBuildOSX(options)
+                break
+            default:
+                executeBuildLinux(options)
         }
-    }
-    catch (e) {
+    } catch (e) {
         throw e
-    }
-    finally {
+    } finally {
         archiveArtifacts artifacts: "*.log", allowEmptyArchive: true
     }
 }
 
 def executePreBuild(Map options)
 {
-    dir('Arnold2RPRConvertTool-3dsMax')
-    {
+    dir('Arnold2RPRConvertTool-3dsMax') {
         checkOutBranchOrScm(options['projectBranch'], 'git@github.com:luxteam/Arnold2RPRConvertTool-3dsMax.git')
         stash includes: "convertAI2RPR.ms", name: "convertionScript"
 
-        AUTHOR_NAME = bat (
-                script: "git show -s --format=%%an HEAD ",
-                returnStdout: true
-                ).split('\r\n')[2].trim()
-
-        echo "The last commit was written by ${AUTHOR_NAME}."
-        options.AUTHOR_NAME = AUTHOR_NAME
-
-        commitMessage = bat ( script: "git log --format=%%B -n 1", returnStdout: true )
-        echo "Commit message: ${commitMessage}"
-
-        options.commitMessage = commitMessage.split('\r\n')[2].trim()
-        echo "Opt.: ${options.commitMessage}"
-        options['commitSHA'] = bat(script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
-
+        options.commitAuthor = bat (script: "git show -s --format=%%an HEAD ",returnStdout: true).split('\r\n')[2].trim()
+        options.commitMessage = bat ( script: "git log --format=%%B -n 1", returnStdout: true ).split('\r\n')[2].trim()
+        options.commitSHA = bat (script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
+        println "The last commit was written by ${options.commitAuthor}."
+        println "Commit message: ${options.commitMessage}"
+        println "Commit SHA: ${options.commitSHA}"
     }
 
-    if(options.splitTestsExecution) {
+    if (options.splitTestsExecution) {
         def tests = []
-        if(options.testsPackage != "none")
-        {
-            dir('jobs_test_ai2rpr_max')
-            {
+        if (options.testsPackage != "none") {
+            dir('jobs_test_ai2rpr_max') {
                 checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_ai2rpr_max.git')
                 // json means custom test suite. Split doesn't supported
-                if(options.testsPackage.endsWith('.json'))
-                {
+                if(options.testsPackage.endsWith('.json')) {
                     options.testsList = ['']
                 }
                 // options.splitTestsExecution = false
@@ -222,11 +178,8 @@ def executePreBuild(Map options)
                 options.testsList = tests
                 options.testsPackage = "none"
             }
-        }
-        else
-        {
-            options.tests.split(" ").each()
-            {
+        } else {
+            options.tests.split(" ").each() {
                 tests << "${it}"
             }
             options.testsList = tests
@@ -237,24 +190,18 @@ def executePreBuild(Map options)
 def executeDeploy(Map options, List platformList, List testResultList)
 {
     try {
-        if(options['executeTests'] && testResultList)
-        {
+        if (options['executeTests'] && testResultList) {
             checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_ai2rpr_max.git')
 
-            dir("summaryTestResults")
-            {
-                testResultList.each()
-                {
-                    dir("$it".replace("testResult-", ""))
-                    {
-                        try
-                        {
+            dir("summaryTestResults") {
+                testResultList.each() {
+                    dir("$it".replace("testResult-", "")) {
+                        try {
                             unstash "$it"
-                        }catch(e)
-                        {
+                        } catch(e) {
                             echo "Can't unstash ${it}"
-                            println(e.toString());
-                            println(e.getMessage());
+                            println(e.toString())
+                            println(e.getMessage())
                         }
 
                     }
@@ -264,11 +211,10 @@ def executeDeploy(Map options, List platformList, List testResultList)
             String branchName = env.BRANCH_NAME ?: options.projectBranch
 
             try {
-                withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"])
-                {
+                withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}"]) {
                     dir("jobs_launcher") {
                         bat """
-                        build_reports.bat ..\\summaryTestResults Arnold2RPR-Max ${options.commitSHA} ${branchName} \"${escapeCharsByUnicode(options.commitMessage)}\"
+                            build_reports.bat ..\\summaryTestResults Arnold2RPR-Max ${options.commitSHA} ${branchName} \"${utils.escapeCharsByUnicode(options.commitMessage)}\"
                         """
                     }
                 }
@@ -278,45 +224,35 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 println(e.getMessage())
             }
 
-            try
-            {
+            try {
                 dir("jobs_launcher") {
                     bat "get_status.bat ..\\summaryTestResults"
                 }
-            }
-            catch(e)
-            {
+            } catch(e) {
                 println("ERROR during slack status generation")
                 println(e.toString())
                 println(e.getMessage())
             }
 
-            try
-            {
+            try {
                 def summaryReport = readJSON file: 'summaryTestResults/summary_status.json'
                 if (summaryReport.error > 0) {
                     println("[INFO] Some tests marked as error. Build result = FAILURE.")
                     currentBuild.result = "FAILURE"
-                }
-                else if (summaryReport.failed > 0) {
+                } else if (summaryReport.failed > 0) {
                     println("[INFO] Some tests marked as failed. Build result = UNSTABLE.")
                     currentBuild.result = "UNSTABLE"
                 }
-            }
-            catch(e)
-            {
+            } catch(e) {
                 println(e.toString())
                 println(e.getMessage())
                 println("CAN'T GET TESTS STATUS")
                 currentBuild.result = "UNSTABLE"
             }
 
-            try
-            {
+            try {
                 options.testsStatus = readFile("summaryTestResults/slack_status.json")
-            }
-            catch(e)
-            {
+            } catch(e) {
                 println(e.toString())
                 println(e.getMessage())
                 options.testsStatus = ""
@@ -324,14 +260,11 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
             utils.publishReport(this, "${BUILD_URL}", "summaryTestResults", "summary_report.html", "Test Report", "Summary Report")
         }
-    }
-    catch (e) {
-        println(e.toString());
-        println(e.getMessage());
+    } catch (e) {
+        println(e.toString())
+        println(e.getMessage())
         throw e
-    }
-    finally
-    {}
+    } finally {}
 }
 
 def call(String projectBranch = "",
@@ -342,8 +275,7 @@ def call(String projectBranch = "",
          Boolean enableNotifications = true,
          String testsPackage = "",
          String tests = "") {
-    try
-    {
+    try {
         String PRJ_NAME="Arnold2RPRConvertTool-Max"
         String PRJ_ROOT="rpr-tools"
 
@@ -361,11 +293,10 @@ def call(String projectBranch = "",
                                 tests:tests,
                                 reportName:'Test_20Report',
                                 splitTestsExecution:false])
-    }
-    catch(e) {
+    } catch(e) {
         currentBuild.result = "FAILED"
-        println(e.toString());
-        println(e.getMessage());
+        println(e.toString())
+        println(e.getMessage())
         throw e
     }
 }

@@ -1,15 +1,15 @@
-import java.text.SimpleDateFormat;
-import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
-import hudson.plugins.git.GitException;
-import java.nio.channels.ClosedChannelException;
-import hudson.remoting.RequestAbortedException;
-import java.lang.IllegalArgumentException;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
-import jenkins.model.Jenkins;
-import groovy.transform.Synchronized;
-import java.util.Iterator;
-import TestsExecutionType;
+import java.text.SimpleDateFormat
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException
+import hudson.plugins.git.GitException
+import java.nio.channels.ClosedChannelException
+import hudson.remoting.RequestAbortedException
+import java.lang.IllegalArgumentException
+import java.time.*
+import java.time.format.DateTimeFormatter
+import jenkins.model.Jenkins
+import groovy.transform.Synchronized
+import java.util.Iterator
+import TestsExecutionType
 
 
 @NonCPS
@@ -78,6 +78,12 @@ def executeTestsNode(String osName, String gpuNames, def executeTests, Map optio
                                     testName = getNextTest(testsIterator)
                                     continue
                                 }
+                                if (options["abort${osName}"]) {
+                                    println("Test group ${testName} on ${asicName}-${osName} aborted due to current context")
+                                    testName = getNextTest(testsIterator)
+                                    continue
+                                }
+
                                 println("Scheduling ${osName}:${asicName} ${testName}")
 
                                 Map newOptions = options.clone()
@@ -94,8 +100,17 @@ def executeTestsNode(String osName, String gpuNames, def executeTests, Map optio
                                         // save expected exception message for add it in report
                                         String expectedExceptionMessage = ""
                                         if (e instanceof ExpectedExceptionWrapper) {
+                                            if (e.abortCurrentOS) {
+                                                options["abort${osName}"] = true
+                                            }
                                             expectedExceptionMessage = e.getMessage()
-                                            e = e.getCause()
+                                            // check that cause isn't more specific expected exception
+                                            if (e.getCause() instanceof ExpectedExceptionWrapper) {
+                                                if (e.getCause().abortCurrentOS) {
+                                                    options["abort${osName}"] = true
+                                                }
+                                                expectedExceptionMessage = e.getCause().getMessage()
+                                            }
                                         }
 
                                         println "[ERROR] Failed during tests on ${env.NODE_NAME} node"
@@ -139,27 +154,39 @@ def executeTestsNode(String osName, String gpuNames, def executeTests, Map optio
                                         }
 
                                         if (options.containsKey('nodeRetry')) {
-                                            Map tryInfo = [host:env.NODE_NAME, link:"${testsOrTestPackage}.${env.NODE_NAME}.retry_${currentTry}.crash.log", exception: expectedExceptionMessage, time: LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))]
+                                            // parse united suites
+                                            testsOrTestPackageParts = testsOrTestPackage.split("-")
+                                            for (failedSuite in testsOrTestPackageParts[0].split()) {
+                                                String suiteName
+                                                // check engine availability
+                                                if (testsOrTestPackageParts.length > 1) {
+                                                    suiteName = "${failedSuite}-${testsOrTestPackageParts[1]}"
+                                                } else {
+                                                    suiteName = "${failedSuite}"
+                                                }
+                                                Map tryInfo = [host:env.NODE_NAME, link:"${testsOrTestPackage}.${env.NODE_NAME}.retry_${currentTry}.crash.log", exception: expectedExceptionMessage, time: LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))]
 
-                                            retryLoops: for (testers in options['nodeRetry']) {
-                                                if (testers['Testers'].equals(nodesList)){
-                                                    for (group in testers['Tries']) {
-                                                        if (group[testsOrTestPackage]) {
-                                                            group[testsOrTestPackage].add(tryInfo)
-                                                            added = true
-                                                            break retryLoops
+                                                retryLoops: for (testers in options['nodeRetry']) {
+                                                    if (testers['Testers'].equals(nodesList)){
+                                                        for (suite in testers['Tries']) {
+                                                            if (suite[suiteName]) {
+                                                                suite[suiteName].add(tryInfo)
+                                                                added = true
+                                                                break retryLoops
+                                                            }
                                                         }
+                                                        // add list for test group if it doesn't exists
+                                                        testers['Tries'].add([(suiteName): [tryInfo]])
+                                                        added = true
+                                                        break retryLoops
                                                     }
-                                                    // add list for test group if it doesn't exists
-                                                    testers['Tries'].add([(testsOrTestPackage): [tryInfo]])
-                                                    added = true
-                                                    break retryLoops
+                                                }
+
+                                                if (!added){
+                                                    options['nodeRetry'].add([Testers: nodesList, gpuName: asicName, osName: osName, Tries: [[(suiteName): [tryInfo]]]])
                                                 }
                                             }
 
-                                            if (!added){
-                                                options['nodeRetry'].add([Testers: nodesList, gpuName: asicName, osName: osName, Tries: [[(testsOrTestPackage): [tryInfo]]]])
-                                            }
                                             println options['nodeRetry'].inspect()
                                         }
 
@@ -192,7 +219,7 @@ def executeTestsNode(String osName, String gpuNames, def executeTests, Map optio
         }
         parallel testTasks
     } else {
-        echo "[WARNING] No tests found for ${osName}"
+        println "[WARNING] No tests found for ${osName}"
     }
 }
 
@@ -241,6 +268,14 @@ def executePlatform(String osName, String gpuNames, def executeBuild, def execut
 
 def call(String platforms, def executePreBuild, def executeBuild, def executeTests, def executeDeploy, Map options) {
     try {
+
+        try {
+            setupBuildStoragePolicy()
+        } catch (e) {
+            println("[ERROR] Failed to setup build storage policty.")
+            println(e.toString())
+        }
+
         try {
             options.baseBuildName = currentBuild.displayName
             if (env.BuildPriority) {
@@ -268,29 +303,15 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                 println("[INFO] Priority was set based on view of job")
             }
         } catch (e) {
-            println("[ERROR Can't add priority in build name")
+            println("[ERROR] Failed to add priority into build name")
             println(e.toString())
         }
 
-        // if it's PR - supersede all previously launched executions
-        if (env.CHANGE_ID) {
-            //set logRotation for PRs
-            properties([[$class: 'BuildDiscarderProperty', strategy:
-                [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '3']]])
-
+        if (env.CHANGE_URL) {
             def buildNumber = env.BUILD_NUMBER as int
             if (buildNumber > 1) milestone(buildNumber - 1)
-            milestone(buildNumber)
-            
-        } else { 
-            properties([[$class: 'BuildDiscarderProperty', strategy:
-                [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]])
-        }
-
-        if (env.JOB_NAME.contains("Dev")) {
-            properties([[$class: 'BuildDiscarderProperty', strategy:
-                [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '30', numToKeepStr: '10']]])
-        }
+            milestone(buildNumber) 
+        } 
 
         def date = new Date()
         dateFormatter = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss")
@@ -317,8 +338,8 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
 
             options['FAILED_STAGES'] = []
 
-            def platformList = [];
-            def testResultList = [];
+            def platformList = []
+            def testResultList = []
 
             try {
                 if (executePreBuild) {
@@ -336,8 +357,8 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                                     }
                                 } catch (e) {
                                     println("[ERROR] Failed during prebuild stage on ${env.NODE_NAME}")
-                                    println(e.toString());
-                                    println(e.getMessage());
+                                    println(e.toString())
+                                    println(e.getMessage())
                                     String exceptionClassName = e.getClass().toString()
                                     if (exceptionClassName.contains("FlowInterruptedException")) {
                                         e.getCauses().each(){
@@ -394,8 +415,8 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                 }
                 parallel tasks
             } catch (e) {
-                println(e.toString());
-                println(e.getMessage());
+                println(e.toString())
+                println(e.getMessage())
                 currentBuild.result = "FAILURE"
                 String exceptionClassName = e.getClass().toString()
                 if (exceptionClassName.contains("FlowInterruptedException")) {
@@ -437,16 +458,16 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
             }
         }
     } catch (FlowInterruptedException e) {
-        println(e.toString());
-        println(e.getMessage());
+        println(e.toString())
+        println(e.getMessage())
         options.buildWasAborted = true
-        echo "Job was ABORTED by user. Job status: ${currentBuild.result}"
+        println("Job was ABORTED by user. Job status: ${currentBuild.result}")
     } catch (e) {
         currentBuild.result = "FAILURE"
         throw e
     } finally {
-        echo "enableNotifications = ${options.enableNotifications}"
-        if("${options.enableNotifications}" == "true") {
+        println("enableNotifications = ${options.enableNotifications}")
+        if ("${options.enableNotifications}" == "true") {
             sendBuildStatusNotification(currentBuild.result,
                                         options.get('slackChannel', ''),
                                         options.get('slackBaseUrl', ''),
@@ -454,10 +475,10 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                                         options)
         }
 
-        echo "Send Slack message to debug channels"
+        println("Send Slack message to debug channels")
         sendBuildStatusToDebugSlack(options)
 
-        println "[INFO] BUILD RESULT: ${currentBuild.result}"
-        println "[INFO] BUILD CURRENT RESULT: ${currentBuild.currentResult}"
+        println("[INFO] BUILD RESULT: ${currentBuild.result}")
+        println("[INFO] BUILD CURRENT RESULT: ${currentBuild.currentResult}")
     }
 }

@@ -1,4 +1,4 @@
-import java.text.SimpleDateFormat;
+import java.text.SimpleDateFormat
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException
 import RBSInstance
 

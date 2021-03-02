@@ -1,4 +1,4 @@
-import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException;
+import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException
 
 def call(String osName = "Windows") {
     try {

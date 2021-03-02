@@ -7,16 +7,19 @@ import groovy.json.JsonOutput
  */
 class utils {
 
-    static int getTimeoutFromXML(Object self, String test, String keyword, Integer additional_xml_timeout) 
-    {
+    static int getTimeoutFromXML(Object self, String tests, String keyword, Integer additional_xml_timeout) {
         try {
-            String xml = self.readFile("jobs/Tests/${test}/test.job-manifest.xml")
-            for (xml_string in xml.split("<")) {
-                if (xml_string.contains("${keyword}") && xml_string.contains("timeout")) {
-                    Integer xml_timeout = (Math.round((xml_string.findAll(/\d+/)[0] as Double).div(60)) + additional_xml_timeout)
-                    return xml_timeout
+            Integer xml_timeout = 0
+            for (test in tests.split()) {
+                String xml = self.readFile("jobs/Tests/${test}/test.job-manifest.xml")
+                for (xml_string in xml.split("<")) {
+                    if (xml_string.contains("${keyword}") && xml_string.contains("timeout")) {
+                        xml_timeout += Math.round((xml_string.findAll(/\d+/)[0] as Double).div(60))
+                    }
                 }
             }
+            
+            return xml_timeout + additional_xml_timeout
         } catch (e) {
             self.println(e)
             return -1
@@ -48,8 +51,7 @@ class utils {
         return result
     }
 
-    static def markNodeOffline(Object self, String nodeName, String offlineMessage)
-    {
+    static def markNodeOffline(Object self, String nodeName, String offlineMessage) {
         try {
             def nodes = jenkins.model.Jenkins.instance.getLabel(nodeName).getNodes()
             nodes[0].getComputer().doToggleOffline(offlineMessage)
@@ -61,8 +63,7 @@ class utils {
         }
     }
 
-    static def sendExceptionToSlack(Object self, String jobName, String buildNumber, String buildUrl, String webhook, String channel, String message)
-    {
+    static def sendExceptionToSlack(Object self, String jobName, String buildNumber, String buildUrl, String webhook, String channel, String message) {
         try {
             def slackMessage = [
                 attachments: [[
@@ -113,7 +114,7 @@ class utils {
     static def deepcopyCollection(Object self, def collection) {
         def bos = new ByteArrayOutputStream()
         def oos = new ObjectOutputStream(bos)
-        oos.writeObject(collection);
+        oos.writeObject(collection)
         oos.flush()
         def bin = new ByteArrayInputStream(bos.toByteArray())
         def ois = new ObjectInputStream(bin)
@@ -180,15 +181,14 @@ class utils {
                     self.bat """
                         rename \"${oldName}\" \"${newName}\"
                     """
-                    break;
+                    break
                 // OSX & Ubuntu18
                 default:
                     self.sh """
                         mv ${oldName} ${newName}
                     """
             }
-        }
-        catch(Exception e) {
+        } catch(Exception e) {
             self.println("[ERROR] Can't rename file")
             self.println(e.toString())
             self.println(e.getMessage())
@@ -204,15 +204,14 @@ class utils {
                     self.bat """
                         move \"${source}\" \"${destination}\"
                     """
-                    break;
+                    break
                 // OSX & Ubuntu18
                 default:
                     self.sh """
                         mv ${source} ${destination}
                     """
             }
-        }
-        catch(Exception e) {
+        } catch(Exception e) {
             self.println("[ERROR] Can't move files")
             self.println(e.toString())
             self.println(e.getMessage())
@@ -226,15 +225,14 @@ class utils {
                     self.bat """
                         if exist \"${fileName}\" del \"${fileName}\"
                     """
-                    break;
+                    break
                 // OSX & Ubuntu18
                 default:
                     self.sh """
                         rm -rf \"${fileName}\"
                     """
             }
-        }
-        catch(Exception e) {
+        } catch(Exception e) {
             self.println("[ERROR] Can't remove file")
             self.println(e.toString())
             self.println(e.getMessage())
@@ -270,9 +268,7 @@ class utils {
             self.withCredentials([self.usernamePassword(credentialsId: credentialsId, usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                 command += "-u ${self.USERNAME}:${self.PASSWORD} "
             }
-        if (extraParams) {
-            extraParams.each { command += "-${it.key} ${it.value} " }
-        }
+        extraParams?.each { command += "-${it.key} ${it.value} " }
         command += "${filelink}"
         if (self.isUnix()) {
             self.sh command
@@ -292,5 +288,86 @@ class utils {
         return self.python3("./jobs_launcher/common/scripts/CompareMetrics.py --img1 ${img1} --img2 ${img2}").with {
             (self.isUnix() ? it : it.split(" ").last()) as Double
         }
+    }
+
+    static String escapeCharsByUnicode(String text) {
+        def unsafeCharsRegex = /['"\\&$ <>|:\n]/
+
+        return text.replaceAll(unsafeCharsRegex, {
+            "\\u${Integer.toHexString(it.codePointAt(0)).padLeft(4, '0')}"
+        })
+    }
+
+    static String incrementVersion(Map params) {
+        Object self = params["self"]
+        String currentVersion = params["currentVersion"]
+        Integer index = params["index"] ?: 1
+        String delimiter = params["delimiter"] ?: "\\."
+
+        String[] indexes = currentVersion.split(delimiter)
+        Integer targetIndex = (indexes[index - 1] as Integer) + 1
+        indexes[index - 1] = targetIndex as String
+
+        return indexes.join(delimiter.replace("\\", ""))
+    }
+
+    /**
+     * Unite test suites to optimize execution of small suites
+     * @param weightsFile - path to file with weight of each suite
+     * @param suites - List of suites which will be executed during build
+     * @param maxWeight - maximum summary weight of united suites
+     * @param maxLength - maximum lenght of string with name of each united suite (it's necessary for prevent issues with to log path lengts on Deploy stage)
+     * @return Return List of String objects (each string contains united suites in one run). Return suites argument if some exception appears
+     */
+    static List uniteSuites(Object self, String weightsFile, List suites, Integer maxWeight=3600, Integer maxLength=75) {
+        List unitedSuites = []
+
+        try {
+            def weights = self.readJSON(file: weightsFile)
+            List suitesLeft = suites.clone()
+            weights["weights"].removeAll {
+                !suites.contains(it["suite_name"])
+            }
+            while (weights["weights"]) {
+                List buffer = []
+                Integer currentLength = 0
+                Integer currentWeight = 0
+                for (suite in weights["weights"]) {
+                    if (currentWeight == 0 || (currentWeight + suite["value"] <= maxWeight)) {
+                        buffer << suite["suite_name"]
+                        currentWeight += suite["value"]
+                        currentLength += suite["suite_name"].length() + 1
+                        if (currentLength > maxLength) {
+                            break
+                        }
+                    }
+                }
+                weights["weights"].removeAll {
+                    buffer.contains(it["suite_name"])
+                }
+                suitesLeft.removeAll {
+                    buffer.contains(it)
+                }
+                unitedSuites << buffer.join(" ")
+            }
+
+            // add split suites which doesn't have information about their weight
+            unitedSuites.addAll(suitesLeft)
+
+            return unitedSuites
+        } catch (e) {
+            self.println("[ERROR] Can't unit test suites")
+            self.println(e.toString())
+            self.println(e.getMessage())
+        }
+        return suites
+    }
+
+    /**
+     * @param command - executable command
+     * @return clear bat stdout without original command
+     */
+    static String getBatOutput(Object self, String command) {
+        return self.bat(script: "@${command}", returnStdout: true).trim()
     }
 }

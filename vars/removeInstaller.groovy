@@ -9,13 +9,13 @@ def call(Map params) {
             extension = extension ?: "msi"
             utils.removeFile(this, osName, "${CIS_TOOLS}\\..\\PluginsBinaries\\${name}.${extension}")
             utils.removeFile(this, osName, "${CIS_TOOLS}\\..\\PluginsBinaries\\${name}_${osName}.${extension}")
-            break;
+            break
         case "OSX":
             String name = options.pluginOSXSha ?: options.commitSHA
             extension = extension ?: "dmg"
             utils.removeFile(this, osName, "${CIS_TOOLS}/../PluginsBinaries/${name}.${extension}")
             utils.removeFile(this, osName, "${CIS_TOOLS}/../PluginsBinaries/${name}_${osName}.${extension}")
-            break;
+            break
         // Linux
         default:
             String name = options.pluginUbuntuSha ?: options.commitSHA

@@ -1,9 +1,7 @@
 import org.jenkinsci.plugins.workflow.steps.FlowInterruptedException
 
-def getTanTool(String osName, Map options)
-{
-    switch(osName)
-    {
+def getTanTool(String osName, Map options) {
+    switch(osName) {
         case 'Windows':
 
             if (!fileExists("${CIS_TOOLS}\\..\\PluginsBinaries\\${options.pluginWinSha}.zip")) {
@@ -27,7 +25,7 @@ def getTanTool(String osName, Map options)
 
             unzip zipFile: "binWindows.zip", dir: "TAN", quiet: true
 
-            break;
+            break
 
         case 'OSX':
 
@@ -54,7 +52,7 @@ def getTanTool(String osName, Map options)
                 tar -zxvf binMacOS.tar.gz
             """
             
-            break;
+            break
 
         default:
             
@@ -81,34 +79,28 @@ def getTanTool(String osName, Map options)
             sh """
                 tar -zxvf binUbuntu18.tar.gz
             """
-
-            break;
     }
 }
 
 
-def executeTestCommand(String osName, Map options)
-{
+def executeTestCommand(String osName, Map options) {
     switch(osName) {
         case 'Windows':
-            dir('Launcher')
-            {
+            dir('Launcher') {
                 bat """
                     run.bat "Convolution/test_smoke_convolution.py" >> ../${STAGE_NAME}.log 2>&1
                 """
             }
-            break;
+            break
         case 'OSX':
-            dir('Launcher')
-            {
+            dir('Launcher') {
                 sh """
                     ./run.sh "Convolution/test_smoke_convolution.py" >> ../${STAGE_NAME}.log 2>&1
                 """
             }
-            break;
+            break
         default:
-            dir('Launcher')
-            {
+            dir('Launcher') {
                 sh """
                     ./run.sh "Convolution/test_smoke_convolution.py" >> ../${STAGE_NAME}.log 2>&1
                 """
@@ -123,7 +115,6 @@ def executeTests(String osName, String asicName, Map options) {
     Boolean stashResults = true
 
     try {
-
         timeout(time: "10", unit: 'MINUTES') {
             try {
                 cleanWS(osName)
@@ -139,11 +130,10 @@ def executeTests(String osName, String asicName, Map options) {
             }
         }
 
-        downloadAssets("${options.PRJ_ROOT}/${options.PRJ_NAME}/TanAssets/", 'TanAssets')
+        String assetsDir = isUnix() ? "${CIS_TOOLS}/../TestResources/gpuopen_tan_autotests_assets" : "C:\\TestResources\\gpuopen_tan_autotests_assets"
+        downloadFiles("/volume1/Assets/gpuopen_tan_autotests/", assetsDir)
 
         String REF_PATH_PROFILE="${options.REF_PATH}/${asicName}-${osName}"
-        String JOB_PATH_PROFILE="${options.JOB_PATH}/${asicName}-${osName}"
-
         options.REF_PATH_PROFILE = REF_PATH_PROFILE
 
         outputEnvironmentInfo(osName)
@@ -164,7 +154,7 @@ def executeTests(String osName, String asicName, Map options) {
         if (stashResults) {
             dir('allure-results')
             {       
-                echo "Stashing test results to : ${options.testResultsName}"
+                println "Stashing test results to : ${options.testResultsName}"
                 stash includes: '**/*', name: "${options.testResultsName}", allowEmpty: true
             }
         }
@@ -174,9 +164,9 @@ def executeTests(String osName, String asicName, Map options) {
 
 def executeBuildWindows(Map options) {
 
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/*", "./thirdparty/OpenCL-Headers")
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", "./thirdparty/portaudio")
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5-dll64/*", "./tan/tanlibrary/src/fftw-3.3.5-dll64")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/", "./thirdparty/OpenCL-Headers")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", "./thirdparty/portaudio")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5-dll64/*", "./tan/tanlibrary/src/fftw-3.3.5-dll64")
 
     bat """
         mkdir thirdparty\\Qt\\Qt5.9.9\\5.9.9\\msvc2017_64
@@ -215,11 +205,11 @@ def executeBuildWindows(Map options) {
                             case '2015':
                                 options.visualStudio = "Visual Studio 14 2015"
                                 options.msBuildPath = "C:\\Program Files (x86)\\MSBuild\\14.0\\Bin\\MSBuild.exe"
-                                break;
+                                break
                             case '2017':
                                 options.visualStudio = "Visual Studio 15 2017"
                                 options.msBuildPath = "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\MSBuild\\15.0\\Bin\\MSBuild.exe"
-                                break;
+                                break
                             case '2019':
                                 options.visualStudio = "Visual Studio 16 2019"
                                 options.msBuildPath = "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe"
@@ -277,8 +267,8 @@ def executeBuildWindows(Map options) {
                                 println "[INFO] Job was aborted during build stage"
                                 throw error
                             } catch (e) {
-                                println(e.toString());
-                                println(e.getMessage());
+                                println(e.toString())
+                                println(e.getMessage())
                                 currentBuild.result = "FAILED"
                                 println "[ERROR] Failed to build TAN on Windows"
                             }
@@ -292,9 +282,9 @@ def executeBuildWindows(Map options) {
 
 def executeBuildOSX(Map options) {
 
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/*", './thirdparty/OpenCL-Headers')
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", './thirdparty/portaudio')
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5/*", './tan/tanlibrary/src/fftw-3.3.5')
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/", "./thirdparty/OpenCL-Headers")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", "./thirdparty/portaudio")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5-dll64/*", "./tan/tanlibrary/src/fftw-3.3.5-dll64")
 
     options.buildConfiguration.each() { osx_build_conf ->
         options.ipp.each() { osx_cur_ipp ->
@@ -376,9 +366,9 @@ def executeBuildOSX(Map options) {
 
 def executeBuildLinux(String osName, Map options) {
 
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/*", './thirdparty/OpenCL-Headers')
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", './thirdparty/portaudio')
-    receiveFiles("${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5/*", './tan/tanlibrary/src/fftw-3.3.5')
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/OpenCL-Headers/", "./thirdparty/OpenCL-Headers")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/portaudio/*", "./thirdparty/portaudio")
+    downloadFiles("/volume1/CIS/${options.PRJ_ROOT}/${options.PRJ_NAME}/fftw-3.3.5-dll64/*", "./tan/tanlibrary/src/fftw-3.3.5-dll64")
 
     options.buildConfiguration.each() { ub18_build_conf ->
         options.ipp.each() { ub18_cur_ipp ->
@@ -456,19 +446,18 @@ def executeBuild(String osName, Map options) {
         cleanWS(osName)
         checkOutBranchOrScm(options['projectBranch'], 'git@github.com:imatyushin/TAN.git', true)
         
-        switch(osName)
-        {
+        switch(osName) {
             case 'Windows':
-                executeBuildWindows(options);
-                break;
+                executeBuildWindows(options)
+                break
             case 'OSX':
                 withEnv(["PATH=$WORKSPACE:$PATH"]) {
-                    executeBuildOSX(options);
+                    executeBuildOSX(options)
                 }
-                break;
+                break
             default:
                 withEnv(["PATH=$PWD:$PATH"]) {
-                    executeBuildLinux(osName, options);
+                    executeBuildLinux(osName, options)
                 }
         }
     } catch (e) {
@@ -492,13 +481,10 @@ def executePreBuild(Map options) {
     } else {
         options.executeBuild = true
         options.executeTests = true
-        if (env.CHANGE_URL)
-        {
+        if (env.CHANGE_URL) {
             println "[INFO] Branch was detected as Pull Request"
             options.testsPackage = "PR"
-        }
-        else if("${env.BRANCH_NAME}" == "master")
-        {
+        } else if ("${env.BRANCH_NAME}" == "master") {
            println "[INFO] master branch was detected"
            options.testsPackage = "master"
         } else {
@@ -507,7 +493,7 @@ def executePreBuild(Map options) {
         }
     }
 
-    if(!env.CHANGE_URL){
+    if (!env.CHANGE_URL) {
 
         checkOutBranchOrScm(env.BRANCH_NAME, 'git@github.com:imatyushin/TAN.git', true)
 
@@ -562,44 +548,24 @@ def executePreBuild(Map options) {
             } 
         }
     }
-
-    if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '25']]]);
-    } else if (env.BRANCH_NAME && BRANCH_NAME != "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '25']]]);
-    } else if (env.CHANGE_URL ) {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
-    }
 }
+
 
 def executeDeploy(Map options, List platformList, List testResultList) {
     try {
-        if(options['executeTests'] && testResultList)
-        {
+        if (options['executeTests'] && testResultList) {
             checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_tan.git')
 
-            receiveFiles("bin_storage/allure/*", "allure")
+            downloadFiles("/volume1/CIS/bin_storage/allure/*", "allure")
     
-            dir("allure-results")
-            {
-                testResultList.each()
-                {
+            dir("allure-results") {
+                testResultList.each() {
                     try {
                         unstash "$it"
                     } catch(e) {
-                        echo "[ERROR] Failed to unstash ${it}"
-                        println(e.toString());
-                        println(e.getMessage());
+                        println "[ERROR] Failed to unstash ${it}"
+                        println(e.toString())
+                        println(e.getMessage())
                     }
                 }
             }
@@ -628,11 +594,9 @@ def executeDeploy(Map options, List platformList, List testResultList) {
             println "BUILD RESULT: ${currentBuild.result}"
             println "BUILD CURRENT RESULT: ${currentBuild.currentResult}"
         }
-    }
-    catch(e)
-    {
-        println(e.toString());
-        println(e.getMessage());
+    } catch(e) {
+        println(e.toString())
+        println(e.getMessage())
         throw e
     }
 }
@@ -656,14 +620,11 @@ def call(String projectBranch = "",
         String PRJ_ROOT="gpuopen"
 
         gpusCount = 0
-        platforms.split(';').each()
-        { platform ->
+        platforms.split(';').each() { platform ->
             List tokens = platform.tokenize(':')
-            if (tokens.size() > 1)
-            {
+            if (tokens.size() > 1) {
                 gpuNames = tokens.get(1)
-                gpuNames.split(',').each()
-                {
+                gpuNames.split(',').each() {
                     gpusCount += 1
                 }
             }
@@ -706,8 +667,8 @@ def call(String projectBranch = "",
         currentBuild.result = "FAILED"
         failureMessage = "INIT FAILED"
         failureError = e.getMessage()
-        println(e.toString());
-        println(e.getMessage());
+        println(e.toString())
+        println(e.getMessage())
 
         throw e
     }

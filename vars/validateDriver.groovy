@@ -40,8 +40,7 @@ def call(String osName, String asicName, Map targetDriverVersions, Map options)
 
 def getDriverVersionFromMap(String osName, String asicName, Map targetDriverVersions){
     
-    switch(osName)
-        {
+    switch(osName) {
             case 'Windows':
                 if (asicName.contains("AMD")){
                     println "[INFO] Detected AMD GPU on Windows"
@@ -92,8 +91,7 @@ def getDriverVersion(String osName, String asicName, Map options)
     String version = "0"
 
     try {
-        switch(osName)
-        {
+        switch(osName) {
             case 'Windows':
                 if (asicName.contains("AMD")){
                     println "[INFO] Searching AMD GPU driver on Windows"
@@ -115,7 +113,7 @@ def getDriverVersion(String osName, String asicName, Map options)
         }
         println "[INFO] Current driver version: ${version}"
     } catch (e) {
-        echo "[ERROR] Failed to get driver version. No driver found. Installing..."
+        println("[ERROR] Failed to get driver version. No driver found. Installing...")
         println(e.toString())
         println(e.getMessage())
     }
@@ -142,8 +140,7 @@ def installDriver(String osName, String asicName, String driverVersion, Map opti
     println "[INFO] Installing the GPU driver."
 
     try {
-        switch(osName)
-        {
+        switch(osName) {
             case 'Windows':
                 if (asicName.contains("AMD")){
                     println "[INFO] Install driver for AMD GPU on Windows"
@@ -152,7 +149,7 @@ def installDriver(String osName, String asicName, String driverVersion, Map opti
                     println "[INFO] Install driver for NVIDIA GPU on Windows"
                     installWinNvidiaDriver(driverVersion, options)
                 }
-                break;
+                break
 
             default:
                 if (asicName.contains("AMD")){
@@ -165,7 +162,7 @@ def installDriver(String osName, String asicName, String driverVersion, Map opti
         }
 
     } catch (e) {
-        echo "[ERROR] Failed to install driver."
+        println("[ERROR] Failed to install driver.")
         println(e.toString())
         println(e.getMessage())
     }
@@ -196,7 +193,7 @@ def rebootTesterNode(String osName){
             bat """
                 shutdown /r /f /t 0
             """
-            break;
+            break
 
         default:
             sh """

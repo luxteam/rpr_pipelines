@@ -4,7 +4,6 @@ import java.text.SimpleDateFormat
 @NonCPS
 def parseResponse(String response) {
     def jsonSlurper = new groovy.json.JsonSlurperClassic()
-
     return jsonSlurper.parseText(response)
 }
 
@@ -16,8 +15,7 @@ def createRelease(String jobName, String repositoryUrl, String branch) {
     List possibleArtifactsExtensions = ['.zip', '.msi', '.dmg'] 
 
     String jenkinsUrl
-    withCredentials([string(credentialsId: 'jenkinsURL', variable: 'JENKINS_URL')])
-    {
+    withCredentials([string(credentialsId: 'jenkinsURL', variable: 'JENKINS_URL')]) {
         jenkinsUrl = "${JENKINS_URL}"
     }
 

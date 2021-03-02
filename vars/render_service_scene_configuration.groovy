@@ -73,7 +73,7 @@ def executeConfiguration(osName, attemptNum, Map options) {
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
 								python3("launch_blender.py --tool \"2.83\" --django_ip \"${options.django_url}/\" --scene_name \"${scene_name}\" --id ${id} --login %DJANGO_USER% --password %DJANGO_PASSWORD% --action \"${options.Action}\" --options \"${options.Options}\" ")
 							}
-							break;
+							break
 					}
 
 				} catch(FlowInterruptedException e) {
@@ -139,7 +139,7 @@ def startConfiguration(osName, options) {
 	for (int attemptNum = 1; attemptNum <= maxAttempts && attemptNum <= nodesCount; attemptNum++) {
 		def currentNodeName = ""
 
-		echo "Scheduling Configuration ${osName}. Attempt #${attemptNum}"
+		println("Scheduling Configuration ${osName}. Attempt #${attemptNum}")
 		node(currentLabels) {
 			stage("Configuration") {
 				timeout(time: 15, unit: 'MINUTES') {

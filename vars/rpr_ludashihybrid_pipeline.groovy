@@ -50,8 +50,7 @@ def executeTestsCustomQuality(String osName, String asicName, Map options)
 {
     cleanWS(osName)
     String parsedAsicName = asicName.replace("_Beta", "")
-    String REF_PATH_PROFILE="${options.REF_PATH}/${options.RENDER_QUALITY}/${parsedAsicName}-${osName}"
-    String JOB_PATH_PROFILE="${options.JOB_PATH}/${options.RENDER_QUALITY}/${parsedAsicName}-${osName}"
+    String REF_PATH_PROFILE="/volume1/Baselines/rpr_ludashihybrid_autotests/${options.RENDER_QUALITY}/${parsedAsicName}-${osName}"
     String error_message = ""
 
     try {
@@ -66,12 +65,12 @@ def executeTestsCustomQuality(String osName, String asicName, Map options)
         }
 
         if (options['updateRefs']) {
-            echo "Updating Reference Images"
+            println("Updating Reference Images")
             executeGenTestRefCommand(osName, options)
-            sendFiles('./BaikalNext/RprTest/ReferenceImages/*.*', "${REF_PATH_PROFILE}")
+            uploadFiles("./BaikalNext/RprTest/ReferenceImages/*.*", "${REF_PATH_PROFILE}")
         } else {
-            echo "Execute Tests"
-            receiveFiles("${REF_PATH_PROFILE}/*", './BaikalNext/RprTest/ReferenceImages/')
+            println("Executing Tests")
+            downloadFiles("${REF_PATH_PROFILE}/*", "./BaikalNext/RprTest/ReferenceImages/")
             executeTestCommand(osName, options)
         }
     } catch (e) {
@@ -177,7 +176,7 @@ def executePreBuild(Map options)
     }
 
     if (env.CHANGE_URL) {
-        echo "branch was detected as Pull Request"
+        println("Build was detected as Pull Request")
     }
 
     options.commitMessage = []
@@ -210,18 +209,6 @@ def executePreBuild(Map options)
         }
         options['commitContexts'] = commitContexts
     }
-
-    if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
-    } else if (env.BRANCH_NAME) {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '90', numToKeepStr: '3']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
-    }
-
 }
 
 def executeBuild(String osName, Map options)
@@ -239,10 +226,10 @@ def executeBuild(String osName, Map options)
         switch(osName) {
             case 'Windows':
                 executeBuildWindows(options)
-                break;
+                break
             case 'OSX':
                 executeBuildOSX(options)
-                break;
+                break
             default:
                 executeBuildLinux(options)
         }
@@ -281,9 +268,9 @@ def executeDeploy(Map options, List platformList, List testResultList)
                             reportFiles += ", ${it}-${quality}_failures/report.html".replace("testResult-", "")
                         }
                         catch(e) {
-                            echo "Can't unstash ${it} ${quality}"
-                            println(e.toString());
-                            println(e.getMessage());
+                            println("Can't unstash ${it} ${quality}")
+                            println(e.toString())
+                            println(e.getMessage())
                         }
                     }
                 }

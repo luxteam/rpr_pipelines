@@ -46,7 +46,7 @@ def executeRender(osName, gpuName, attemptNum, Map options) {
 						render_service_send_render_status("Downloading plugin", options.id, options.django_url)
 						clearBinariesWin()
 
-						downloadPlugin('Windows', toolName, installationOptions, 'renderServiceCredentials')
+						downloadPlugin('Windows', "RadeonProRender${toolName}", installationOptions, 'renderServiceCredentials')
 						win_addon_name = installationOptions.pluginWinSha
 					} catch(FlowInterruptedException e) {
 						throw e
@@ -66,8 +66,8 @@ def executeRender(osName, gpuName, attemptNum, Map options) {
 									move RadeonProRender*.zip "${CIS_TOOLS}\\..\\PluginsBinaries\\${win_addon_name}.zip"
 								"""
 
-								installationStatus = installBlenderAddon('Windows', version, installationOptions)
-								break;
+								installationStatus = installBlenderAddon('Windows', 'rprblender', version, installationOptions)
+								break
 
 							default:
 								bat """
@@ -76,7 +76,7 @@ def executeRender(osName, gpuName, attemptNum, Map options) {
 								"""
 
 								installationStatus = installMSIPlugin('Windows', toolName, installationOptions)
-								break;
+								break
 						}
 
 						print "[INFO] Install function return ${installationStatus}"
@@ -133,7 +133,7 @@ def executeRender(osName, gpuName, attemptNum, Map options) {
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
 								python3("launch_blender.py --tool ${version} --engine \"${options.engine}\" --django_ip \"${options.django_url}/\" --scene_name \"${scene_name}\" --id ${id} --min_samples ${options.Min_Samples} --max_samples ${options.Max_Samples} --noise_threshold ${options.Noise_threshold} --height ${options.Height} --width ${options.Width} --startFrame ${options.startFrame} --endFrame ${options.endFrame} --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} ")
 							}
-							break;
+							break
 
 						case 'Max':
 							// copy necessary scripts for render
@@ -145,7 +145,7 @@ def executeRender(osName, gpuName, attemptNum, Map options) {
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
 								python3("launch_max.py --tool ${version} --django_ip \"${options.django_url}/\" --scene_name \"${scene_name}\" --id ${id} --min_samples ${options.Min_Samples} --max_samples ${options.Max_Samples} --noise_threshold ${options.Noise_threshold} --width ${options.Width} --height ${options.Height} --startFrame ${options.startFrame} --endFrame ${options.endFrame} --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} ")
 							}
-							break;
+							break
 
 						case 'Maya':
 							// copy necessary scripts for render	
@@ -158,7 +158,7 @@ def executeRender(osName, gpuName, attemptNum, Map options) {
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
 								python3("launch_maya.py --tool ${version} --engine \"${options.engine}\" --django_ip \"${options.django_url}/\" --scene_name \"${scene_name}\" --id ${id} --min_samples ${options.Min_Samples} --max_samples ${options.Max_Samples} --noise_threshold ${options.Noise_threshold} --width ${options.Width} --height ${options.Height} --startFrame ${options.startFrame} --endFrame ${options.endFrame} --batchRender ${options.batchRender} --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} ")
 							}
-							break;
+							break
 
 						case 'Maya (Redshift)':
 							// copy necessary scripts for render	
@@ -170,7 +170,7 @@ def executeRender(osName, gpuName, attemptNum, Map options) {
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
 								python3("launch_maya_redshift.py --tool ${version} --django_ip \"${options.django_url}/\" --id ${id} --scene_name \"${scene_name}\" --min_samples ${options.Min_Samples} --max_samples ${options.Max_Samples} --noise_threshold ${options.Noise_threshold} --width ${options.Width} --height ${options.Height} --startFrame ${options.startFrame} --endFrame ${options.endFrame} --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} ")
 							}
-							break;
+							break
 					
 						case 'Maya (Arnold)':
 							// copy necessary scripts for render	
@@ -182,7 +182,7 @@ def executeRender(osName, gpuName, attemptNum, Map options) {
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
 								python3("launch_maya_arnold.py --tool ${version} --django_ip \"${options.django_url}/\" --id ${id} --scene_name \"${scene_name}\" --min_samples ${options.Min_Samples} --max_samples ${options.Max_Samples} --noise_threshold ${options.Noise_threshold} --width ${options.Width} --height ${options.Height} --startFrame ${options.startFrame} --endFrame ${options.endFrame} --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} ")
 							}
-							break;
+							break
 
 						case 'Core':
 							// copy necessary scripts for render	
@@ -194,8 +194,6 @@ def executeRender(osName, gpuName, attemptNum, Map options) {
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
 								python3("launch_core_render.py --django_ip \"${options.django_url}/\" --id ${id} --pass_limit ${options.Iterations} --width ${options.Width} --height ${options.Height} --sceneName \"${scene_name}\" --startFrame ${options.startFrame} --endFrame ${options.endFrame} --gpu \"${options.GPU}\" --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} ")
 							}
-							break;
-
 					}
 				} catch(FlowInterruptedException e) {
 					throw e
@@ -292,7 +290,7 @@ def startRender(osName, deviceName, renderDevice, options) {
 	for (int attemptNum = 1; attemptNum <= maxAttempts && attemptNum <= nodesCount; attemptNum++) {
 		def currentNodeName = ""
 
-		echo "Scheduling Render ${osName}:${deviceName}. Attempt #${attemptNum}"
+		println("Scheduling Render ${osName}:${deviceName}. Attempt #${attemptNum}")
 		testTasks["Render-${osName}-${deviceName}"] = {
 			node(currentLabels) {
 				stage("Render") {

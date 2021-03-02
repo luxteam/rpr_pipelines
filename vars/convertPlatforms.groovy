@@ -2,15 +2,15 @@
 // ["GPU1-OS1",...,"GPUN-OS1",..., "GPU1-OSN",...,"GPUN-OSN"]
 
 def call(String platforms) {
-    def collectedLabels = [];
+    def collectedLabels = []
 
     // split by os
-    String[] byOS;
-    byOS = platforms.split(';');
+    String[] byOS
+    byOS = platforms.split(';')
     // split by gpus
     for (String item : byOS) {
         String[] osPlusGPUs;
-        osPlusGPUs = item.split(':');
+        osPlusGPUs = item.split(':')
         if (osPlusGPUs.size() > 1)
         {
             os = osPlusGPUs[0]
@@ -22,5 +22,5 @@ def call(String platforms) {
             }
         }
     }
-    return collectedLabels;   
+    return collectedLabels  
 }

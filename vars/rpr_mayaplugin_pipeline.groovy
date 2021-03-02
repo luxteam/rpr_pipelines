@@ -1,5 +1,5 @@
 import groovy.transform.Field
-import UniverseClient
+import universe.*
 import groovy.json.JsonOutput;
 import net.sf.json.JSON
 import net.sf.json.JSONSerializer
@@ -8,20 +8,12 @@ import TestsExecutionType
 import java.util.concurrent.atomic.AtomicInteger
 
 
-@Field String UniverseURLProd
-@Field String UniverseURLDev
-@Field String ImageServiceURL
-@Field String ProducteName = "AMD%20Radeon™%20ProRender%20for%20Maya"
-@Field UniverseClient universeClientParentProd
-@Field UniverseClient universeClientParentDev
-@Field Map universeClientsProd = [:]
-@Field Map universeClientsDev = [:]
+@Field final String PRODUCT_NAME = "AMD%20Radeon™%20ProRender%20for%20Maya"
 
 
 def getMayaPluginInstaller(String osName, Map options)
 {
-    switch(osName)
-    {
+    switch(osName) {
         case 'Windows':
 
             if (options['isPreBuilt']) {
@@ -35,7 +27,7 @@ def getMayaPluginInstaller(String osName, Map options)
                         clearBinariesWin()
 
                         println "[INFO] The plugin does not exist in the storage. Downloading and copying..."
-                        downloadPlugin(osName, "Maya", options)
+                        downloadPlugin(osName, "RadeonProRenderMaya", options)
 
                         bat """
                             IF NOT EXIST "${CIS_TOOLS}\\..\\PluginsBinaries" mkdir "${CIS_TOOLS}\\..\\PluginsBinaries"
@@ -46,7 +38,7 @@ def getMayaPluginInstaller(String osName, Map options)
                     clearBinariesWin()
 
                     println "[INFO] The plugin does not exist in the storage. PluginSha is unknown. Downloading and copying..."
-                    downloadPlugin(osName, "Maya", options)
+                    downloadPlugin(osName, "RadeonProRenderMaya", options)
 
                     bat """
                         IF NOT EXIST "${CIS_TOOLS}\\..\\PluginsBinaries" mkdir "${CIS_TOOLS}\\..\\PluginsBinaries"
@@ -70,7 +62,7 @@ def getMayaPluginInstaller(String osName, Map options)
                 }
             }
 
-            break;
+            break
 
         case "OSX":
 
@@ -85,7 +77,7 @@ def getMayaPluginInstaller(String osName, Map options)
                         clearBinariesUnix()
 
                         println "[INFO] The plugin does not exist in the storage. Downloading and copying..."
-                        downloadPlugin(osName, "Maya", options)
+                        downloadPlugin(osName, "RadeonProRenderMaya", options)
 
                         sh """
                             mkdir -p "${CIS_TOOLS}/../PluginsBinaries"
@@ -96,7 +88,7 @@ def getMayaPluginInstaller(String osName, Map options)
                     clearBinariesUnix()
 
                     println "[INFO] The plugin does not exist in the storage. PluginSha is unknown. Downloading and copying..."
-                    downloadPlugin(osName, "Maya", options)
+                    downloadPlugin(osName, "RadeonProRenderMaya", options)
 
                     sh """
                         mkdir -p "${CIS_TOOLS}/../PluginsBinaries"
@@ -120,7 +112,7 @@ def getMayaPluginInstaller(String osName, Map options)
                 }
             }
 
-            break;
+            break
 
         default:
             echo "[WARNING] ${osName} is not supported"
@@ -131,21 +123,19 @@ def getMayaPluginInstaller(String osName, Map options)
 
 def executeGenTestRefCommand(String osName, Map options, Boolean delete)
 {
-    dir('scripts')
-    {
-        switch(osName)
-        {
+    dir('scripts') {
+        switch(osName) {
             case 'Windows':
                 bat """
-                make_results_baseline.bat ${delete}
+                    make_results_baseline.bat ${delete}
                 """
-                break;
+                break
             // OSX 
             default:
                 sh """
-                ./make_results_baseline.sh ${delete}
+                    ./make_results_baseline.sh ${delete}
                 """
-                break;
+                break
         }
     }
 }
@@ -153,23 +143,31 @@ def executeGenTestRefCommand(String osName, Map options, Boolean delete)
 
 def buildRenderCache(String osName, String toolVersion, String log_name, Integer currentTry)
 {
-    dir("scripts") {
-        switch(osName) {
-            case 'Windows':
-                bat "build_rpr_cache.bat ${toolVersion} >> \"..\\${log_name}_${currentTry}.cb.log\"  2>&1"
-                break;
-            case 'OSX':
-                sh "./build_rpr_cache.sh ${toolVersion} >> \"../${log_name}_${currentTry}.cb.log\" 2>&1"
-                break;
-            default:
-                echo "[WARNING] ${osName} is not supported"
+    try {
+        dir("scripts") {
+            switch(osName) {
+                case 'Windows':
+                    bat "build_rpr_cache.bat ${toolVersion} >> \"..\\${log_name}_${currentTry}.cb.log\"  2>&1"
+                    break
+                case 'OSX':
+                    sh "./build_rpr_cache.sh ${toolVersion} >> \"../${log_name}_${currentTry}.cb.log\" 2>&1"
+                    break
+                default:
+                    println "[WARNING] ${osName} is not supported"
+            }
         }
+    } catch (e) {
+        String cacheBuildingLog = readFile("${log_name}_${currentTry}.cb.log")
+        if (cacheBuildingLog.contains("Cannot open renderer description file \"FireRenderRenderer.xml\"")) {
+            throw new ExpectedExceptionWrapper(NotificationConfiguration.PLUGIN_NOT_FOUND, e)
+        }
+        throw e
     }
 }
 
 def executeTestCommand(String osName, String asicName, Map options)
 {
-    def test_timeout = options.timeouts["${options.parsedTests}"]
+    def testTimeout = options.timeouts["${options.parsedTests}"]
     String testsNames = options.parsedTests
     String testsPackageName = options.testsPackage
     if (options.testsPackage != "none" && !options.isPackageSplitted) {
@@ -182,43 +180,27 @@ def executeTestCommand(String osName, String asicName, Map options)
         }
     }
 
-    println "Set timeout to ${test_timeout}"
+    println "Set timeout to ${testTimeout}"
 
-    timeout(time: test_timeout, unit: 'MINUTES') { 
-        withCredentials([usernamePassword(credentialsId: 'image_service', usernameVariable: 'IS_USER', passwordVariable: 'IS_PASSWORD'),
-            usernamePassword(credentialsId: 'universeMonitoringSystem', usernameVariable: 'UMS_USER', passwordVariable: 'UMS_PASSWORD'),
-            string(credentialsId: 'minioEndpoint', variable: 'MINIO_ENDPOINT'),
-            usernamePassword(credentialsId: 'minioService', usernameVariable: 'MINIO_ACCESS_KEY', passwordVariable: 'MINIO_SECRET_KEY')])
-        {
-            withEnv(["UMS_USE=${options.sendToUMS}", "UMS_ENV_LABEL=${osName}-${asicName}",
-                "UMS_BUILD_ID_PROD=${options.buildIdProd}", "UMS_JOB_ID_PROD=${options.jobIdProd}", "UMS_URL_PROD=${UniverseURLProd}", 
-                "UMS_LOGIN_PROD=${UMS_USER}", "UMS_PASSWORD_PROD=${UMS_PASSWORD}",
-                "UMS_BUILD_ID_DEV=${options.buildIdDev}", "UMS_JOB_ID_DEV=${options.jobIdDev}", "UMS_URL_DEV=${UniverseURLDev}",
-                "UMS_LOGIN_DEV=${UMS_USER}", "UMS_PASSWORD_DEV=${UMS_PASSWORD}",
-                "IS_LOGIN=${IS_USER}", "IS_PASSWORD=${IS_PASSWORD}", "IS_URL=${ImageServiceURL}",
-                "MINIO_ENDPOINT=${MINIO_ENDPOINT}", "MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}", "MINIO_SECRET_KEY=${MINIO_SECRET_KEY}"])
-            {
-                switch(osName)
-                {
-                    case 'Windows':
-                        dir('scripts')
-                        {
-                            bat """
-                                run.bat ${options.renderDevice} \"${testsPackageName}\" \"${testsNames}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.toolVersion} ${options.engine} ${options.testCaseRetries} ${options.updateRefs} 1>> \"../${options.stageName}_${options.currentTry}.log\"  2>&1
-                            """
-                        }
-                        break;
-                    case 'OSX':
-                        dir('scripts')
-                        {
-                            sh """
-                                ./run.sh ${options.renderDevice} \"${testsPackageName}\" \"${testsNames}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.toolVersion} ${options.engine} ${options.testCaseRetries} ${options.updateRefs} 1>> \"../${options.stageName}_${options.currentTry}.log\" 2>&1
-                            """
-                        }
-                        break;
-                    default:
-                        echo "[WARNING] ${osName} is not supported"
-                }
+    timeout(time: testTimeout, unit: 'MINUTES') { 
+        UniverseManager.executeTests(osName, asicName, options) {
+            switch(osName) {
+                case 'Windows':
+                    dir('scripts') {
+                        bat """
+                            run.bat ${options.renderDevice} \"${testsPackageName}\" \"${testsNames}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.toolVersion} ${options.engine} ${options.testCaseRetries} ${options.updateRefs} 1>> \"../${options.stageName}_${options.currentTry}.log\"  2>&1
+                        """
+                    }
+                    break
+                case 'OSX':
+                    dir('scripts') {
+                        sh """
+                            ./run.sh ${options.renderDevice} \"${testsPackageName}\" \"${testsNames}\" ${options.resX} ${options.resY} ${options.SPU} ${options.iter} ${options.theshold} ${options.toolVersion} ${options.engine} ${options.testCaseRetries} ${options.updateRefs} 1>> \"../${options.stageName}_${options.currentTry}.log\" 2>&1
+                        """
+                    }
+                    break
+                default:
+                    println("[WARNING] ${osName} is not supported")
             }
         }
     }
@@ -226,26 +208,11 @@ def executeTestCommand(String osName, String asicName, Map options)
 
 def executeTests(String osName, String asicName, Map options)
 {
-    options.engine = options.tests.split("-")[-1]
-    List parsedTestNames = []
-    options.tests.split().each { test ->
-        List testNameParts = test.split("-") as List
-        parsedTestNames.add(testNameParts.subList(0, testNameParts.size() - 1).join("-"))
-    }
-    options.parsedTests = parsedTestNames.join(" ")
+    options.parsedTests = options.tests.split("-")[0]
+    options.engine = options.tests.split("-")[1]
 
     if (options.sendToUMS){
-        universeClientsProd[options.engine].stage("Tests-${osName}-${asicName}", "begin")
-        universeClientsDev[options.engine].stage("Tests-${osName}-${asicName}", "begin")
-
-        if (universeClientsProd[options.engine].build != null){
-            options.buildIdProd = universeClientsProd[options.engine].build["id"]
-            options.jobIdProd = universeClientsProd[options.engine].build["job_id"]
-        }
-        if (universeClientsDev[options.engine].build != null){
-            options.buildIdDev = universeClientsDev[options.engine].build["id"]
-            options.jobIdDev = universeClientsDev[options.engine].build["job_id"]
-        }
+        options.universeManager.startTestsStage(osName, asicName, options)
     }
 
     // used for mark stash results or not. It needed for not stashing failed tasks which will be retried.
@@ -279,8 +246,7 @@ def executeTests(String osName, String asicName, Map options)
                         buildRenderCache(osName, options.toolVersion, options.stageName, options.currentTry)
                         String cacheImgPath = "./Work/Results/Maya/cache_building.jpg"
                         if(!fileExists(cacheImgPath)){
-                            println "[ERROR] Failed to build cache on ${env.NODE_NAME}. No output image found."
-                            throw new ExpectedExceptionWrapper("No output image after cache building.", new Exception("No output image after cache building."))
+                            throw new ExpectedExceptionWrapper(NotificationConfiguration.NO_OUTPUT_IMAGE, new Exception(NotificationConfiguration.NO_OUTPUT_IMAGE))
                         } else {
                             verifyMatlib("Maya", cacheImgPath, 50, osName, options)
                         }
@@ -320,7 +286,7 @@ def executeTests(String osName, String asicName, Map options)
 
         outputEnvironmentInfo(osName, options.stageName, options.currentTry)
 
-        if(options["updateRefs"].contains("Update")) {
+        if (options["updateRefs"].contains("Update")) {
             withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.EXECUTE_TESTS) {
                 executeTestCommand(osName, asicName, options)
                 executeGenTestRefCommand(osName, options, options["updateRefs"].contains("clean"))
@@ -329,14 +295,12 @@ def executeTests(String osName, String asicName, Map options)
                 switch(osName) {
                     case "Windows":
                         bat "if exist Work\\GeneratedBaselines rmdir /Q /S Work\\GeneratedBaselines"
-                        break;
+                        break
                     default:
                         sh "rm -rf ./Work/GeneratedBaselines"        
                 }
             }
-        }
-        else
-        {
+        } else {
             withNotifications(title: options["stageName"], printMessage: true, options: options, configuration: NotificationConfiguration.COPY_BASELINES) {
                 String baseline_dir = isUnix() ? "${CIS_TOOLS}/../TestResources/rpr_maya_autotests_baselines" : "/mnt/c/TestResources/rpr_maya_autotests_baselines"
                 baseline_dir = enginePostfix ? "${baseline_dir}-${enginePostfix}" : baseline_dir
@@ -398,33 +362,28 @@ def executeTests(String osName, String asicName, Map options)
             }
             archiveArtifacts artifacts: "${options.stageName}/*.log", allowEmptyArchive: true
             if (options.sendToUMS) {
-                dir("jobs_launcher") {
-                    sendToMINIO(options, osName, "../${options.stageName}", "*.log")
-                }
+                options.universeManager.sendToMINIO(options, osName, "../${options.stageName}", "*.log")
             }
             if (stashResults) {
-                dir('Work')
-                {
+                dir('Work') {
                     if (fileExists("Results/Maya/session_report.json")) {
 
                         def sessionReport = null
                         sessionReport = readJSON file: 'Results/Maya/session_report.json'
 
-                        if (options.sendToUMS)
-                        {
-                            universeClientsProd[options.engine].stage("Tests-${osName}-${asicName}", "end")
-                            universeClientsDev[options.engine].stage("Tests-${osName}-${asicName}", "end")
+                        if (options.sendToUMS) {
+                            options.universeManager.finishTestsStage(osName, asicName, options)
                         }
 
                         if (sessionReport.summary.error > 0) {
-                            GithubNotificator.updateStatus("Test", options['stageName'], "failure", options, NotificationConfiguration.SOME_TESTS_ERRORED, "${BUILD_URL}")
+                            GithubNotificator.updateStatus("Test", options['stageName'], "action_required", options, NotificationConfiguration.SOME_TESTS_ERRORED, "${BUILD_URL}")
                         } else if (sessionReport.summary.failed > 0) {
                             GithubNotificator.updateStatus("Test", options['stageName'], "failure", options, NotificationConfiguration.SOME_TESTS_FAILED, "${BUILD_URL}")
                         } else {
                             GithubNotificator.updateStatus("Test", options['stageName'], "success", options, NotificationConfiguration.ALL_TESTS_PASSED, "${BUILD_URL}")
                         }
 
-                        echo "Stashing test results to : ${options.testResultsName}"
+                        println("Stashing test results to : ${options.testResultsName}")
                         stash includes: '**/*', name: "${options.testResultsName}", allowEmpty: true
 
                         // deinstalling broken addon
@@ -468,15 +427,13 @@ def executeTests(String osName, String asicName, Map options)
 
 def executeBuildWindows(Map options)
 {
-    dir('RadeonProRenderMayaPlugin\\MayaPkg')
-    {
-        GithubNotificator.updateStatus("Build", "Windows", "pending", options, NotificationConfiguration.BUILD_SOURCE_CODE_START_MESSAGE, "${BUILD_URL}/artifact/Build-Windows.log")
+    dir('RadeonProRenderMayaPlugin\\MayaPkg') {
+        GithubNotificator.updateStatus("Build", "Windows", "in_progress", options, NotificationConfiguration.BUILD_SOURCE_CODE_START_MESSAGE, "${BUILD_URL}/artifact/Build-Windows.log")
         bat """
             build_windows_installer.cmd >> ../../${STAGE_NAME}.log  2>&1
         """
 
-        if(options.branch_postfix)
-        {
+        if (options.branch_postfix) {
             bat """
                 rename RadeonProRender*msi *.(${options.branch_postfix}).msi
             """
@@ -488,8 +445,8 @@ def executeBuildWindows(Map options)
         rtp nullAction: '1', parserName: 'HTML', stableText: """<h3><a href="${pluginUrl}">[BUILD: ${BUILD_ID}] ${BUILD_NAME}</a></h3>"""
 
         if (options.sendToUMS) {
-            dir("../../jobs_launcher") {
-                sendToMINIO(options, "Windows", "..\\RadeonProRenderMayaPlugin\\MayaPkg", BUILD_NAME, false)
+            dir ("../..") {
+                options.universeManager.sendToMINIO(options, "Windows", "..\\RadeonProRenderMayaPlugin\\MayaPkg", BUILD_NAME, false)
             }
         }
 
@@ -520,17 +477,14 @@ def executeBuildWindows(Map options)
 
 def executeBuildOSX(Map options)
 {
-    dir('RadeonProRenderMayaPlugin/MayaPkg')
-    {
-        GithubNotificator.updateStatus("Build", "OSX", "pending", options, NotificationConfiguration.BUILD_SOURCE_CODE_START_MESSAGE, "${BUILD_URL}/artifact/Build-OSX.log")
+    dir('RadeonProRenderMayaPlugin/MayaPkg') {
+        GithubNotificator.updateStatus("Build", "OSX", "in_progress", options, NotificationConfiguration.BUILD_SOURCE_CODE_START_MESSAGE, "${BUILD_URL}/artifact/Build-OSX.log")
         sh """
             ./build_osx_installer.sh >> ../../${STAGE_NAME}.log 2>&1
         """
 
-        dir('.installer_build')
-        {
-            if(options.branch_postfix)
-            {
+        dir('.installer_build') {
+            if (options.branch_postfix) {
                 sh"""
                     for i in RadeonProRender*; do name="\${i%.*}"; mv "\$i" "\${name}.(${options.branch_postfix})\${i#\$name}"; done
                 """
@@ -542,16 +496,15 @@ def executeBuildOSX(Map options)
             rtp nullAction: '1', parserName: 'HTML', stableText: """<h3><a href="${pluginUrl}">[BUILD: ${BUILD_ID}] ${BUILD_NAME}</a></h3>"""
 
             if (options.sendToUMS) {
-                dir("../../../jobs_launcher") {
-                    sendToMINIO(options, "OSX", "../RadeonProRenderMayaAddon/MayaPkg/.installer_build", BUILD_NAME, false)                            
-                }
+                dir ("../../..") {
+                    options.universeManager.sendToMINIO(options, "OSX", "../RadeonProRenderMayaPlugin/MayaPkg/.installer_build", BUILD_NAME, false)
+                }                
             }
 
             sh "cp RadeonProRender*.dmg RadeonProRenderMaya.dmg"
             stash includes: 'RadeonProRenderMaya.dmg', name: "appOSX"
 
             // TODO: detect ID of installed plugin
-            // options.productCode = "unknown"
             options.pluginOSXSha = sha1 'RadeonProRenderMaya.dmg'
 
             GithubNotificator.updateStatus("Build", "OSX", "success", options, NotificationConfiguration.BUILD_SOURCE_CODE_END_MESSAGE, pluginUrl)
@@ -563,62 +516,36 @@ def executeBuildOSX(Map options)
 def executeBuild(String osName, Map options)
 {
     if (options.sendToUMS){
-        universeClientParentProd.stage("Build-" + osName , "begin")
-        universeClientParentDev.stage("Build-" + osName , "begin")
+        options.universeManager.startBuildStage(osName)
     }
 
     try {
-        dir("RadeonProRenderMayaPlugin")
-        {
+        dir("RadeonProRenderMayaPlugin") {
             withNotifications(title: osName, options: options, configuration: NotificationConfiguration.DOWNLOAD_SOURCE_CODE_REPO) {
                 checkOutBranchOrScm(options["projectBranch"], options["projectRepo"], false, options["prBranchName"], options["prRepoName"])
             }
         }
 
-        if (options.sendToUMS) {
-            timeout(time: "5", unit: "MINUTES") {
-                dir("jobs_launcher") {
-                    withNotifications(title: osName, printMessage: true, options: options, configuration: NotificationConfiguration.DOWNLOAD_JOBS_LAUNCHER) {
-                        checkOutBranchOrScm(options["jobsLauncherBranch"], "git@github.com:luxteam/jobs_launcher.git")
-                    }
-                }
-            }
-        }
-
-        outputEnvironmentInfo(osName)
-
         withNotifications(title: osName, options: options, configuration: NotificationConfiguration.BUILD_SOURCE_CODE) {
             switch(osName) {
                 case "Windows":
-                    executeBuildWindows(options);
-                    break;
+                    executeBuildWindows(options)
+                    break
                 case "OSX":
-                    executeBuildOSX(options);
-                    break;
+                    executeBuildOSX(options)
+                    break
                 default:
-                    echo "[WARNING] ${osName} is not supported"
+                    println "[WARNING] ${osName} is not supported"
             }
         }
     } catch (e) {
         throw e
-    }
-    finally {
+    } finally {
         archiveArtifacts "*.log"
         if (options.sendToUMS) {
-            dir("jobs_launcher") {
-                switch(osName) {
-                    case 'Windows':
-                        sendToMINIO(options, osName, "..", "*.log")
-                        break;
-                    default:
-                        sendToMINIO(options, osName, "..", "*.log")
-                }                          
-            }
+            options.universeManager.sendToMINIO(options, osName, "..", "*.log")
+            options.universeManager.finishBuildStage(osName)
         }
-    }
-    if (options.sendToUMS){
-        universeClientParentProd.stage("Build-" + osName , "end")
-        universeClientParentDev.stage("Build-" + osName , "end")
     }
 }
 
@@ -642,9 +569,6 @@ def executePreBuild(Map options)
             options['executeBuild'] = true
             options['executeTests'] = true
             options['testsPackage'] = "regression.json"
-            GithubNotificator githubNotificator = new GithubNotificator(this, pullRequest)
-            options.githubNotificator = githubNotificator
-            githubNotificator.initPreBuild("${BUILD_URL}")
         } else if (env.BRANCH_NAME == "master" || env.BRANCH_NAME == "develop") {
            println "[INFO] ${env.BRANCH_NAME} branch was detected"
            options['executeBuild'] = true
@@ -658,23 +582,17 @@ def executePreBuild(Map options)
 
     // branch postfix
     options["branch_postfix"] = ""
-    if(env.BRANCH_NAME && env.BRANCH_NAME == "master")
-    {
+    if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
         options["branch_postfix"] = "release"
-    }
-    else if(env.BRANCH_NAME && env.BRANCH_NAME != "master" && env.BRANCH_NAME != "develop")
-    {
+    } else if(env.BRANCH_NAME && env.BRANCH_NAME != "master" && env.BRANCH_NAME != "develop") {
         options["branch_postfix"] = env.BRANCH_NAME.replace('/', '-')
-    }
-    else if(options.projectBranch && options.projectBranch != "master" && options.projectBranch != "develop")
-    {
+    } else if(options.projectBranch && options.projectBranch != "master" && options.projectBranch != "develop") {
         options["branch_postfix"] = options.projectBranch.replace('/', '-')
     }
 
     if (!options['isPreBuilt']) {
-        dir('RadeonProRenderMayaPlugin')
-        {
-            withNotifications(title: "Version increment", options: options, configuration: NotificationConfiguration.DOWNLOAD_SOURCE_CODE_REPO) {
+        dir('RadeonProRenderMayaPlugin') {
+            withNotifications(title: "Jenkins build configuration", options: options, configuration: NotificationConfiguration.DOWNLOAD_SOURCE_CODE_REPO) {
                 checkOutBranchOrScm(options["projectBranch"], options["projectRepo"], true)
             }
 
@@ -694,10 +612,17 @@ def executePreBuild(Map options)
                 currentBuild.description = "<b>Project branch:</b> ${env.BRANCH_NAME}<br/>"
             }
 
-            withNotifications(title: "Version increment", options: options, configuration: NotificationConfiguration.INCREMENT_VERSION) {
+            withNotifications(title: "Jenkins build configuration", options: options, configuration: NotificationConfiguration.INCREMENT_VERSION) {
                 options.pluginVersion = version_read("${env.WORKSPACE}\\RadeonProRenderMayaPlugin\\version.h", '#define PLUGIN_VERSION')
 
                 if (options['incrementVersion']) {
+                    withNotifications(title: "Jenkins build configuration", printMessage: true, options: options, configuration: NotificationConfiguration.CREATE_GITHUB_NOTIFICATOR) {
+                        GithubNotificator githubNotificator = new GithubNotificator(this, options)
+                        githubNotificator.init(options)
+                        options["githubNotificator"] = githubNotificator
+                        githubNotificator.initPreBuild("${BUILD_URL}")
+                    }
+                    
                     if(env.BRANCH_NAME == "develop" && options.commitAuthor != "radeonprorender") {
 
                         println "[INFO] Incrementing version of change made by ${options.commitAuthor}."
@@ -720,16 +645,12 @@ def executePreBuild(Map options)
                         options.commitSHA = bat (script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
                         options.projectBranch = options.commitSHA
                         println "[INFO] Project branch hash: ${options.projectBranch}"
-                    }
-                    else
-                    {
-                        if(options.commitMessage.contains("CIS:BUILD"))
-                        {
+                    } else {
+                        if (options.commitMessage.contains("CIS:BUILD")) {
                             options['executeBuild'] = true
                         }
 
-                        if(options.commitMessage.contains("CIS:TESTS"))
-                        {
+                        if (options.commitMessage.contains("CIS:TESTS")) {
                             options['executeBuild'] = true
                             options['executeTests'] = true
                         }
@@ -743,36 +664,16 @@ def executePreBuild(Map options)
                 currentBuild.description += "<b>Commit author:</b> ${options.commitAuthor}<br/>"
                 currentBuild.description += "<b>Commit message:</b> ${options.commitMessage}<br/>"
                 currentBuild.description += "<b>Commit SHA:</b> ${options.commitSHA}<br/>"
-
             }
         }
-    }
-
-    if (env.BRANCH_NAME && (env.BRANCH_NAME == "master" || env.BRANCH_NAME == "develop")) {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '25']]]);
-    } else if (env.BRANCH_NAME && env.BRANCH_NAME != "master" && env.BRANCH_NAME != "develop") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '3']]]);
-    } else if (env.JOB_NAME == "RadeonProRenderMayaPlugin-WeeklyFull" || env.JOB_NAME == "RadeonProRenderMayaPlugin-WeeklyFullNorthstar") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
     }
     
     def tests = []
     options.timeouts = [:]
     options.groupsUMS = []
 
-    withNotifications(title: "Version increment", options: options, configuration: NotificationConfiguration.CONFIGURE_TESTS) {
-        dir('jobs_test_maya') 
-        {
+    withNotifications(title: "Jenkins build configuration", options: options, configuration: NotificationConfiguration.CONFIGURE_TESTS) {
+        dir('jobs_test_maya')  {
             checkOutBranchOrScm(options['testsBranch'], 'git@github.com:luxteam/jobs_test_maya.git')
 
             options['testsBranch'] = bat (script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
@@ -783,8 +684,7 @@ def executePreBuild(Map options)
 
             def packageInfo
 
-            if(options.testsPackage != "none") 
-            {
+            if (options.testsPackage != "none") {
                 packageInfo = readJSON file: "jobs/${options.testsPackage}"
                 options.isPackageSplitted = packageInfo["split"]
                 // if it's build of manual job and package can be splitted - use list of tests which was specified in params (user can change list of tests before run build)
@@ -793,8 +693,7 @@ def executePreBuild(Map options)
                 }
             }
 
-            if(options.testsPackage != "none")
-            {
+            if (options.testsPackage != "none") {
                 def tempTests = []
 
                 if (options.isPackageSplitted) {
@@ -823,8 +722,8 @@ def executePreBuild(Map options)
                         }
                     }
                 }
-                tempTests.each()
-                {
+                options.tests = utils.uniteSuites(this, "jobs/weights.json", tempTests)
+                options.tests.each() {
                     options.engines.each { engine ->
                         tests << "${it}-${engine}"
                     }
@@ -843,75 +742,24 @@ def executePreBuild(Map options)
                     }
                     options.timeouts[options.testsPackage] = options.NON_SPLITTED_PACKAGE_TIMEOUT + options.ADDITIONAL_XML_TIMEOUT
                 }
-            }
-            else 
-            {
+            } else if (options.tests) {
                 options.groupsUMS = options.tests.split(" ") as List
-                options.tests.split(" ").each()
-                {
+                options.tests = utils.uniteSuites(this, "jobs/weights.json", options.tests.split(" ") as List)
+                options.tests.each() {
                     options.engines.each { engine ->
                         tests << "${it}-${engine}"
                     }
                     def xml_timeout = utils.getTimeoutFromXML(this, "${it}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
                     options.timeouts["${it}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
                 }
+            } else {
+                options.executeTests = false
             }
             options.tests = tests
-
-            options.skippedTests = [:]
-            if (options.updateRefs == "No") {
-                options.platforms.split(';').each()
-                {
-                    if (it)
-                    {
-                        List tokens = it.tokenize(':')
-                        String osName = tokens.get(0)
-                        String gpuNames = ""
-                        if (tokens.size() > 1)
-                        {
-                            gpuNames = tokens.get(1)
-                        }
-
-                        if (gpuNames)
-                        {
-                            gpuNames.split(',').each()
-                            {
-                                for (test in options.tests) 
-                                {
-                                    if (!test.contains(".json")) {
-                                        String[] testNameParts = test.split("-")
-                                        testName = testNameParts[0]
-                                        engine = testNameParts[1]
-                                        try {
-                                            dir ("jobs_launcher") {
-                                                String output = bat(script: "is_group_skipped.bat ${it} ${osName} ${engine} \"..\\jobs\\Tests\\${testName}\\test_cases.json\"", returnStdout: true).trim()
-                                                if (output.contains("True")) {
-                                                    if (!options.skippedTests.containsKey(test)) {
-                                                        options.skippedTests[test] = []
-                                                    }
-                                                    options.skippedTests[test].add("${it}-${osName}")
-                                                }
-                                            }
-                                        }
-                                        catch(Exception e) {
-                                            println(e.toString())
-                                            println(e.getMessage())
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                println "Skipped test groups:"
-                println options.skippedTests.inspect()
-            } else {
-                println "Ignore searching of tested groups due to updating of baselines"
-            }
         }
 
-        if (env.CHANGE_URL) {
-            options.githubNotificator.initPR(options, "${BUILD_URL}")
+        if (env.BRANCH_NAME && options.githubNotificator) {
+            options.githubNotificator.initChecks(options, "${BUILD_URL}")
         }
 
         options.testsList = options.tests
@@ -919,36 +767,7 @@ def executePreBuild(Map options)
         println "timeouts: ${options.timeouts}"
 
         if (options.sendToUMS){
-            try {
-                // create build ([OS-1:GPU-1, ... OS-N:GPU-N], ['Suite1', 'Suite2', ..., 'SuiteN'])
-                universeClientParentProd.createBuild('', '', false, options)
-                universeClientParentDev.createBuild('', '', false, options)
-                for (int i = 0; i < options.engines.size(); i++) {
-                    String engine = options.engines[i]
-                    String engineName = options.enginesNames[i]
-                    universeClientsProd[engine] = new UniverseClient(this, UniverseURLProd, env, ImageServiceURL, ProducteName, engineName, universeClientParentProd)
-                    universeClientsDev[engine] = new UniverseClient(this, UniverseURLDev, env, ImageServiceURL, ProducteName, engineName, universeClientParentDev)
-                    universeClientsProd[engine].createBuild(options.universePlatforms, options.groupsUMS, options.updateRefs)
-                    universeClientsDev[engine].createBuild(options.universePlatforms, options.groupsUMS, options.updateRefs)
-                }
-
-                if (universeClientParentProd.build != null || universeClientParentDev.build != null){
-                    options.buildIdProd = universeClientParentProd.build["id"]
-                    options.jobIdProd = universeClientParentProd.build["job_id"]
-                    options.isUrl = ImageServiceURL
-
-                    options.buildIdDev = universeClientParentDev.build["id"]
-                    options.jobIdDev = universeClientParentDev.build["job_id"]
-                    options.isUrl = ImageServiceURL
-                } else {
-                    println("Failed to create build: ${universeClientParentProd.build} & ${universeClientParentDev.build}. Set sendToUms to false.")
-                    options.sendToUMS = false
-                }
-            } catch (e) {
-                println("Failed to create build in UMS. Set sendToUms to false.")
-                println(e.toString())
-                options.sendToUMS = false
-            }
+            options.universeManager.createBuilds(options)
         }
     }
 }
@@ -957,8 +776,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 {
     cleanWS()
     try {
-        if(options['executeTests'] && testResultList)
-        {
+        if (options['executeTests'] && testResultList) {
             withNotifications(title: "Building test report", options: options, startUrl: "${BUILD_URL}", configuration: NotificationConfiguration.DOWNLOAD_TESTS_REPO) {
                 checkOutBranchOrScm(options["testsBranch"], "git@github.com:luxteam/jobs_test_maya.git")
             }
@@ -968,10 +786,8 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 lostStashes[engine] = []
             }
 
-            dir("summaryTestResults")
-            {
-                testResultList.each()
-                {
+            dir("summaryTestResults") {
+                testResultList.each() {
                     String engine
                     String testName
                     options.engines.each { currentEngine ->
@@ -982,19 +798,15 @@ def executeDeploy(Map options, List platformList, List testResultList)
                     List testNameParts = it.split("-") as List
                     engine = testNameParts[-1]
                     testName = testNameParts.subList(0, testNameParts.size() - 1).join("-")
-                    dir(engine)
-                    {
-                        dir(testName.replace("testResult-", ""))
-                        {
-                            try
-                            {
+                    dir(engine) {
+                        dir(testName.replace("testResult-", "")) {
+                            try {
                                 unstash "$it"
-                            }catch(e)
-                            {
-                                echo "[ERROR] Failed to unstash ${it}"
+                            } catch(e) {
+                                println "[ERROR] Failed to unstash ${it}"
                                 lostStashes[engine].add("'${testName}'".replace("testResult-", ""))
-                                println(e.toString());
-                                println(e.getMessage());
+                                println(e.toString())
+                                println(e.getMessage())
                             }
 
                         }
@@ -1004,22 +816,10 @@ def executeDeploy(Map options, List platformList, List testResultList)
             
             try {
                 dir("jobs_launcher") {
-                    // delete engine name from names of test groups
-                    def tests = []
-                    options.tests.each { group ->
-                        List testNameParts = group.split("-") as List
-                        String parsedTestName = testNameParts.subList(0, testNameParts.size() - 1).join("-")
-                        if (!tests.contains(parsedTestName)) {
-                            tests.add(parsedTestName)
-                        }
-                    }
-                    tests = tests.toString().replace(" ", "")
                     options.engines.each {
-                        String engine = "${it}"
-                        def skippedTests = JsonOutput.toJson(options.skippedTests)
                         // \\\\ - prevent escape sequence '\N'
                         bat """
-                        count_lost_tests.bat \"${lostStashes[it]}\" .. ..\\summaryTestResults\\\\${it} \"${options.splitTestsExecution}\" \"${options.testsPackage}\" \"${tests}\" \"${engine}\" \"${escapeCharsByUnicode(skippedTests.toString())}\"
+                            count_lost_tests.bat \"${lostStashes[it]}\" .. ..\\summaryTestResults\\\\${it} \"${options.splitTestsExecution}\" \"${options.testsPackage}\" \"[]\" \"${it}\" \"{}\"
                         """
                     }
                 }
@@ -1032,15 +832,14 @@ def executeDeploy(Map options, List platformList, List testResultList)
             List reportsNames = []
 
             try {
-                GithubNotificator.updateStatus("Deploy", "Building test report", "pending", options, NotificationConfiguration.BUILDING_REPORT, "${BUILD_URL}")
+                GithubNotificator.updateStatus("Deploy", "Building test report", "in_progress", options, NotificationConfiguration.BUILDING_REPORT, "${BUILD_URL}")
                 options.engines.each { engine ->
                     reports.add("${engine}/summary_report.html")
                 }
                 options.enginesNames.each { engine ->
                     reportsNames.add("Summary Report (${engine})")
                 }
-                withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}", "BUILD_NAME=${options.baseBuildName}"])
-                {
+                withEnv(["JOB_STARTED_TIME=${options.JOB_STARTED_TIME}", "BUILD_NAME=${options.baseBuildName}"]) {
                     dir("jobs_launcher") {
                         for (int i = 0; i < options.engines.size(); i++) {
                             String engine = options.engines[i]
@@ -1065,20 +864,18 @@ def executeDeploy(Map options, List platformList, List testResultList)
                                 writeJSON file: 'retry_info.json', json: jsonResponse, pretty: 4
                             }
                             if (options.sendToUMS) {
-                                sendStubsToUMS(options, "..\\summaryTestResults\\${engine}\\lost_tests.json", "..\\summaryTestResults\\${engine}\\skipped_tests.json", "..\\summaryTestResults\\${engine}\\retry_info.json", engine)
+                                options.engine = engine
+                                options.universeManager.sendStubs(options, "..\\summaryTestResults\\${engine}\\lost_tests.json", "..\\summaryTestResults\\${engine}\\skipped_tests.json", "..\\summaryTestResults\\${engine}\\retry_info.json")
                             }
                             try {
-                                if (options['isPreBuilt'])
-                                {
+                                if (options['isPreBuilt']) {
                                     // \\\\ - prevent escape sequence '\N'
                                     bat """
-                                    build_reports.bat ..\\summaryTestResults\\\\${engine} "Maya" "PreBuilt" "PreBuilt" "PreBuilt" \"${escapeCharsByUnicode(engineName)}\"
+                                        build_reports.bat ..\\summaryTestResults\\\\${engine} "Maya" "PreBuilt" "PreBuilt" "PreBuilt" \"${utils.escapeCharsByUnicode(engineName)}\"
                                     """
-                                }
-                                else
-                                {
+                                } else {
                                     bat """
-                                    build_reports.bat ..\\summaryTestResults\\\\${engine} "Maya" ${options.commitSHA} ${branchName} \"${escapeCharsByUnicode(options.commitMessage)}\" \"${escapeCharsByUnicode(engineName)}\"
+                                        build_reports.bat ..\\summaryTestResults\\\\${engine} "Maya" ${options.commitSHA} ${branchName} \"${utils.escapeCharsByUnicode(options.commitMessage)}\" \"${utils.escapeCharsByUnicode(engineName)}\"
                                     """
                                 }
                             } catch (e) {
@@ -1115,35 +912,28 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 throw e
             }
 
-            try
-            {
+            try {
                 dir("jobs_launcher") {
                     bat "get_status.bat ..\\summaryTestResults True"
                 }
-            }
-            catch(e)
-            {
+            } catch(e) {
                 println("[ERROR] during slack status generation")
                 println(e.toString())
                 println(e.getMessage())
             }
 
-            try
-            {
+            try {
                 dir("jobs_launcher") {
                     archiveArtifacts "launcher.engine.log"
                 }
-            }
-            catch(e)
-            {
+            } catch(e) {
                 println("[ERROR] during archiving launcher.engine.log")
                 println(e.toString())
                 println(e.getMessage())
             }
 
             Map summaryTestResults = [:]
-            try
-            {
+            try {
                 def summaryReport = readJSON file: 'summaryTestResults/summary_status.json'
                 summaryTestResults['passed'] = summaryReport.passed
                 summaryTestResults['failed'] = summaryReport.failed
@@ -1160,9 +950,7 @@ def executeDeploy(Map options, List platformList, List testResultList)
 
                     options.problemMessageManager.saveUnstableReason(NotificationConfiguration.SOME_TESTS_FAILED)
                 }
-            }
-            catch(e)
-            {
+            } catch(e) {
                 println(e.toString())
                 println(e.getMessage())
                 println("[ERROR] CAN'T GET TESTS STATUS")
@@ -1170,12 +958,9 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 currentBuild.result = "UNSTABLE"
             }
 
-            try
-            {
+            try {
                 options.testsStatus = readFile("summaryTestResults/slack_status.json")
-            }
-            catch(e)
-            {
+            } catch(e) {
                 println(e.toString())
                 println(e.getMessage())
                 options.testsStatus = ""
@@ -1193,23 +978,17 @@ def executeDeploy(Map options, List platformList, List testResultList)
                 }
             }
         }
-    }
-    catch (e) {
-        println(e.toString());
-        println(e.getMessage());
+    } catch (e) {
+        println(e.toString())
+        println(e.getMessage())
         throw e
-    }
-    finally
-    {}
+    } finally {}
 }
 
 def appendPlatform(String filteredPlatforms, String platform) {
-    if (filteredPlatforms)
-    {
+    if (filteredPlatforms) {
         filteredPlatforms +=  ";" + platform
-    } 
-    else 
-    {
+    } else  {
         filteredPlatforms += platform
     }
     return filteredPlatforms
@@ -1240,7 +1019,7 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
         String tester_tag = 'Maya',
         String mergeablePR = "",
         String parallelExecutionTypeString = "TakeAllNodes",
-        Integer testCaseRetries = 2)
+        Integer testCaseRetries = 3)
 {
     ProblemMessageManager problemMessageManager = new ProblemMessageManager(this, currentBuild)
     Map options = [:]
@@ -1264,31 +1043,6 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
             }
 
             sendToUMS = updateRefs.contains('Update') || sendToUMS
-
-            if (sendToUMS) {
-                try {
-                    withCredentials([string(credentialsId: 'prodUniverseURL', variable: 'PROD_UMS_URL'),
-                        string(credentialsId: 'devUniverseURL', variable: 'DEV_UMS_URL'),
-                        string(credentialsId: 'imageServiceURL', variable: 'IS_URL')])
-                    {
-                        UniverseURLProd = "${PROD_UMS_URL}"
-                        UniverseURLDev = "${DEV_UMS_URL}"
-                        ImageServiceURL = "${IS_URL}"
-                        universeClientParentProd = new UniverseClient(this, UniverseURLProd, env, ProducteName)
-                        universeClientParentDev = new UniverseClient(this, UniverseURLDev, env, ProducteName)
-
-                        options.universeClientsProd = universeClientsProd
-                        options.universeClientsDev = universeClientsDev
-                    }
-                    universeClientParentProd.tokenSetup()
-                    universeClientParentDev.tokenSetup()
-                } catch (e) {
-                    println("[ERROR] Failed to setup token for UMS. Set sendToUms to false.")
-                    sendToUMS = false
-                    println(e.toString());
-                    println(e.getMessage());
-                }
-            }
             
             enginesNames = enginesNames.split(',') as List
             def formattedEngines = []
@@ -1298,30 +1052,25 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
 
             Boolean isPreBuilt = customBuildLinkWindows || customBuildLinkOSX
 
-            if (isPreBuilt)
-            {
+            if (isPreBuilt) {
                 //remove platforms for which pre built plugin is not specified
                 String filteredPlatforms = ""
 
-                platforms.split(';').each()
-                { platform ->
+                platforms.split(';').each() { platform ->
                     List tokens = platform.tokenize(':')
                     String platformName = tokens.get(0)
 
-                    switch(platformName)
-                    {
-                    case 'Windows':
-                        if (customBuildLinkWindows)
-                        {
-                            filteredPlatforms = appendPlatform(filteredPlatforms, platform)
-                        }
-                        break;
-                    case 'OSX':
-                        if (customBuildLinkOSX)
-                        {
-                            filteredPlatforms = appendPlatform(filteredPlatforms, platform)
-                        }
-                        break;
+                    switch(platformName) {
+                        case 'Windows':
+                            if (customBuildLinkWindows) {
+                                filteredPlatforms = appendPlatform(filteredPlatforms, platform)
+                            }
+                            break
+                        case 'OSX':
+                            if (customBuildLinkOSX) {
+                                filteredPlatforms = appendPlatform(filteredPlatforms, platform)
+                            }
+                            break
                     }
                 }
 
@@ -1329,14 +1078,11 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
             }
 
             gpusCount = 0
-            platforms.split(';').each()
-            { platform ->
+            platforms.split(';').each() { platform ->
                 List tokens = platform.tokenize(':')
-                if (tokens.size() > 1)
-                {
+                if (tokens.size() > 1) {
                     gpuNames = tokens.get(1)
-                    gpuNames.split(',').each()
-                    {
+                    gpuNames.split(',').each() {
                         gpusCount += 1
                     }
                 }
@@ -1385,9 +1131,9 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                         splitTestsExecution:splitTestsExecution,
                         sendToUMS:sendToUMS,
                         gpusCount:gpusCount,
-                        TEST_TIMEOUT:120,
+                        TEST_TIMEOUT:150,
                         ADDITIONAL_XML_TIMEOUT:30,
-                        NON_SPLITTED_PACKAGE_TIMEOUT:60,
+                        NON_SPLITTED_PACKAGE_TIMEOUT:105,
                         DEPLOY_TIMEOUT:deployTimeout,
                         TESTER_TAG:tester_tag,
                         universePlatforms: universePlatforms,
@@ -1410,42 +1156,24 @@ def call(String projectRepo = "git@github.com:GPUOpen-LibrariesAndSDKs/RadeonPro
                         parallelExecutionTypeString: parallelExecutionTypeString,
                         testCaseRetries:testCaseRetries
                         ]
+
+            if (sendToUMS) {
+                UniverseManager universeManager = UniverseManagerFactory.get(this, options, env, PRODUCT_NAME)
+                universeManager.init()
+                options["universeManager"] = universeManager
+            }
         }
 
         multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, this.&executeTests, this.&executeDeploy, options)
-    } 
-    catch(e) 
-    {
+    } catch(e) {
         currentBuild.result = "FAILURE"
-        println(e.toString());
-        println(e.getMessage());
+        println(e.toString())
+        println(e.getMessage())
         throw e
-    }
-    finally
-    {
-        msg = problemMessageManager.publishMessages()
+    } finally {
+        String problemMessage = options.problemMessageManager.publishMessages()
         if (options.sendToUMS) {
-            node("Windows && PreBuild") {
-                try {
-                    universeClientParentProd.problemMessage(msg)
-                    universeClientParentDev.problemMessage(msg)
-
-                    String status = options.buildWasAborted ? "ABORTED" : currentBuild.result
-                    universeClientParentProd.changeStatus(status)
-                    universeClientParentDev.changeStatus(status)
-                    if (universeClientsProd) {
-                        for (client in universeClientsProd) {
-                            client.value.changeStatus(status)
-                        }
-                        for (client in universeClientsDev) {
-                            client.value.changeStatus(status)
-                        }
-                    }
-                }
-                catch (e){
-                    println(e.getMessage())
-                }
-            }
+            options.universeManager.closeBuild(problemMessage, options)
         }
     }
 

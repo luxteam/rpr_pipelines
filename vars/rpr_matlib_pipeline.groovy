@@ -1,15 +1,17 @@
 def executeTestCommand(String osName)
-{}
+{
+}
 
 def executeTests(String osName, String asicName, Map options)
-{}
+{
+}
 
 def executeBuildWindows()
 {
     withEnv(["PATH=c:\\python35\\;c:\\python35\\scripts\\;${PATH}"]) {
         bat """
-        pushd MatLibPkg
-        build_windows_installer.cmd >> ..\\${STAGE_NAME}.log 2>&1        
+            pushd MatLibPkg
+            build_windows_installer.cmd >> ..\\${STAGE_NAME}.log 2>&1        
         """
         bat "xcopy MatLibPkg\\RadeonProMaterialLibrary.msi RadeonProRenderMaterialLibrary.msi*"
     }
@@ -18,20 +20,20 @@ def executeBuildWindows()
 def executeBuildOSX()
 {
     sh """
-    pushd MatLibPkg
-    ./build_osx_installer.sh >> ../${STAGE_NAME}.log 2>&1
-    cp ./.installer_build/RadeonProRenderMaterialLibrary_2.0.0.dmg ../RadeonProRenderMaterialLibrary.dmg
-    popd
+        pushd MatLibPkg
+        ./build_osx_installer.sh >> ../${STAGE_NAME}.log 2>&1
+        cp ./.installer_build/RadeonProRenderMaterialLibrary_2.0.0.dmg ../RadeonProRenderMaterialLibrary.dmg
+        popd
     """
 }
 
 def executeBuildLinux()
 {
     sh """
-    cd MatLibPkg
-    ./build_linux_installer.sh >> ../${STAGE_NAME}.log 2>&1
-    cp ./.installer_build/RadeonProRenderMaterialLibraryInstaller_2.0.run ../RadeonProRenderMaterialLibrary.run
-    cd ..
+        cd MatLibPkg
+        ./build_linux_installer.sh >> ../${STAGE_NAME}.log 2>&1
+        cp ./.installer_build/RadeonProRenderMaterialLibraryInstaller_2.0.run ../RadeonProRenderMaterialLibrary.run
+        cd ..
     """
 }
 
@@ -49,7 +51,7 @@ def executePreBuild(Map options)
     println "Commit SHA: ${options.commitSHA}"
     println "Commit shortSHA: ${options.commitShortSHA}"
 
-    if (options.projectBranch){
+    if (options.projectBranch) {
         currentBuild.description = "<b>Project branch:</b> ${options.projectBranch}<br/>"
     } else {
         currentBuild.description = "<b>Project branch:</b> ${env.BRANCH_NAME}<br/>"
@@ -66,30 +68,28 @@ def executeBuild(String osName, Map options)
         checkOutBranchOrScm(options['projectBranch'], options['projectURL'])
         outputEnvironmentInfo(osName)
 
-        switch(osName)
-        {
-        case 'Windows': 
-            executeBuildWindows(); 
-            break;
-        case 'OSX':
-            executeBuildOSX();
-            break;
-        default: 
-            executeBuildLinux();
+        switch(osName) {
+            case 'Windows': 
+                executeBuildWindows()
+                break
+            case 'OSX':
+                executeBuildOSX()
+                break
+            default: 
+                executeBuildLinux()
         }
         archiveArtifacts "RadeonProRenderMaterialLibrary*"
-    }
-    catch (e) {
+    } catch (e) {
         currentBuild.result = "FAILED"
         throw e
-    }
-    finally {
+    } finally {
         archiveArtifacts "*.log"
     }
 }
 
 def executeDeploy(Map options, List platformList, List testResultList)
-{}
+{
+}
 
 def call(String projectBranch = "",
          String projectURL = 'git@github.com:Radeon-Pro/RadeonProRenderPkgPlugin.git',
@@ -98,10 +98,6 @@ def call(String projectBranch = "",
 {
     String PRJ_ROOT="rpr-plugins"
     String PRJ_NAME="RadeonProRenderMaterialLibrary"
-
-    properties([[$class: 'BuildDiscarderProperty', strategy: 
-                 [$class: 'LogRotator', artifactDaysToKeepStr: '', 
-                  artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '5']]]);
     
     multiplatform_pipeline(platforms, this.&executePreBuild, this.&executeBuild, null, null,
                            [projectBranch:projectBranch,

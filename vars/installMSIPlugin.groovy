@@ -35,8 +35,7 @@ def checkExistenceOfPlugin(String osName, String tool, Map options)
 
         String installedProductCode = ""
 
-        switch(osName)
-        {
+        switch(osName) {
             case 'Windows':
                 // Finding installed plugin on test PC
                 installedProductCode = powershell(
@@ -50,11 +49,11 @@ def checkExistenceOfPlugin(String osName, String tool, Map options)
                 return installedProductCode==options.productCode
 
             default:
-                echo "[WARNING] Check existence of installed plugin is not supported for ${osName}. Reinstalling..."
+                println "[WARNING] Check existence of installed plugin is not supported for ${osName}. Reinstalling..."
         }
 
     } catch (e) {
-        echo "[ERROR] Failed to compare installed and built plugin. Reinstalling..."
+        println "[ERROR] Failed to compare installed and built plugin. Reinstalling..."
         println(e.toString())
         println(e.getMessage())
     }
@@ -68,7 +67,7 @@ def reinstallPlugin(String osName, String tool, Map options, Boolean matlib) {
     uninstallPlugin(osName, tool, options)
     println "[INFO] Installing RPR Plugin for ${osName}"
     installPlugin(osName, tool, options)
-    if (matlib){
+    if (matlib) {
         installMatLib(osName, options)
     }
 
@@ -76,22 +75,20 @@ def reinstallPlugin(String osName, String tool, Map options, Boolean matlib) {
 
 def uninstallPlugin(String osName, String tool, Map options){
 
-    switch(osName)
-    {
+    switch(osName) {
         case 'Windows':
             uninstallMSI("Radeon%${tool}%", options.stageName, options.currentTry)
-            break;
+            break
 
         default:
-            echo "[WARNING] Uninstalling plugin for ${osName} is not supported. The plugin will be installed on top of the previous one."
+            println "[WARNING] Uninstalling plugin for ${osName} is not supported. The plugin will be installed on top of the previous one."
     }
 
 }
 
 def installPlugin(String osName, String tool, Map options){
 
-    switch(osName)
-    {
+    switch(osName) {
         case 'Windows':
             dir("..\\..\\PluginsBinaries") {
                 if (options['isPreBuilt']) {
@@ -102,16 +99,16 @@ def installPlugin(String osName, String tool, Map options){
                 println "[INFO] MSI name: ${addon_name}.msi"
                 installMSI("${addon_name}.msi", options.stageName, options.currentTry)
             }
-            break;
+            break
 
         case 'OSX':
             sh """
                 sudo $CIS_TOOLS/install${tool}Plugin ${CIS_TOOLS}/../PluginsBinaries/${options.pluginOSXSha}.dmg >> \"${options.stageName}_${options.currentTry}.install.log\" 2>&1
             """
-            break;
+            break
 
         default:
-            echo "[WARNING] Uninstalling plugin for ${osName} is not supported. The plugin will not be installed."
+            println "[WARNING] Uninstalling plugin for ${osName} is not supported. The plugin will not be installed."
     }
 
 }

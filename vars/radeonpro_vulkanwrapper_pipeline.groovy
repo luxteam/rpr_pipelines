@@ -210,7 +210,7 @@ def executePreBuild(Map options)
             try {
                 bat "tools\\doxygen\\doxygen.exe tools\\doxygen\\Doxyfile >> doxygen_build.log 2>&1"
                 archiveArtifacts allowEmptyArchive: true, artifacts: 'doxygen_build.log'
-                sendFiles('./docs/', "/${options.PRJ_ROOT}/${options.PRJ_NAME}/doxygen-docs")
+                sendFiles('./docs/', "/volume1/CIS/doxygen-docs")
             } catch(e) {
                 println("Can't build doxygen documentation")
                 println(e.toString())
@@ -218,24 +218,11 @@ def executePreBuild(Map options)
             }
         }
     }
-
-    if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    } else if (env.BRANCH_NAME) {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '90', numToKeepStr: '3']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '180', numToKeepStr: '10']]]);
-    }
-
 }
 
 
 def executeDeploy(Map options, List platformList, List testResultList)
 {
-    cleanWS()
 }
 
 

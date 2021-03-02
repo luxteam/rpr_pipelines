@@ -120,10 +120,10 @@ def executeTestsWindows(String osName, String asicName, Map options)
                             } catch (FlowInterruptedException e) {
                                 throw e
                             } catch (e) {
-                                println(e.toString());
-                                println(e.getMessage());
-                                currentBuild.result = "FAILURE"
                                 println "[ERROR] Failed during testing ${win_build_name} configuration on ${asicName}-${osName}"
+                                println(e.toString())
+                                println(e.getMessage())
+                                currentBuild.result = "FAILURE"
                             } finally {
                                 archiveArtifacts artifacts: "${logsName}/Saved/Logs/*.*", allowEmptyArchive: true
                             }
@@ -139,13 +139,12 @@ def executeTests(String osName, String asicName, Map options) {
     switch(osName) {
         case 'Windows':
             executeTestsWindows(osName, asicName, options)
-            break;
+            break
         case 'OSX':
             println("[WARNING] OSX is not supported")
-            break;
+            break
         default:
             println("[WARNING] ${osName} is not supported")
-            break;
     }
 }
 
@@ -231,8 +230,7 @@ def executeBuildWindows(Map options)
                     }
 
                     try {
-                        dir("U\\integration")
-                        {
+                        dir("U\\integration") {
                             getPreparedUE(ue_version, options['pluginType'], options['forceDownloadUE'])
                             bat """
                                 Build.bat ${options.targets.join(' ')} ${ue_version} ${options.pluginType} ${build_conf} ${options.testsName} ${vs_ver} ${graphics_api} ${options.source} ${pluginBranch} Dirty >> ..\\${STAGE_NAME}.${win_build_name}.log 2>&1
@@ -292,10 +290,10 @@ def executeBuildWindows(Map options)
                     } catch (FlowInterruptedException e) {
                         throw e
                     } catch (e) {
-                        println(e.toString());
-                        println(e.getMessage());
-                        currentBuild.result = "FAILURE"
                         println "[ERROR] Failed to build UE on Windows"
+                        println(e.toString())
+                        println(e.getMessage())
+                        currentBuild.result = "FAILURE"
                     } finally {
                         String folderName = options['pluginType'] == "Standard" ? "UE-${ue_version}" : "UE-${ue_version}-${options.pluginType}"
                         dir("U\\integration") {
@@ -325,28 +323,24 @@ def executeBuildWindows(Map options)
 def executeBuild(String osName, Map options)
 {
     try {        
-        dir('U')
-        {
+        dir('U') {
             checkOutBranchOrScm(options['projectBranch'], 'git@github.com:luxteam/UnrealEngine_dev.git')
             outputEnvironmentInfo(osName)
         }
 
-        switch(osName)
-        {
-        case 'Windows': 
-            executeBuildWindows(options)
-            break;
-        case 'OSX':
-            println("[WARNING] OSX is not supported")
-            break;
-        default: 
-            println("[WARNING] ${osName} is not supported")
+        switch(osName) {
+            case 'Windows': 
+                executeBuildWindows(options)
+                break
+            case 'OSX':
+                println("[WARNING] OSX is not supported")
+                break
+            default: 
+                println("[WARNING] ${osName} is not supported")
         }
-    }
-    catch (e) {
+    } catch (e) {
         throw e
-    }
-    finally {
+    } finally {
         dir("U") {
             archiveArtifacts artifacts: "*.log", allowEmptyArchive: true
             archiveArtifacts artifacts: "integration/Logs/**/*.*", allowEmptyArchive: true
@@ -367,20 +361,17 @@ def executePreBuild(Map options)
 
     if(!env.CHANGE_URL){
 
-        currentBuild.description = ""
-        ['projectBranch'].each
-        {
-            if(options[it] != 'master' && options[it] != "")
-            {
-                currentBuild.description += "<b>${it}:</b> ${options[it]}<br/>"
-            }
-        }
+        checkOutBranchOrScm(options.projectBranch, 'git@github.com:luxteam/UnrealEngine_dev.git', true)
 
-        checkOutBranchOrScm(options['projectBranch'], 'git@github.com:luxteam/UnrealEngine_dev.git', true)
+        if (options.projectBranch) {
+            currentBuild.description = "<b>Project branch:</b> ${options.projectBranch}<br/>"
+        } else {
+            currentBuild.description = "<b>Project branch:</b> ${env.BRANCH_NAME}<br/>"
+        }
 
         options.commitAuthor = bat (script: "git show -s --format=%%an HEAD ",returnStdout: true).split('\r\n')[2].trim()
         options.commitMessage = bat (script: "git log --format=%%B -n 1", returnStdout: true).split('\r\n')[2].trim()
-        options.commitSHA = bat(script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
+        options.commitSHA = bat (script: "git log --format=%%H -1 ", returnStdout: true).split('\r\n')[2].trim()
 
         println "The last commit was written by ${options.commitAuthor}."
         println "Commit message: ${options.commitMessage}"
@@ -393,24 +384,6 @@ def executePreBuild(Map options)
         if (options.incrementVersion) {
             // TODO implement incrementing of version 
         }
-    }
-
-    if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '25']]]);
-    } else if (env.BRANCH_NAME && BRANCH_NAME != "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '25']]]);
-    } else if (env.CHANGE_URL ) {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
     }
 }
 
@@ -434,8 +407,7 @@ def call(String projectBranch = "",
          Boolean forceDownloadUE = false,
          Boolean forceBuild = false,
          Boolean enableNotifications = false) {
-    try
-    {
+    try {
         String PRJ_NAME="UE"
         String PRJ_ROOT="gpuopen"
 
@@ -478,11 +450,10 @@ def call(String projectBranch = "",
                                 PRJ_ROOT:PRJ_ROOT,
                                 BUILDER_TAG:'BuilderU',
                                 BUILD_TIMEOUT:360])
-    }
-    catch(e) {
+    } catch(e) {
         currentBuild.result = "FAILED"
-        println(e.toString());
-        println(e.getMessage());
+        println(e.toString())
+        println(e.getMessage())
         throw e
     }
 }

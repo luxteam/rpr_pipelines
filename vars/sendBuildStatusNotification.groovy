@@ -1,7 +1,7 @@
 
 def call(String buildStatus = 'STARTED', String channel = '', String baseUrl = '', String token = '', Map options)
 {
-    echo "sending information about build status: ${buildStatus}"
+    println("Sending information about build status: ${buildStatus}")
 
     // build status of null means successful
     buildStatus =  buildStatus ?: 'SUCCESSFUL'
@@ -14,26 +14,17 @@ def call(String buildStatus = 'STARTED', String channel = '', String baseUrl = '
     def colorCode = '#FF0000'
 
     // Override default values based on build status
-    if (buildStatus == 'SUCCESSFUL')
-    {
+    if (buildStatus == 'SUCCESSFUL') {
       color = 'GREEN'
       colorCode = '#00FF00'
-    }
-    else if (buildStatus == 'ABORTED')
-    {
+    } else if (buildStatus == 'ABORTED') {
       colorCode = '#ff8833'
-    }
-    else if (buildStatus == 'SKIPPED')
-    {
+    } else if (buildStatus == 'SKIPPED') {
       color = 'BLUE'
       colorCode = '#0000FF'
-    }
-    else if (buildStatus == 'UNSTABLE')
-    {
+    } else if (buildStatus == 'UNSTABLE') {
       colorCode = '#f4f4c8'
-    }
-    else
-    {
+    } else {
       color = 'RED'
       colorCode = '#FF0000'
     }
@@ -64,7 +55,7 @@ def call(String buildStatus = 'STARTED', String channel = '', String baseUrl = '
     "title": "${buildStatus}\\nCIS: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
     "title_link": "${env.BUILD_URL}",
     "color": "${colorCode}",
-    "text": ">>> Branch: *${BRANCH_NAME}*${INIT_BRANCH}\\nAuthor: *${options.AUTHOR_NAME}*\\nCommit message:\\n```${escapeCharsByUnicode(options.commitMessage.replace('\n', '\\n'))}```",
+    "text": ">>> Branch: *${BRANCH_NAME}*${INIT_BRANCH}\\nAuthor: *${options.AUTHOR_NAME}*\\nCommit message:\\n```${utils.escapeCharsByUnicode(options.commitMessage.replace('\n', '\\n'))}```",
     "mrkdwn_in": ["text", "title"],
     "attachment_type": "default",
     "actions": [

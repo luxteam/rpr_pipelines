@@ -87,14 +87,14 @@ def executeUnitTestsCommand(String osName, Map options)
             bat """
                 tests.exe --gtest_output=xml:${STAGE_NAME}.gtest.xml >> ${STAGE_NAME}.UnitTests.log 2>&1
             """
-            break;
+            break
         case 'OSX':
             sh """
                 chmod +x tests
                 export LD_LIBRARY_PATH=\$PWD:\$LD_LIBRARY_PATH
                 ./tests --gtest_output=xml:${STAGE_NAME}.gtest.xml >> ${STAGE_NAME}.UnitTests.log 2>&1
             """
-            break;
+            break
         default:
             sh """
                 chmod +x tests
@@ -158,15 +158,13 @@ def executeTests(String osName, String asicName, Map options)
         unstash "app${osName}"
 
         executeUnitTestsCommand(osName, options)
-    }
-    catch (e) {
-        println(e.toString());
-        println(e.getMessage());
+    } catch (e) {
+        println(e.toString())
+        println(e.getMessage())
         error_message = e.getMessage()
         currentBuild.result = "FAILED"
         throw e
-    }
-    finally {
+    } finally {
         archiveArtifacts "*.log"
         junit "*gtest.xml"
 
@@ -182,19 +180,17 @@ def executeTests(String osName, String asicName, Map options)
 
     cleanWS(osName)
 
-    if(options.executeFT) {
+    if (options.executeFT) {
         try {
             outputEnvironmentInfo(osName, "${STAGE_NAME}.ft")
             executeFunctionalTestsCommand(osName, asicName, options)
-        }
-        catch (e) {
+        } catch (e) {
             println(e.toString());
             println(e.getMessage());
             error_message = e.getMessage()
             currentBuild.result = "FAILED"
             throw e
-        }
-        finally {
+        } finally {
             archiveArtifacts "*.log"
 
             if (env.CHANGE_ID) {
@@ -363,7 +359,7 @@ def executePreBuild(Map options)
     println "Commit message: ${options.commitMessage}"
     println "Commit SHA: ${options.commitSHA}"
 
-    if (options.projectBranch){
+    if (options.projectBranch) {
         currentBuild.description = "<b>Project branch:</b> ${options.projectBranch}<br/>"
     } else {
         currentBuild.description = "<b>Project branch:</b> ${env.BRANCH_NAME}<br/>"
@@ -375,7 +371,7 @@ def executePreBuild(Map options)
 
     def commitContexts = []
     // set pending status for all
-    if(env.CHANGE_ID) {
+    if (env.CHANGE_ID) {
 
         options['platforms'].split(';').each()
                 { platform ->
@@ -398,21 +394,6 @@ def executePreBuild(Map options)
                 }
         options['commitContexts'] = commitContexts
     }
-
-    if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    } else if (env.BRANCH_NAME && env.BRANCH_NAME != "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '3']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    }
-
 }
 
 
@@ -421,8 +402,7 @@ def executeBuild(String osName, Map options)
     String error_message = ""
     String context = "[${options.PRJ_NAME}] [BUILD] ${osName}"
 
-    try
-    {
+    try {
         checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
 
         receiveFiles("rpr-ml/MIOpen/${osName}/*", "../RML_thirdparty/MIOpen")
@@ -431,13 +411,13 @@ def executeBuild(String osName, Map options)
         withEnv(["CIS_OS=${osName}"]) {
             switch (osName) {
                 case 'Windows':
-                    executeBuildWindows(options);
-                    break;
+                    executeBuildWindows(options)
+                    break
                 case 'OSX':
-                    executeBuildOSX(options);
-                    break;
+                    executeBuildOSX(options)
+                    break
                 default:
-                    executeBuildLinux(options);
+                    executeBuildLinux(options)
             }
         }
 
@@ -483,7 +463,7 @@ def call(String projectBranch = "",
 
     def gitlabURL, gitUser, gitEmail, gitlabURLSSH
     withCredentials([string(credentialsId: 'gitlabURL', variable: 'GITLAB_URL'), string(credentialsId: 'gitlabURLSSH', variable: 'GITLAB_URL_SSH'),
-        string(credentialsId: 'gitUser', variable: 'GIT_USER'), string(credentialsId: 'gitEmail', variable: 'GIT_EMAIL')])
+        string(credentialsId: 'gitUser', variable: 'GIT_USER'), string(credentialsId: 'gitEmail', variable: 'GIT_EMAIL')]) 
     {
         gitlabURL = GITLAB_URL
         gitlabURLSSH = GITLAB_URL_SSH

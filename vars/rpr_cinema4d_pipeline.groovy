@@ -1,5 +1,6 @@
 def executeTests(String osName, String asicName, Map options)
-{}
+{
+}
 
 def executeBuildWindows(Map options)
 {
@@ -52,10 +53,10 @@ def executeBuild(String osName, Map options)
     try {
         switch (osName) {
             case 'Windows':
-                executeBuildWindows(options);
+                executeBuildWindows(options)
                 break
             case 'OSX':
-                executeBuildOSX(options);
+                executeBuildOSX(options)
                 break
             default:
                 println "OS isn't supported."
@@ -91,31 +92,19 @@ def executePreBuild(Map options)
     currentBuild.description += "<b>Commit SHA:</b> ${options.commitSHA}<br/>"
 
     if (env.CHANGE_URL) {
-        echo "branch was detected as Pull Request"
-        options['isPR'] = true
+        println("Build was detected as Pull Request")
         options.testsPackage = "PR"
     } else if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
         options.testsPackage = "master"
     } else if (env.BRANCH_NAME) {
         options.testsPackage = "smoke"
     }
-
-    if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    } else if (env.BRANCH_NAME) {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '90', numToKeepStr: '3']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-            [$class: 'LogRotator', artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    }
-
 }
 
 
 def executeDeploy(Map options, List platformList, List testResultList)
-{}
+{
+}
 
 
 def call(String projectBranch = "",

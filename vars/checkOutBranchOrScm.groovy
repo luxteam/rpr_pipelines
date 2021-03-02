@@ -8,14 +8,10 @@ def call(String branchName, String repoName, Boolean disableSubmodules=false, St
     
     try {
         executeCheckout(branchName, repoName, disableSubmodules, prBranchName, prRepoName, polling, changelog, credId, useLFS)
-    } 
-    catch (FlowInterruptedException e) 
-    {
+    } catch (FlowInterruptedException e) {
         println "[INFO] Task was aborted during checkout"
         throw e
-    }
-    catch (e) 
-    {
+    } catch (e) {
         println(e.toString())
         println(e.getMessage())
         
@@ -38,11 +34,11 @@ def executeCheckout(String branchName, String repoName, Boolean disableSubmodule
 
     def repoBranch = branchName ? [[name: branchName]] : scm.branches
 
-    echo "Checkout branch: ${repoBranch}; repo: ${repoName}"
-    echo "Submodules processing: ${!disableSubmodules}"
-    echo "Include in polling: ${polling}; Include in changelog: ${changelog}"
+    println "Checkout branch: ${repoBranch}; repo: ${repoName}"
+    println "Submodules processing: ${!disableSubmodules}"
+    println "Include in polling: ${polling}; Include in changelog: ${changelog}"
     if (prBranchName) {
-        echo "PR commit: ${prBranchName}; PR repo: ${prRepoName}"
+        println "PR commit: ${prBranchName}; PR repo: ${prRepoName}"
     }
 
     List configs = [[credentialsId: "${credId}", url: "${repoName}"]]

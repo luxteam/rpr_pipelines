@@ -5,7 +5,7 @@ def executeBuildViewer(osName, gpuName, attemptNum, isLastAttempt, Map options) 
    
 	String scene_name = options['scene_name']
 	String fail_reason = "Unknown"
-	echo "Options: ${options}"
+	println("Options: ${options}")
 	
 	try {
 		// Send attempt number
@@ -172,7 +172,7 @@ def startRender(osName, deviceName, renderDevice, options) {
 	for (int attemptNum = 1; attemptNum <= maxAttempts && attemptNum <= nodesCount; attemptNum++) {
 		def currentNodeName = ""
 
-		echo "Scheduling Build Viewer ${osName}:${deviceName}. Attempt #${attemptNum}"
+		println("Scheduling Build Viewer ${osName}:${deviceName}. Attempt #${attemptNum}")
 		testTasks["Test-${osName}-${deviceName}"] = {
 			node(labels){
 				stage("BuildViewer-${osName}-${deviceName}"){

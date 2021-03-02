@@ -16,7 +16,7 @@ def call(Map options) {
             "pretext": "${currentBuild.result}",
             "text": "${text.replace('\n', '\\n')}"
             }]
-        """;
+        """
 
         try {
             if ((env.BRANCH_NAME && env.BRANCH_NAME == "master") || env.CHANGE_BRANCH || env.JOB_NAME.contains("Weekly")) {

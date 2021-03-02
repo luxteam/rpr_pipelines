@@ -82,7 +82,7 @@ def executeConvert(osName, gpuName, attemptNum, Map options) {
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
 								print(python3("launch_maya_redshift_conversion.py --tool ${version} --django_ip \"${options.django_url}/\" --id ${id} --scene_name \"${scene_name}\" --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} "))
 							}
-							break;
+							break
 				
 						case 'Maya (Vray)':
 
@@ -99,7 +99,7 @@ def executeConvert(osName, gpuName, attemptNum, Map options) {
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
 								print(python3("launch_maya_vray_conversion.py --tool ${version} --django_ip \"${options.django_url}/\" --id ${id} --scene_name \"${scene_name}\" --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} "))
 							}
-							break;
+							break
 					}
 				} catch(FlowInterruptedException e) {
 					throw e
@@ -201,7 +201,7 @@ def startConvert(osName, deviceName, renderDevice, options) {
 	for (int attemptNum = 1; attemptNum <= maxAttempts && attemptNum <= nodesCount; attemptNum++) {
 		def currentNodeName = ""
 
-		echo "Scheduling Convert ${osName}:${deviceName}. Attempt #${attemptNum}"
+		println("Scheduling Convert ${osName}:${deviceName}. Attempt #${attemptNum}")
 		testTasks["Convert-${osName}-${deviceName}"] = {
 			node(currentLabels) {
 				stage("Conversion") {

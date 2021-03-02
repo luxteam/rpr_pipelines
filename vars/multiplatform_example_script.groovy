@@ -1,43 +1,41 @@
 def executeGenTestRefCommand(String osName)
 {
-    switch(osName)
-    {
-    case 'Windows':
-        bat """
-        echo 'sample image' > .\\ReferenceImages\\sample_image.txt
-        """
-        break;
-    case 'OSX':
-        sh """
-        echo 'sample image' > ./ReferenceImages/sample_image.txt
-        """
-        break;
-    default:
-        sh """
-        echo 'sample image' > ./ReferenceImages/sample_image.txt
-        """
+    switch(osName) {
+        case 'Windows':
+            bat """
+                echo 'sample image' > .\\ReferenceImages\\sample_image.txt
+            """
+            break
+        case 'OSX':
+            sh """
+                echo 'sample image' > ./ReferenceImages/sample_image.txt
+            """
+            break
+        default:
+            sh """
+                echo 'sample image' > ./ReferenceImages/sample_image.txt
+            """
     }
 }
 
 def executeTestCommand(String osName)
 {
-    switch(osName)
-    {
-    case 'Windows':
-        bat """
-        echo 'sample image' > .\\OutputImages\\sample_image.txt
-        """
-        break;
-    case 'OSX':
-        sh """
-        echo 'sample image' > ./OutputImages/sample_image.txt
-        """
-        break;
-    default:
-        sh """
-        echo 'sample image' > ./OutputImages/sample_image.txt
-        """
-    }
+    switch(osName) {
+        case 'Windows':
+            bat """
+                echo 'sample image' > .\\OutputImages\\sample_image.txt
+            """
+            break
+        case 'OSX':
+            sh """
+                echo 'sample image' > ./OutputImages/sample_image.txt
+            """
+            break
+        default:
+            sh """
+                echo 'sample image' > ./OutputImages/sample_image.txt
+            """
+        }
 }
 
 def executeTests(String osName, String asicName, Map options)
@@ -53,44 +51,32 @@ def executeTests(String osName, String asicName, Map options)
         
         //unstash "app${osName}"
 
-        dir('Tests')
-        {
-            if(options['updateRefs'])
-            {
+        dir('Tests') {
+            if (options['updateRefs']) {
                 executeGenTestRefCommand(osName)
                 sendFiles(osName, './ReferenceImages/*.*', REF_PATH)
-
-            }
-            else
-            {
+            } else {
                 receiveFiles(osName, "${REF_PATH}/*", './ReferenceImages/')
                 executeTestCommand(osName)
             }
         }                    
-    }
-    catch (e) {
-        println(e.toString());
-        println(e.getMessage());
-        println(e.getStackTrace());
+    } catch (e) {
+        println(e.toString())
+        println(e.getMessage())
+        println(e.getStackTrace())
 
-        dir('Tests')
-        {
-            if(options['updateRefs'])
-            {
+        dir('Tests') {
+            if(options['updateRefs']) {
                 executeGenTestRefCommand(osName)
                 sendFiles(osName, './ReferenceImages/*.*', REF_PATH)
-
-            }
-            else
-            {
+            } else {
                 receiveFiles(osName, "${REF_PATH}/*", './ReferenceImages/')
                 executeTestCommand(osName)
             }
         }
         currentBuild.result = "FAILED"
         throw e
-    }
-    finally {
+    } finally {
         archiveArtifacts "*.log"
         sendFiles(osName, '*.log', "${PRJ_PATH}")
     }
@@ -99,24 +85,21 @@ def executeTests(String osName, String asicName, Map options)
 def executeBuildWindows()
 {
     bat """
-    HOSTNAME > ${STAGE_NAME}.log
-
+        HOSTNAME > ${STAGE_NAME}.log
     """
 }
 
 def executeBuildOSX()
 {
     sh """
-    uname -a > ${STAGE_NAME}.log
-
+        uname -a > ${STAGE_NAME}.log
     """
 }
 
 def executeBuildLinux()
 {
     sh """
-    uname -a > ${STAGE_NAME}.log
-
+        uname -a > ${STAGE_NAME}.log
     """
 }
 def executeBuild(String osName, Map options)
@@ -125,25 +108,21 @@ def executeBuild(String osName, Map options)
         checkOutBranchOrScm(options['projectBranch'], 'git@github.com:luxteam/MultiplatformSampleProject.git')
         outputEnvironmentInfo(osName)
 
-        switch(osName)
-        {
-        case 'Windows': 
-            executeBuildWindows(); 
-            break;
-        case 'OSX':
-            executeBuildOSX();
-            break;
-        default: 
-            executeBuildLinux();
-        }
-        
+        switch(osName) {
+            case 'Windows': 
+                executeBuildWindows()
+                break
+            case 'OSX':
+                executeBuildOSX()
+                break
+            default: 
+                executeBuildLinux()
+            }
         //stash includes: 'Bin/**/*', name: "app${osName}"
-    }
-    catch (e) {
+    } catch (e) {
         currentBuild.result = "FAILED"
         throw e
-    }
-    finally {
+    } finally {
         archiveArtifacts "*.log"
         sendFiles(osName, '*.log', "${PRJ_PATH}")
         sendFiles(osName, '*.gtest.xml', "${PRJ_PATH}")

@@ -208,7 +208,7 @@ public class ProblemMessageManager {
      * Function for add in description of build information about fail or unstable status if there are any problems
      */
     def publishMessages() {
-        String statusMessage = ""
+        String statusMessage = "</br>"
         if (failReasons.size() != 0) {
             List failReasonsMessage = []
             for (stage in failReasons) {

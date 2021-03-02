@@ -6,8 +6,7 @@ import net.sf.json.JsonConfig
 
 def getAmfTool(String osName, String build_name, Map options)
 {
-    switch(osName)
-    {
+    switch(osName) {
         case 'Windows':
 
             if (!fileExists("${CIS_TOOLS}\\..\\PluginsBinaries\\${options[build_name + 'sha']}.zip")) {
@@ -30,8 +29,7 @@ def getAmfTool(String osName, String build_name, Map options)
             }
 
             unzip zipFile: "binWindows.zip", dir: "AMF", quiet: true
-
-            break;
+            break
 
         case 'OSX':
 
@@ -55,11 +53,10 @@ def getAmfTool(String osName, String build_name, Map options)
             }
 
             unzip zipFile: "binOSX.zip", dir: "AMF", quiet: true
-
-            break;
+            break
 
         default:
-            
+
             if (!fileExists("${CIS_TOOLS}/../PluginsBinaries/${options[build_name + 'sha']}.zip")) {
 
                 clearBinariesUnix()
@@ -80,8 +77,7 @@ def getAmfTool(String osName, String build_name, Map options)
             }
 
             unzip zipFile: "binLinux.zip", dir: "AMF", quiet: true
-
-            break;
+            break
     }
 }
 
@@ -90,27 +86,23 @@ def executeTestCommand(String osName, String build_name, Map options)
 {
     switch(osName) {
         case 'Windows':
-            dir('AMF')
-            {
+            dir('AMF') {
                 bat """
                     autotests.exe --gtest_output=json:../${STAGE_NAME}.${build_name}.json --gtest_filter=\"${options.testsFilter}\" >> ../${STAGE_NAME}.${build_name}.log 2>&1
                 """
             }
-            break;
+            break
         case 'OSX':
-            dir('AMF')
-            {
+            dir('AMF') {
                 sh """
                     chmod u+x autotests
                     ./autotests --gtest_output=json:../${STAGE_NAME}.${build_name}.json --gtest_filter=\"${options.testsFilter}\" >> ../${STAGE_NAME}.${build_name}.log 2>&1
                 """
             }
-            break;
+            break
         default:
-            
             // TODO implement tests for Linux
-
-            break;
+            break
     }
 }
 
@@ -123,17 +115,15 @@ def renameLog(String osName, String build_name)
                 move AMF\\out.log .
                 rename out.log ${STAGE_NAME}.${build_name}.out.log
             """
-            break;
+            break
         case 'OSX':
             sh """
                 mv AMF/out.log ${STAGE_NAME}.${build_name}.out.log
             """
-            break;
+            break
         default:
-            
             // TODO implement tests for Linux
-
-            break;
+            break
     }
 }
 
@@ -162,7 +152,7 @@ def updateTestResults(String osName, String configuration) {
                             script: "set PATH=c:\\python35\\;c:\\python35\\scripts\\;%PATH% & python -c \"from system_info import get_gpu; print(get_gpu())\"", 
                             returnStdout: true
                         ).split('\r\n')[2].trim()
-                        break;
+                        break
                     default:
                         machineInfoRaw = sh(
                             script: "python3 -c \"from system_info import get_machine_info; print(get_machine_info())\"", 
@@ -172,7 +162,7 @@ def updateTestResults(String osName, String configuration) {
                             script: "python3 -c \"from system_info import get_gpu; print(get_gpu())\"", 
                             returnStdout: true
                         )
-                        break;
+                        break
                 }
             }
             machineInfoJson = utils.parseJson(this, machineInfoRaw.replaceAll("\'", "\""))
@@ -193,15 +183,13 @@ def executeTests(String osName, String asicName, Map options) {
         switch(osName) {
             case 'Windows':
                 executeTestsWindows(osName, asicName, options)
-                break;
+                break
             case 'OSX':
                 executeTestsOSX(osName, asicName, options)
-                break;
+                break
             default:
-                
                 // TODO implement tests for Linux
-
-                break;
+                println("Unsupported OS")
         }
     } catch (e) {
         println(e.toString());
@@ -435,10 +423,10 @@ def executeBuildWindows(Map options) {
                                 xcopy /s/y/i ${sourceCodeLocation}\\${win_build_conf.capitalize()}\\autotests.exe binWindows
                             """
                         } catch (e) {
-                            println(e.toString());
-                            println(e.getMessage());
-                            currentBuild.result = "FAILURE"
                             println "[ERROR] Failed to copy autotests"
+                            println(e.toString())
+                            println(e.getMessage())
+                            currentBuild.result = "FAILURE"
                         }
 
                         if (win_lib_type == 'shared') {
@@ -464,10 +452,10 @@ def executeBuildWindows(Map options) {
                         println "[INFO] Job was aborted during build stage"
                         throw error
                     } catch (e) {
-                        println(e.toString());
-                        println(e.getMessage());
-                        currentBuild.result = "FAILED"
                         println "[ERROR] Failed to build AMF on Windows"
+                        println(e.toString())
+                        println(e.getMessage())
+                        currentBuild.result = "FAILED"
                     } finally {
                         bat """
                             if exist binWindows rmdir /Q /S binWindows
@@ -537,10 +525,10 @@ def executeBuildOSX(Map options) {
                                 cp build/autotests binOSX/autotests
                             """
                         } catch (e) {
-                            println(e.toString());
-                            println(e.getMessage());
-                            currentBuild.result = "FAILURE"
                             println "[ERROR] Failed to copy autotests"
+                            println(e.toString())
+                            println(e.getMessage())
+                            currentBuild.result = "FAILURE"
                         }
 
                         if (osx_lib_type == 'shared') {
@@ -566,10 +554,10 @@ def executeBuildOSX(Map options) {
                         println "[INFO] Job was aborted during build stage"
                         throw error
                     } catch (e) {
-                        println(e.toString());
-                        println(e.getMessage());
-                        currentBuild.result = "FAILED"
                         println "[ERROR] Failed to build AMF on OSX"
+                        println(e.toString())
+                        println(e.getMessage())
+                        currentBuild.result = "FAILED"
                     } finally {
                         sh """
                             rm -rf binOSX
@@ -622,10 +610,10 @@ def executeBuildLinux(String osName, Map options) {
                             cp linux/autotests binOSX/autotests
                         """
                     } catch (e) {
-                        println(e.toString());
-                        println(e.getMessage());
-                        currentBuild.result = "FAILURE"
                         println "[ERROR] Failed to copy autotests"
+                        println(e.toString())
+                        println(e.getMessage())
+                        currentBuild.result = "FAILURE"
                     }
 
                     if (linux_lib_type == 'shared') {
@@ -651,10 +639,10 @@ def executeBuildLinux(String osName, Map options) {
                     println "[INFO] Job was aborted during build stage"
                     throw error
                 } catch (e) {
-                    println(e.toString());
-                    println(e.getMessage());
-                    currentBuild.result = "FAILED"
                     println "[ERROR] Failed to build AMF on ${osName}"
+                    println(e.toString())
+                    println(e.getMessage())
+                    currentBuild.result = "FAILED"
                 } finally {
                     sh """
                         rm -rf binLinux
@@ -671,19 +659,18 @@ def executeBuild(String osName, Map options) {
 
         checkOutBranchOrScm(options['projectBranch'], options['projectRepo'])
         
-        switch(osName)
-        {
+        switch(osName) {
             case 'Windows':
-                executeBuildWindows(options);
-                break;
+                executeBuildWindows(options)
+                break
             case 'OSX':
                 withEnv(["PATH=$WORKSPACE:$PATH"]) {
-                    executeBuildOSX(options);
+                    executeBuildOSX(options)
                 }
-                break;
+                break
             default:
                 withEnv(["PATH=$PWD:$PATH"]) {
-                    executeBuildLinux(osName, options);
+                    executeBuildLinux(osName, options)
                 }
         }
     } catch (e) {
@@ -706,30 +693,24 @@ def executePreBuild(Map options) {
     } else {
         options.executeBuild = true
         options.executeTests = true
-        if (env.CHANGE_URL)
-        {
+        if (env.CHANGE_URL) {
             println "[INFO] Branch was detected as Pull Request"
-        }
-        else if("${env.BRANCH_NAME}" == "master")
-        {
+        } else if("${env.BRANCH_NAME}" == "master") {
            println "[INFO] master branch was detected"
         } else {
             println "[INFO] ${env.BRANCH_NAME} branch was detected"
         }
     }
 
-    if(!env.CHANGE_URL){
+    if (!env.CHANGE_URL) {
 
-        currentBuild.description = ""
-        ['projectBranch'].each
-        {
-            if(options[it] != 'master' && options[it] != "")
-            {
-                currentBuild.description += "<b>${it}:</b> ${options[it]}<br/>"
-            }
+        checkOutBranchOrScm(options.projectBranch, options.projectRepo, true)
+
+        if (options.projectBranch) {
+            currentBuild.description = "<b>Project branch:</b> ${options.projectBranch}<br/>"
+        } else {
+            currentBuild.description = "<b>Project branch:</b> ${env.BRANCH_NAME}<br/>"
         }
-
-        checkOutBranchOrScm(options['projectBranch'], options['projectRepo'], true)
 
         options.commitAuthor = bat (script: "git show -s --format=%%an HEAD ",returnStdout: true).split('\r\n')[2].trim()
         options.commitMessage = bat (script: "git log --format=%%B -n 1", returnStdout: true).split('\r\n')[2].trim()
@@ -749,41 +730,22 @@ def executePreBuild(Map options) {
             // TODO implement incrementing of version 
         }
     }
-
-    if (env.BRANCH_NAME && env.BRANCH_NAME == "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '25']]]);
-    } else if (env.BRANCH_NAME && BRANCH_NAME != "master") {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '25']]]);
-    } else if (env.CHANGE_URL ) {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10']]]);
-    } else {
-        properties([[$class: 'BuildDiscarderProperty', strategy:
-                         [$class: 'LogRotator', artifactDaysToKeepStr: '',
-                          artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '20']]]);
-    }
 }
 
 
 def executeDeploy(Map options, List platformList, List testResultList) {
     cleanWS()
 
-    if(options['executeTests'] && testResultList)
-    {
+    if (options['executeTests'] && testResultList) {
         dir("testResults") {
             testResultList.each() {
 
                 try {
                     unstash "$it"
                 } catch(e) {
-                    echo "[ERROR] Failed to unstash ${it}"
-                    println(e.toString());
-                    println(e.getMessage());
+                    println("[ERROR] Failed to unstash ${it}")
+                    println(e.toString())
+                    println(e.getMessage())
                 }
 
             }
@@ -795,9 +757,9 @@ def executeDeploy(Map options, List platformList, List testResultList) {
 
             dir("amf/public/proj/OpenAMF_Autotests/Reports") {
                 bat """
-                set PATH=c:\\python35\\;c:\\python35\\scripts\\;%PATH%
-                pip install --user -r requirements.txt >> ${STAGE_NAME}.requirements.log 2>&1
-                python MakeReport.py --commit_hash "${options.commitSHA}" --branch_name "${branchName}" --commit_datetime "${options.commitDatetime}" --commit_message "${escapeCharsByUnicode(options.commitMessage)}" --test_results ..\\..\\..\\..\\..\\..\\testResults\\
+                    set PATH=c:\\python35\\;c:\\python35\\scripts\\;%PATH%
+                    pip install --user -r requirements.txt >> ${STAGE_NAME}.requirements.log 2>&1
+                    python MakeReport.py --commit_hash "${options.commitSHA}" --branch_name "${branchName}" --commit_datetime "${options.commitDatetime}" --commit_message "${utils.escapeCharsByUnicode(options.commitMessage)}" --test_results ..\\..\\..\\..\\..\\..\\testResults\\
                 """
             }
         }
@@ -819,19 +781,18 @@ def call(String projectBranch = "",
     Boolean incrementVersion = true,
     Boolean forceBuild = false,
     String testsFilter = "*") {
+
     try {
+
         String PRJ_NAME="AMF"
         String PRJ_ROOT="gpuopen"
 
         gpusCount = 0
-        platforms.split(';').each()
-        { platform ->
+        platforms.split(';').each() { platform ->
             List tokens = platform.tokenize(':')
-            if (tokens.size() > 1)
-            {
+            if (tokens.size() > 1) {
                 gpuNames = tokens.get(1)
-                gpuNames.split(',').each()
-                {
+                gpuNames.split(',').each() {
                     gpusCount += 1
                 }
             }
@@ -875,8 +836,8 @@ def call(String projectBranch = "",
         currentBuild.result = "FAILED"
         failureMessage = "INIT FAILED"
         failureError = e.getMessage()
-        println(e.toString());
-        println(e.getMessage());
+        println(e.toString())
+        println(e.getMessage())
 
         throw e
     }

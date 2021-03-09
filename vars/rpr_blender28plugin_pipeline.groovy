@@ -967,7 +967,7 @@ def executeDeploy(Map options, List platformList, List testResultList, String en
                 if (!options.testDataSaved) {
                     try {
                         // Save test data for access it manually anyway
-                        utils.publishReport(this, "${BUILD_URL}", "summaryTestResults", "summary_report.html", "Test Report (${engineName})", "Summary Report (${engine})")
+                        utils.publishReport(this, "${BUILD_URL}", "summaryTestResults", "summary_report.html", "Test Report ${engineName}", "Summary Report (${engine})")
                         options.testDataSaved = true 
                     } catch(e1) {
                         println("[WARNING] Failed to publish test data.")
@@ -1032,7 +1032,7 @@ def executeDeploy(Map options, List platformList, List testResultList, String en
             }
 
             withNotifications(title: "Building test report for {engineName} engine", options: options, configuration: NotificationConfiguration.PUBLISH_REPORT) {
-                utils.publishReport(this, "${BUILD_URL}", "summaryTestResults", "summary_report.html", "Test Report (${engineName})", "Summary Report (${engine})")
+                utils.publishReport(this, "${BUILD_URL}", "summaryTestResults", "summary_report.html", "Test Report ${engineName}", "Summary Report (${engine})")
                 if (summaryTestResults) {
                     // add in description of status check information about tests statuses
                     // Example: Report was published successfully (passed: 69, failed: 11, error: 0)

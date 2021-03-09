@@ -523,11 +523,19 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                 if (!options.engines) {
                     makeDeploy(options, engine)
                 } else {
+                    Map tasks = [:]
+
                     options.engines.each {
                         if (testsLeft && testsLeft[it] != 0) {
                             // Build was aborted. Make reports from existing data
-                            makeDeploy(options, it)
+                            tasks["Deploy-${options.enginesNames[options.engines.indexOf(engine)]}"] = {
+                                makeDeploy(options, it)
+                            }
                         }
+                    }
+
+                    if (tasks) {
+                        parallel tasks
                     }
                 }
             }

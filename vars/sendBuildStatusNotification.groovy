@@ -34,43 +34,55 @@ def call(String buildStatus = 'STARTED', String channel = '', String baseUrl = '
     // if reportName not empty display link to html report
     String HTML_REPORT_LINK = options.reportName ? "${env.BUILD_URL}${options.reportName}" : ''
 
-    String testsStatus = """
-    ,{
-      "mrkdwn_in": ["text"],
-      "title": "Brief info",
-      "pretext": "AutoTests Results",
-      "text": ${options.testsStatus},
-      "footer": "LUX CIS",
-      "actions": [
-        {"text": "Report",
-        "type": "button",
-        "url": "${HTML_REPORT_LINK}"
-        }]
-    }"""
-
-    testsStatus = options.testsStatus ? testsStatus  : ''
-
-    String slackMessage = """[{
-    "fallback": "${buildStatus} ${env.JOB_NAME}",
-    "title": "${buildStatus}\\nCIS: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
-    "title_link": "${env.BUILD_URL}",
-    "color": "${colorCode}",
-    "text": ">>> Branch: *${BRANCH_NAME}*${INIT_BRANCH}\\nAuthor: *${options.AUTHOR_NAME}*\\nCommit message:\\n```${utils.escapeCharsByUnicode(options.commitMessage.replace('\n', '\\n'))}```",
-    "mrkdwn_in": ["text", "title"],
-    "attachment_type": "default",
-    "actions": [
-      {"text": "PullRequest on GitHub",
-      "type": "button",
-      "url": "${env.CHANGE_URL}"
+    List reports = []
+    if (options.engines) {
+      options.engines.each { engine ->
+        reports << "-${engine}"
       }
-    ]
-    }${testsStatus}]""".replace('%2F', '_')
+    } else {
+      reports << ""
+    }
 
-    // Send notifications
-    try {
-        slackSend (attachments: slackMessage, channel: channel, baseUrl: baseUrl, tokenCredentialId: token)
-    } catch (e) {
-        println("Error during slack notification to project channel")
-        println(e.toString())
+    for (report in reports) {
+      String preText = 
+      String testsStatus = """
+      ,{
+        "mrkdwn_in": ["text"],
+        "title": "Brief info",
+        "pretext": "AutoTests Results",
+        "text": ${options['testsStatus' + report]},
+        "footer": "LUX CIS",
+        "actions": [
+          {"text": "Report",
+          "type": "button",
+          "url": "${HTML_REPORT_LINK}"
+          }]
+      }"""
+
+      testsStatus = options.testsStatus ? testsStatus  : ''
+
+      String slackMessage = """[{
+      "fallback": "${buildStatus} ${env.JOB_NAME}",
+      "title": "${buildStatus}\\nCIS: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
+      "title_link": "${env.BUILD_URL}",
+      "color": "${colorCode}",
+      "text": ">>> Branch: *${BRANCH_NAME}*${INIT_BRANCH}\\nAuthor: *${options.AUTHOR_NAME}*\\nCommit message:\\n```${utils.escapeCharsByUnicode(options.commitMessage.replace('\n', '\\n'))}```",
+      "mrkdwn_in": ["text", "title"],
+      "attachment_type": "default",
+      "actions": [
+        {"text": "PullRequest on GitHub",
+        "type": "button",
+        "url": "${env.CHANGE_URL}"
+        }
+      ]
+      }${testsStatus}]""".replace('%2F', '_')
+
+      // Send notifications
+      try {
+          slackSend (attachments: slackMessage, channel: channel, baseUrl: baseUrl, tokenCredentialId: token)
+      } catch (e) {
+          println("Error during slack notification to project channel")
+          println(e.toString())
+      }
     }
 }

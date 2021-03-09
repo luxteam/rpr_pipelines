@@ -12,6 +12,7 @@ public class GithubNotificator {
     GithubApiProvider githubApiProvider
     List buildCases = []
     List testCases = []
+    List deployCases = []
     Boolean hasDeployStage
     // this variable is used for prevent multiple closing of status checks in multi thread logic of pipeline
     AtomicBoolean statusesClosed = new AtomicBoolean(false)
@@ -146,8 +147,19 @@ public class GithubNotificator {
                 githubApiProvider.createOrUpdateStatusCheck(paramsBase)
             }
             if (hasDeployStage) {
-                paramsBase["name"] = "[DEPLOY] Building test report"
-                githubApiProvider.createOrUpdateStatusCheck(paramsBase)
+                if (options.enginesNames) {
+                    options.enginesNames.each { engine ->
+                        String message = "Building test report for {engine} engine"
+                        paramsBase["name"] = "[DEPLOY] ${message}"
+                        githubApiProvider.createOrUpdateStatusCheck(paramsBase)
+                        deployCases << message
+                    }
+                } else {
+                    String message = "Building test report"
+                    paramsBase["name"] = "[DEPLOY] ${message}"
+                    githubApiProvider.createOrUpdateStatusCheck(paramsBase)
+                    deployCases << message
+                }
             }
             context.println("[INFO] Finished initialization of PR notifications")
         } catch (e) {
@@ -315,7 +327,7 @@ public class GithubNotificator {
                 buildCases.each { stagesList << "[BUILD] " + it }
                 testCases.each { stagesList << "[TEST] " + it }
                 if (hasDeployStage) {
-                    stagesList << "[DEPLOY] Building test report"
+                    deployCases.each { stagesList << "[DEPLOY] " + it }
                 }
                 def statusChecks = githubApiProvider.getStatusChecks(
                     repositoryUrl: repositoryUrl,

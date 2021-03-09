@@ -10,6 +10,12 @@ import jenkins.model.Jenkins
 import groovy.transform.Synchronized
 import java.util.Iterator
 import TestsExecutionType
+import groovy.transform.Field
+
+
+@Field List platformList = []
+@Field List testResultList = []
+@Field def executeDeploy
 
 
 @NonCPS
@@ -22,8 +28,15 @@ def getNextTest(Iterator iterator) {
     }
 }
 
+@NonCPS
+@Synchronized
+def changeTestsCount(Map testsLeft, int count, String engine) {
+    testsLeft[engine] += count
+    return testsLeft[engine]
+}
 
-def executeTestsNode(String osName, String gpuNames, def executeTests, Map options)
+
+def executeTestsNode(String osName, String gpuNames, def executeTests, Map options, Map testsLeft)
 {
     if (gpuNames && options['executeTests']) {
         def testTasks = [:]
@@ -67,7 +80,9 @@ def executeTestsNode(String osName, String gpuNames, def executeTests, Map optio
                                 }
                                 if (options.skippedTests && options.skippedTests.containsKey(testName) && options.skippedTests[testName].contains("${asicName}-${osName}")) {
                                     println("Test group ${testName} on ${asicName}-${osName} fully skipped")
-                                    testName = getNextTest(testsIterator)
+                                    if (engine && (changeTestsCount(testsLeft, -1, engine) == 0)) {
+                                        makeDeploy(options, engine)
+                                    }
                                     continue
                                 } 
                                 // if there number of errored groups in succession is more than 
@@ -76,11 +91,17 @@ def executeTestsNode(String osName, String gpuNames, def executeTests, Map optio
                                         || (options["errorsInSuccession"]["${osName}-${asicName}"] && options["errorsInSuccession"]["${osName}-${asicName}"].intValue() >= 3))) {
                                     println("Test group ${testName} on ${asicName}-${osName} aborted due to exceeded number of errored groups in succession")
                                     testName = getNextTest(testsIterator)
+                                    if (engine && (changeTestsCount(testsLeft, -1, engine) == 0)) {
+                                        makeDeploy(options, engine)
+                                    }
                                     continue
                                 }
                                 if (options["abort${osName}"]) {
                                     println("Test group ${testName} on ${asicName}-${osName} aborted due to current context")
                                     testName = getNextTest(testsIterator)
+                                    if (engine && (changeTestsCount(testsLeft, -1, engine) == 0)) {
+                                        makeDeploy(options, engine)
+                                    }
                                     continue
                                 }
 
@@ -209,6 +230,9 @@ def executeTestsNode(String osName, String gpuNames, def executeTests, Map optio
                                     // Ignore other exceptions
                                 }
                                 testName = getNextTest(testsIterator)
+                                if (engine && (changeTestsCount(testsLeft, -1, engine) == 0)) {
+                                    makeDeploy(options, engine)
+                                }
                             }
                         }                        
                     }
@@ -223,27 +247,38 @@ def executeTestsNode(String osName, String gpuNames, def executeTests, Map optio
     }
 }
 
-def executePlatform(String osName, String gpuNames, def executeBuild, def executeTests, Map options)
+def executePlatform(String osName, String gpuNames, def executeBuild, def executeTests, Map options, Map testsLeft)
 {
     def retNode = {
         try {
 
-            if (options['executeBuild'] && executeBuild) {
-                stage("Build-${osName}") {
-                    def builderLabels = "${osName} && ${options.BUILDER_TAG}"
-                    def retringFunction = { nodesList, currentTry ->
-                        executeBuild(osName, options)
+            try {
+                if (options['executeBuild'] && executeBuild) {
+                    stage("Build-${osName}") {
+                        def builderLabels = "${osName} && ${options.BUILDER_TAG}"
+                        def retringFunction = { nodesList, currentTry ->
+                            executeBuild(osName, options)
+                        }
+                        run_with_retries(builderLabels, options.BUILD_TIMEOUT, retringFunction, false, "Build", options, ['FlowInterruptedException', 'IOException'], -1, osName, true)
                     }
-                    run_with_retries(builderLabels, options.BUILD_TIMEOUT, retringFunction, false, "Build", options, ['FlowInterruptedException', 'IOException'], -1, osName, true)
                 }
+            } catch (e1) {
+                if (options.engines) {
+                    options.engines.each { engine ->
+                        if ((changeTestsCount(testsLeft, -options.testsInfo["testsPer-${engine}"], engine) == 0)) {
+                            makeDeploy(options, engine)
+                        }
+                    }
+                }
+                throw e1
             }
 
             if (options.containsKey('tests') && options.containsKey('testsPackage')){
                 if (options['testsPackage'] != 'none' || options['tests'].size() == 0 || !(options['tests'].size() == 1 && options['tests'].get(0).length() == 0)){ // BUG: can throw exception if options['tests'] is string with length 1
-                    executeTestsNode(osName, gpuNames, executeTests, options)
+                    executeTestsNode(osName, gpuNames, executeTests, options, testsLeft)
                 }
             } else {
-                executeTestsNode(osName, gpuNames, executeTests, options)
+                executeTestsNode(osName, gpuNames, executeTests, options, testsLeft)
             }
 
         } catch (e) {
@@ -266,8 +301,40 @@ def executePlatform(String osName, String gpuNames, def executeBuild, def execut
     return retNode
 }
 
+def makeDeploy(Map options, String engine = "") {
+    Boolean executeDeployStage = true
+    if (options['executeTests']) {
+        if (options.containsKey('tests') && options.containsKey('testsPackage')){
+            if (options['testsPackage'] == 'none' && options['tests'].size() == 1 && options['tests'].get(0).length() == 0){
+                executeDeployStage = false
+            }
+        }
+    } else {
+        executeDeployStage = false
+    }
+    if (executeDeploy && executeDeployStage) {
+        String stageName = engine ? "Deploy-${engine}" : "Deploy"
+        stage(stageName) {
+            def reportBuilderLabels = "Windows && ReportBuilder"
+
+            options["stage"] = "Deploy"
+            def retringFunction = { nodesList, currentTry ->
+                if (engine) {
+                    executeDeploy(options, platformList, testResultList, engine)
+                } else {
+                    executeDeploy(options, platformList, testResultList)
+                }
+                println("[INFO] Deploy stage finished without unexpected exception. Clean workspace")
+                cleanWS("Windows")
+            }
+            run_with_retries(reportBuilderLabels, options.DEPLOY_TIMEOUT, retringFunction, false, "Deploy", options, [], 2)
+        }
+    }
+}
+
 def call(String platforms, def executePreBuild, def executeBuild, def executeTests, def executeDeploy, Map options) {
     try {
+        this.executeDeploy = executeDeploy
 
         try {
             setupBuildStoragePolicy()
@@ -338,8 +405,7 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
 
             options['FAILED_STAGES'] = []
 
-            def platformList = []
-            def testResultList = []
+            Map testsLeft = [:]
 
             try {
                 if (executePreBuild) {
@@ -381,7 +447,18 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                     }
                 }
 
-                def tasks = [:]
+                options.testsInfo = [:]
+                if (options.engines) {
+                    newOptions['testsList'].each() { testName ->
+                        String engine = testName.split("-")[-1]
+                        if (!options.testsInfo.containsKey("testsPer-${engine}")) {
+                            options.testsInfo["testsPer-${engine}"] = 0
+                        }
+                        options.testsInfo["testsPer-${engine}"]++
+                    }
+                }
+
+                Map tasks = [:]
 
                 platforms.split(';').each() {
                     if (it) {
@@ -407,10 +484,15 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                                     String testResultItem = testName ? "testResult-${asicName}-${osName}-${testName}" : "testResult-${asicName}-${osName}"
                                     testResultList << testResultItem
                                 }
+
+                                if (options.engines) {
+                                    String engine = testName.split("-")[-1]
+                                    testsLeft += options.testsInfo["testsPer-${engine}"]
+                                }
                             }
                         }
 
-                        tasks[osName]=executePlatform(osName, gpuNames, executeBuild, executeTests, newOptions)
+                        tasks[osName]=executePlatform(osName, gpuNames, executeBuild, executeTests, newOptions, testsLeft)
                     }
                 }
                 parallel tasks
@@ -432,27 +514,14 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                     }
                 }
             } finally {
-                Boolean executeDeployStage = true
-                if (options['executeTests']) {
-                    if (options.containsKey('tests') && options.containsKey('testsPackage')){
-                        if (options['testsPackage'] == 'none' && options['tests'].size() == 1 && options['tests'].get(0).length() == 0){
-                            executeDeployStage = false
-                        }
-                    }
+                if (!options.engines) {
+                    makeDeploy(options, engine)
                 } else {
-                    executeDeployStage = false
-                }
-                if (executeDeploy && executeDeployStage) {
-                    stage("Deploy") {
-                        def reportBuilderLabels = "Windows && ReportBuilder"
-
-                        options["stage"] = "Deploy"
-                        def retringFunction = { nodesList, currentTry ->
-                            executeDeploy(options, platformList, testResultList)
-                            println("[INFO] Deploy stage finished without unexpected exception. Clean workspace")
-                            cleanWS("Windows")
+                    options.engines.each {
+                        if (testsLeft && testsLeft[it] != 0) {
+                            // Build was aborted or not all tests was considered. Make reports from existing data
+                            makeDeploy(options, it)
                         }
-                        run_with_retries(reportBuilderLabels, options.DEPLOY_TIMEOUT, retringFunction, false, "Deploy", options, [], 2)
                     }
                 }
             }

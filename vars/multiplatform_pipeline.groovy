@@ -31,8 +31,9 @@ def getNextTest(Iterator iterator) {
 @NonCPS
 @Synchronized
 def changeTestsCount(Map testsLeft, int count, String engine) {
-    testsLeft[engine] += count
-    return testsLeft[engine]
+    if (testsLeft && engine) {
+        testsLeft[engine] += count
+    }
 }
 
 
@@ -80,9 +81,7 @@ def executeTestsNode(String osName, String gpuNames, def executeTests, Map optio
                                 }
                                 if (options.skippedTests && options.skippedTests.containsKey(testName) && options.skippedTests[testName].contains("${asicName}-${osName}")) {
                                     println("Test group ${testName} on ${asicName}-${osName} fully skipped")
-                                    if (engine && (changeTestsCount(testsLeft, -1, engine) == 0)) {
-                                        makeDeploy(options, engine)
-                                    }
+                                    changeTestsCount(testsLeft, -1, engine)
                                     continue
                                 } 
                                 // if there number of errored groups in succession is more than 
@@ -91,17 +90,13 @@ def executeTestsNode(String osName, String gpuNames, def executeTests, Map optio
                                         || (options["errorsInSuccession"]["${osName}-${asicName}"] && options["errorsInSuccession"]["${osName}-${asicName}"].intValue() >= 3))) {
                                     println("Test group ${testName} on ${asicName}-${osName} aborted due to exceeded number of errored groups in succession")
                                     testName = getNextTest(testsIterator)
-                                    if (engine && (changeTestsCount(testsLeft, -1, engine) == 0)) {
-                                        makeDeploy(options, engine)
-                                    }
+                                    changeTestsCount(testsLeft, -1, engine)
                                     continue
                                 }
                                 if (options["abort${osName}"]) {
                                     println("Test group ${testName} on ${asicName}-${osName} aborted due to current context")
                                     testName = getNextTest(testsIterator)
-                                    if (engine && (changeTestsCount(testsLeft, -1, engine) == 0)) {
-                                        makeDeploy(options, engine)
-                                    }
+                                    changeTestsCount(testsLeft, -1, engine)
                                     continue
                                 }
 
@@ -230,9 +225,7 @@ def executeTestsNode(String osName, String gpuNames, def executeTests, Map optio
                                     // Ignore other exceptions
                                 }
                                 testName = getNextTest(testsIterator)
-                                if (engine && (changeTestsCount(testsLeft, -1, engine) == 0)) {
-                                    makeDeploy(options, engine)
-                                }
+                                changeTestsCount(testsLeft, -1, engine)
                             }
                         }                        
                     }
@@ -265,9 +258,7 @@ def executePlatform(String osName, String gpuNames, def executeBuild, def execut
             } catch (e1) {
                 if (options.engines) {
                     options.engines.each { engine ->
-                        if ((changeTestsCount(testsLeft, -options.testsInfo["testsPer-${engine}"], engine) == 0)) {
-                            makeDeploy(options, engine)
-                        }
+                        changeTestsCount(testsLeft, -options.testsInfo["testsPer-${engine}"], engine)
                     }
                 }
                 throw e1
@@ -313,7 +304,7 @@ def makeDeploy(Map options, String engine = "") {
         executeDeployStage = false
     }
     if (executeDeploy && executeDeployStage) {
-        String stageName = engine ? "Deploy-${engine}" : "Deploy"
+        String stageName = engine ? "Deploy-${options.enginesNames[options.engines.indexOf(engine)]}" : "Deploy"
         stage(stageName) {
             def reportBuilderLabels = "Windows && ReportBuilder"
 
@@ -449,7 +440,7 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
 
                 options.testsInfo = [:]
                 if (options.engines) {
-                    newOptions['testsList'].each() { testName ->
+                    options['testsList'].each() { testName ->
                         String engine = testName.split("-")[-1]
                         if (!options.testsInfo.containsKey("testsPer-${engine}")) {
                             options.testsInfo["testsPer-${engine}"] = 0
@@ -486,13 +477,28 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                                 }
 
                                 if (options.engines) {
-                                    String engine = testName.split("-")[-1]
-                                    testsLeft += options.testsInfo["testsPer-${engine}"]
+                                    options.engines.each { engine ->
+                                        if (!testsLeft.containsKey(engine)) {
+                                            testsLeft[engine] = 0
+                                        }
+                                        testsLeft[engine] += options.testsInfo["testsPer-${engine}"]
+                                    }
                                 }
                             }
                         }
 
                         tasks[osName]=executePlatform(osName, gpuNames, executeBuild, executeTests, newOptions, testsLeft)
+                    
+                        if (options.engines) {
+                            options.engines.each { engine ->
+                                tasks["Deploy-${options.enginesNames[options.engines.indexOf(engine)]}"] = {
+                                    while (testsLeft[engine] != 0) {
+                                        sleep(60)
+                                    }
+                                    makeDeploy(options, engine)
+                                }
+                            }
+                        }
                     }
                 }
                 parallel tasks
@@ -519,7 +525,7 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                 } else {
                     options.engines.each {
                         if (testsLeft && testsLeft[it] != 0) {
-                            // Build was aborted or not all tests was considered. Make reports from existing data
+                            // Build was aborted. Make reports from existing data
                             makeDeploy(options, it)
                         }
                     }

@@ -453,7 +453,7 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                             cleanWS("Windows")
                             //removeStashes()
                         }
-                        run_with_retries(reportBuilderLabels, options.DEPLOY_TIMEOUT, retringFunction, false, "Deploy", options, [], 2)
+                        run_with_retries("PC-REPORT-GAVANA-WIN10", options.DEPLOY_TIMEOUT, retringFunction, false, "Deploy", options, [], 2)
                     }
                 }
             }

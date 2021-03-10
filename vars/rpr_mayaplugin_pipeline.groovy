@@ -723,7 +723,7 @@ def executePreBuild(Map options)
                         }
                     }
                 }
-                options.tests = utils.uniteSuites(this, "jobs/weights.json", tempTests)
+                options.tests = tempTests
                 options.tests.each() {
                     options.engines.each { engine ->
                         tests << "${it}-${engine}"

@@ -37,8 +37,8 @@ class GithubApiProvider {
 
     private String receiveInstallationToken(String organization_name) {
         try {
-            context.withCredentials([context.string(credentialsId: "githubNotificationAppKey", variable: "GITHUB_APP_KEY"),
-                context.string(credentialsId: "githubNotificationAppId", variable: "GITHUB_APP_ID")]) {
+            context.withCredentials([context.string(credentialsId: "githubNotificationAppKey_dev", variable: "GITHUB_APP_KEY"),
+                context.string(credentialsId: "githubNotificationAppId_dev", variable: "GITHUB_APP_ID")]) {
     
                 context.withEnv(["GITHUB_APP_KEY=${context.GITHUB_APP_KEY}"]) {
                     if (context.isUnix()) {

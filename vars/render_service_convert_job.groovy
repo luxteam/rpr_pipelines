@@ -87,7 +87,7 @@ def executeConvert(osName, gpuName, attemptNum, Map options) {
 							"""
 							// Launch render
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
-								print(python3("launch_maya_redshift_conversion.py --tool ${version} --django_ip \"${options.django_url}/\" --id ${id} --scene_name \"${scene_name}\" --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} "))
+								print(python3("launch_maya_redshift_conversion.py --tool ${version} --django_ip \"${options.django_url}/\" --id ${id} --scene_name \"${scene_name}\" --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} --node \"${currentNodeName}\" "))
 							}
 							break;
 				
@@ -104,7 +104,7 @@ def executeConvert(osName, gpuName, attemptNum, Map options) {
 							"""
 							// Launch render
 							withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
-								print(python3("launch_maya_vray_conversion.py --tool ${version} --django_ip \"${options.django_url}/\" --id ${id} --scene_name \"${scene_name}\" --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} "))
+								print(python3("launch_maya_vray_conversion.py --tool ${version} --django_ip \"${options.django_url}/\" --id ${id} --scene_name \"${scene_name}\" --login %DJANGO_USER% --password %DJANGO_PASSWORD% --timeout ${options.timeout} --node \"${currentNodeName}\" "))
 							}
 							break;
 					}

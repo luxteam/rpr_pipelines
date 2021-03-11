@@ -78,7 +78,7 @@ def executeConfiguration(osName, attemptNum, Map options) {
                             """
                             // Launch render
                             withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'renderServiceCredentials', usernameVariable: 'DJANGO_USER', passwordVariable: 'DJANGO_PASSWORD']]) {
-                                python3("launch_blender.py --tool \"2.91\" --django_ip \"${options.django_url}/\" --scene_name \"${scene_name}\" --id ${id} --login %DJANGO_USER% --password %DJANGO_PASSWORD% --action \"${options.action}\" --configuration_options \"${options.configurationOptions}\" --options_structure \"${options.optionsStructure}\" ")
+                                python3("launch_blender.py --tool \"2.91\" --django_ip \"${options.django_url}/\" --scene_name \"${scene_name}\" --id ${id} --login %DJANGO_USER% --password %DJANGO_PASSWORD% --action \"${options.action}\" --configuration_options \"${options.configurationOptions}\" --options_structure \"${options.optionsStructure}\" --node \"${currentNodeName}\" ")
                             }
                             if (options['action'] == 'Write') {
                                 String updatedSceneHash = sha1 scene_name

@@ -832,7 +832,7 @@ def executePreBuild(Map options)
                 }
             } else if (options.tests) {
                 options.groupsUMS = options.tests.split(" ") as List
-                options.tests = tempTests
+                options.tests = options.tests.split(" ") as List
                 options.tests.each() {
                     options.engines.each { engine ->
                         tests << "${it}-${engine}"

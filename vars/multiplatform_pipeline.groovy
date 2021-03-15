@@ -443,7 +443,7 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                 if (options.engines) {
                     options['testsList'].each() { testName ->
                         String engine = testName.split("-")[-1]
-                        if (!options.testsInfo.containsKey("testsPer-${engine}")) {
+                        if (!options.testsInfo.containsKey("testsPer-" + engine)) {
                             options.testsInfo["testsPer-${engine}"] = 0
                         }
                         options.testsInfo["testsPer-${engine}"]++
@@ -501,10 +501,10 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                         tasks["Deploy-${options.enginesNames[options.engines.indexOf(engine)]}"] = {
                             if (testsLeft[engine] != null) {
                                 while (testsLeft[engine] != 0) {
-                                    Thread.sleep(60 * 1000)
+                                    sleep(120)
                                 }
+                                makeDeploy(options, engine)
                             }
-                            makeDeploy(options, engine)
                         }
                     }
                 }

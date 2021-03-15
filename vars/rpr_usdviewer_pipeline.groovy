@@ -114,7 +114,7 @@ def executeTests(String osName, String asicName, Map options) {
         }
 
         withNotifications(title: options["stageName"], options: options, configuration: NotificationConfiguration.DOWNLOAD_PACKAGE) {
-            timeout(time: "15", unit: "MINUTES") {
+            timeout(time: "25", unit: "MINUTES") {
                 getViewerTool(osName, options)
             }
         }

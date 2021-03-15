@@ -33,6 +33,7 @@ def getNextTest(Iterator iterator) {
 def changeTestsCount(Map testsLeft, int count, String engine) {
     if (testsLeft && engine) {
         testsLeft[engine] += count
+        println("Number of tests left for '${engine}' engine change by '${count}'. Tests left: ${testsLeft[engine]}")
     }
 }
 
@@ -449,6 +450,8 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                     }
                 }
 
+                println "Tests Info: ${options.testsInfo}"
+
                 Map tasks = [:]
 
                 platforms.split(';').each() {
@@ -488,21 +491,24 @@ def call(String platforms, def executePreBuild, def executeBuild, def executeTes
                         }
 
                         tasks[osName]=executePlatform(osName, gpuNames, executeBuild, executeTests, newOptions, testsLeft)
-                    
-                        if (options.engines) {
-                            options.engines.each { engine ->
-                                tasks["Deploy-${options.enginesNames[options.engines.indexOf(engine)]}"] = {
-                                    if (testsLeft[engine] != null) {
-                                        while (testsLeft[engine] != 0) {
-                                            sleep(60)
-                                        }
-                                    }
-                                    makeDeploy(options, engine)
+                    }
+                }
+
+                println "Tests Left: ${testsLeft}"
+
+                if (options.engines) {
+                    options.engines.each { engine ->
+                        tasks["Deploy-${options.enginesNames[options.engines.indexOf(engine)]}"] = {
+                            if (testsLeft[engine] != null) {
+                                while (testsLeft[engine] != 0) {
+                                    Thread.sleep(60 * 1000)
                                 }
                             }
+                            makeDeploy(options, engine)
                         }
                     }
                 }
+
                 parallel tasks
             } catch (e) {
                 println(e.toString())

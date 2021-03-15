@@ -810,7 +810,7 @@ def executePreBuild(Map options)
                     }
                 }
 
-                options.tests = utils.uniteSuites(this, "jobs/weights.json", tempTests)
+                options.tests = tempTests
                 options.tests.each() {
                     def xml_timeout = utils.getTimeoutFromXML(this, "${it}", "simpleRender.py", options.ADDITIONAL_XML_TIMEOUT)
                     options.timeouts["${it}"] = (xml_timeout > 0) ? xml_timeout : options.TEST_TIMEOUT
@@ -834,7 +834,7 @@ def executePreBuild(Map options)
                 }
             } else if (options.tests) {
                 options.groupsUMS = options.tests.split(" ") as List
-                options.tests = utils.uniteSuites(this, "jobs/weights.json", options.tests.split(" ") as List)
+                options.tests = options.tests.split(" ") as List
                 options.tests.each() {
                     options.engines.each { engine ->
                         tests << "${it}-${engine}"

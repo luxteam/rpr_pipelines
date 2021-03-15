@@ -30,8 +30,8 @@ def getViewerTool(String osName, Map options) {
             unzip zipFile: "RadeonProUSDViewer_Windows.zip", dir: "USDViewer", quiet: true
             break
 
-        case "MacOS":
-            println "MacOS isn't supported"
+        case "OSX":
+            println "OSX isn't supported"
             break
 
         default:
@@ -49,8 +49,8 @@ def executeGenTestRefCommand(String osName, Map options, Boolean delete) {
                 """
                 break
 
-            case "MacOS":
-                println "MacOS isn't supported"
+            case "OSX":
+                println "OSX isn't supported"
                 break
 
             default:
@@ -86,8 +86,8 @@ def executeTestCommand(String osName, String asicName, Map options) {
                     }
                     break
 
-                case "MacOS":
-                    println "MacOS isn't supported"
+                case "OSX":
+                    println "OSX isn't supported"
                     break
 
                 default:
@@ -244,26 +244,20 @@ def executeBuildWindows(Map options) {
         outputEnvironmentInfo("Windows", "${STAGE_NAME}.EnvVariables")
 
         // vcvars64.bat sets VS/msbuild env
-        withNotifications(title: "Windows", options: options, logUrl: "${BUILD_URL}/artifact/${STAGE_NAME}.USDPixar.log", configuration: NotificationConfiguration.BUILD_SOURCE_CODE) {
+        withNotifications(title: "Windows", options: options, logUrl: "${BUILD_URL}/artifact/${STAGE_NAME}.HdRPRPlugin.log", configuration: NotificationConfiguration.BUILD_SOURCE_CODE) {
             bat """
                 call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat" >> ${STAGE_NAME}.EnvVariables.log 2>&1
-
                 cd USDPixar
                 git apply ../usd_dev.patch  >> ${STAGE_NAME}.USDPixar.log 2>&1
                 cd ..
 
-                :: USD
-
-                python USDPixar\\build_scripts\\build_usd.py --build RPRViewer/binary/build --src RPRViewer/binary/deps RPRViewer/binary/inst >> ${STAGE_NAME}.USDPixar.log 2>&1
-            
-                :: HdRPRPlugin
-
+                python USDPixar/build_scripts/build_usd.py --build RPRViewer/binary/windows/build --src RPRViewer/binary/windows/deps RPRViewer/binary/windows/inst >> ${STAGE_NAME}.USDPixar.log 2>&1
+                
                 set PXR_DIR=%CD%\\USDPixar
-                set INSTALL_PREFIX_DIR=%CD%\\RPRViewer\\binary\\inst
-
+                set INSTALL_PREFIX_DIR=%CD%\\RPRViewer\\binary\\windows\\inst
                 cd HdRPRPlugin
-                cmake -B build -G "Visual Studio 15 2017 Win64" -Dpxr_DIR=%PXR_DIR% -DCMAKE_INSTALL_PREFIX=%INSTALL_PREFIX_DIR% ^
-                    -DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE -DPXR_USE_PYTHON_3=ON >> ..\\${STAGE_NAME}.HdRPRPlugin.log 2>&1
+                cmake -B build -G "Visual Studio 15 2017 Win64" -Dpxr_DIR=%PXR_DIR% -DCMAKE_INSTALL_PREFIX=%INSTALL_PREFIX_DIR% -DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE ^
+                    -DPXR_USE_PYTHON_3=ON -DMATERIALX_BUILD_PYTHON=ON -DMATERIALX_INSTALL_PYTHON=ON >> ..\\${STAGE_NAME}.HdRPRPlugin.log 2>&1
                 cmake --build build --config Release --target install >> ..\\${STAGE_NAME}.HdRPRPlugin.log 2>&1
             """
         }
@@ -271,45 +265,141 @@ def executeBuildWindows(Map options) {
         withNotifications(title: "Windows", options: options, artifactUrl: "${BUILD_URL}/artifact/${buildName}", configuration: NotificationConfiguration.BUILD_PACKAGE) {
             // delete files before zipping
             bat """
-                del RPRViewer\\binary\\inst\\pxrConfig.cmake
-                rmdir /Q /S RPRViewer\\binary\\inst\\cmake
-                rmdir /Q /S RPRViewer\\binary\\inst\\include
-                rmdir /Q /S RPRViewer\\binary\\inst\\lib\\cmake
-                rmdir /Q /S RPRViewer\\binary\\inst\\lib\\pkgconfig
-                del RPRViewer\\binary\\inst\\bin\\*.lib
-                del RPRViewer\\binary\\inst\\bin\\*.pdb
-                del RPRViewer\\binary\\inst\\lib\\*.lib
-                del RPRViewer\\binary\\inst\\lib\\*.pdb
-                del RPRViewer\\binary\\inst\\plugin\\usd\\*.lib
+                del RPRViewer\\binary\\windows\\inst\\pxrConfig.cmake
+                rmdir /Q /S RPRViewer\\binary\\windows\\inst\\cmake
+                rmdir /Q /S RPRViewer\\binary\\windows\\inst\\include
+                rmdir /Q /S RPRViewer\\binary\\windows\\inst\\lib\\cmake
+                rmdir /Q /S RPRViewer\\binary\\windows\\inst\\lib\\pkgconfig
+                del RPRViewer\\binary\\windows\\inst\\bin\\*.lib
+                del RPRViewer\\binary\\windows\\inst\\bin\\*.pdb
+                del RPRViewer\\binary\\windows\\inst\\lib\\*.lib
+                del RPRViewer\\binary\\windows\\inst\\lib\\*.pdb
+                del RPRViewer\\binary\\windows\\inst\\plugin\\usd\\*.lib
             """
 
-            try {
-                dir("RPRViewer") {
-                    bat """
-                        "C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe" installer.iss >> ../${STAGE_NAME}.USDViewerInstaller.log 2>&1
-                    """
-                    archiveArtifacts artifacts: "RPRViewer_Setup.exe", allowEmptyArchive: false
-                    String pluginUrl = "${BUILD_URL}/artifact/${buildName}"
-                    rtp nullAction: '1', parserName: 'HTML', stableText: """<h3><a href="${pluginUrl}">[BUILD: ${BUILD_ID}] ${buildName}</a></h3>"""
-                }
-            } catch (e) {
-                println """
-                    ${e.toString()}
-                    ${e.getStackTrace()}
-                    [ERROR] Failed to build USDViewer installer
-                """
-            }
             // TODO: filter files for archive
-            zip archive: true, dir: "RPRViewer\\binary\\inst", glob: '', zipFile: buildName
-            /* due to the weight of the artifact (1.3 GB), its sending is postponed until the logic for removing old builds is added to UMS
-            if (options.sendToUMS) {
-                // WARNING! call sendToMinio in build stage only from parent directory
-                options.universeManager.sendToMINIO(options, "Windows", "..", buildName, false)
-            }*/
-            stash includes: buildName, name: "appWindows"
+            
+            zip archive: false, dir: "RPRViewer\\binary\\windows\\inst", glob: '', zipFile: "RadeonProUSDViewer_Windows.zip"
+            stash includes: "RadeonProUSDViewer_Windows.zip", name: "appWindows"
             options.pluginWinSha = sha1 "RadeonProUSDViewer_Windows.zip"
+
+            withEnv(["PYTHONPATH=%INST%\\lib\\python;%INST%\\lib"]) {
+                try {
+                    bat """
+                        set INSTALL_PREFIX_DIR=%CD%/RPRViewer/binary/windows/inst
+                        set PACKAGE_PATH=%INSTALL_PREFIX_DIR%/dist
+                        set PYTHONPATH=%INSTALL_PREFIX_DIR%/lib/python;%INSTALL_PREFIX_DIR%/lib;%INSTALL_PREFIX_DIR%/lib/python/pxr/Usdviewq/HdRPRPlugin/python
+
+                        pyinstaller %CD%/RPRViewer/tools/usdview_windows.spec --noconfirm --clean --distpath %PACKAGE_PATH% ^
+                            --workpath %INSTALL_PREFIX_DIR%/build >> ${STAGE_NAME}.USDViewerPackage.log 2>&1
+                    """
+
+                    dir("RPRViewer") {
+                        bat """
+                            "C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe" installer.iss >> ../${STAGE_NAME}.USDViewerInstaller.log 2>&1
+                        """
+                        archiveArtifacts artifacts: "RPRViewer_Setup.exe", allowEmptyArchive: false
+                    
+                        /* due to the weight of the artifact, its sending is postponed until the logic for removing old builds is added to UMS
+                        if (options.sendToUMS) {
+                            // WARNING! call sendToMinio in build stage only from parent directory
+                            options.universeManager.sendToMINIO(options, "Windows", "..", "RPRViewer_Setup.exe", false)
+                        }*/
+                    }
+                } catch (e) {
+                    println(e.toString())
+                    println(e.getMessage())
+                    println(e.getStackTrace())
+                    currentBuild.result = "FAILURE"
+                    println "[ERROR] Failed to build USD Viewer installer"
+                }
+            }
         }
     }
+}
+
+
+def executeBuildOSX(Map options)
+{
+    
+    outputEnvironmentInfo("OSX", "${STAGE_NAME}.EnvVariables")
+
+    // vcvars64.bat sets VS/msbuild env
+    withNotifications(title: "OSX", options: options, logUrl: "${BUILD_URL}/artifact/${STAGE_NAME}.HdRPRPlugin.log", configuration: NotificationConfiguration.BUILD_SOURCE_CODE) {
+        sh """
+            export OS=Darwin
+            export PATH="~/Qt/5.15.2/clang_64/bin:\$PATH"
+            
+            echo \$PATH
+
+            rm -rf RPRViewer/binary/mac/*
+
+            export PYENV_ROOT="\$HOME/.pyenv"
+            export PATH="\$PYENV_ROOT/shims:\$PYENV_ROOT/bin:\$PATH"
+            pyenv rehash
+
+            # USD
+            python USDPixar/build_scripts/build_usd.py --build RPRViewer/binary/mac/build --src RPRViewer/binary/mac/deps RPRViewer/binary/mac/inst >> ${STAGE_NAME}.USDPixar.log 2>&1
+            # HdRprPlugin
+            export PXR_DIR=\$(pwd)/USDPixar
+            export INSTALL_PREFIX_DIR=\$(pwd)/RPRViewer/binary/mac/inst
+            
+            cd HdRPRPlugin
+            cmake -B build -Dpxr_DIR=\$PXR_DIR -DCMAKE_INSTALL_PREFIX=\$INSTALL_PREFIX_DIR -DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE \
+                -DMATERIALX_PYTHON_PYBIND11_DIR=\$(pwd)/deps/MaterialX/source/PyMaterialX/PyBind11 \
+                -DPXR_USE_PYTHON_3=ON -DMATERIALX_BUILD_PYTHON=ON -DMATERIALX_INSTALL_PYTHON=ON >> ../${STAGE_NAME}.HdRPRPlugin.log 2>&1
+            cmake --build build --config Release --target install >> ../${STAGE_NAME}.HdRPRPlugin.log 2>&1
+        """
+    }
+
+    // delete files before zipping
+    withNotifications(title: "OSX", options: options, artifactUrl: "${BUILD_URL}/artifact/RadeonProUSDViewer_OSX.zip", configuration: NotificationConfiguration.BUILD_PACKAGE) {
+        withEnv(["PYTHONPATH=%INST%/lib/python;%INST%/lib"]) {
+            try {
+                sh """
+                    export PYENV_ROOT="\$HOME/.pyenv"
+                    export PATH="\$PYENV_ROOT/shims:\$PYENV_ROOT/bin:\$PATH"
+                    pyenv rehash
+                    
+                    python --version
+                
+                    export INSTALL_PREFIX_DIR=\$(pwd)/RPRViewer/binary/mac/inst
+                    export MATERIALX_DIR=\$(python -c "import MaterialX as _; import os; print(os.path.dirname(_.__file__))")/
+                    export PYTHONPATH=\$INSTALL_PREFIX_DIR/lib/python:\$INSTALL_PREFIX_DIR/lib:\$INSTALL_PREFIX_DIR/lib/python/pxr/Usdviewq/HdRPRPlugin/python
+                    export PACKAGE_PATH=\$INSTALL_PREFIX_DIR/dist
+
+                    python -m PyInstaller \$(pwd)/RPRViewer/tools/usdview_mac.spec --noconfirm --clean --distpath \
+                        \$PACKAGE_PATH --workpath \$INSTALL_PREFIX_DIR/build >> ${STAGE_NAME}.USDViewerPackage.log 2>&1
+
+                    install_name_tool -add_rpath @loader_path/../../.. \$PACKAGE_PATH/RPRViewer/hdrpr/plugin/usd/hdRpr.dylib
+                    rm \$PACKAGE_PATH/RPRViewer/librprUsd.dylib
+                    install_name_tool -change @loader_path/../../librprUsd.dylib @loader_path/../../hdrpr/lib/librprUsd.dylib \
+                        \$PACKAGE_PATH/RPRViewer/rpr/RprUsd/_rprUsd.so >> ${STAGE_NAME}.USDViewerPackage.log 2>&1
+                    install_name_tool -add_rpath @loader_path/../.. \$PACKAGE_PATH/RPRViewer/hdrpr/lib/librprUsd.dylib
+                    cp \$PACKAGE_PATH/RPRViewer/hdrpr/lib/*.dylib \$PACKAGE_PATH/RPRViewer/
+                    install_name_tool -change \$INSTALL_PREFIX_DIR/lib/libGLEW.2.0.0.dylib @rpath/libGLEW.2.0.0.dylib \
+                        \$PACKAGE_PATH/RPRViewer/hdrpr/plugin/usd/hdRpr.dylib >> ${STAGE_NAME}.USDViewerPackage.log 2>&1
+                    install_name_tool -change \$INSTALL_PREFIX_DIR/lib/libGLEW.2.0.0.dylib @rpath/libGLEW.2.0.0.dylib \
+                        \$PACKAGE_PATH/RPRViewer/hdrpr/lib/librprUsd.dylib >> ${STAGE_NAME}.USDViewerPackage.log 2>&1
+                """
+
+                zip archive: true, dir: "RPRViewer/binary/mac/inst/dist/RPRViewer", glob: '', zipFile: "RadeonProUSDViewer_Package_OSX.zip"
+            
+                /* due to the weight of the artifact, its sending is postponed until the logic for removing old builds is added to UMS
+                if (options.sendToUMS) {
+                    // WARNING! call sendToMinio in build stage only from parent directory
+                    options.universeManager.sendToMINIO(options, "OSX", "..", "RadeonProUSDViewer_Package_OSX.zip", false)
+                }*/
+            } catch (e) {
+                println(e.toString())
+                println(e.getMessage())
+                println(e.getStackTrace())
+                currentBuild.result = "FAILURE"
+                println "[ERROR] Failed to build USD Viewer Package"
+            }
+        }
+    }
+    
 }
 
 
@@ -326,11 +416,9 @@ def executeBuild(String osName, Map options) {
                 case "Windows":
                     executeBuildWindows(options)
                     break
-
-                case "MacOS":
-                    println "MacOS isn't supported"
+                case "OSX":
+                    executeBuildOSX(options)
                     break
-
                 default:
                     println "Linux isn't supported"
             }
@@ -661,7 +749,7 @@ def executeDeploy(Map options, List platformList, List testResultList) {
 
 def call(String projectBranch = "",
          String testsBranch = "master",
-         String platforms = 'Windows:AMD_WX9100,AMD_RXVEGA,AMD_RadeonVII,AMD_RX5700XT',
+         String platforms = 'Windows:AMD_WX9100,AMD_RXVEGA,AMD_RadeonVII,AMD_RX5700XT;OSX',
          String updateRefs = 'No',
          Boolean enableNotifications = true,
          String testsPackage = "",

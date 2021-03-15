@@ -230,7 +230,7 @@ def executePlatform(String osName, String gpuNames, def executeBuild, def execut
 
             if (options['executeBuild'] && executeBuild) {
                 stage("Build-${osName}") {
-                    def builderLabels = "${osName} && ${options.BUILDER_TAG}"
+                    def builderLabels = "PC-BUILDER-BANGKOK-UBUNTU20"
                     def retringFunction = { nodesList, currentTry ->
                         executeBuild(osName, options)
                     }

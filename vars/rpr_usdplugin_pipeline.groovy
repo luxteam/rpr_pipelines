@@ -62,7 +62,7 @@ def buildRenderCache(String osName, Map options) {
             default:
                 sh """
                     chmod +x build_rpr_cache.sh
-                    ./build_rpr_cache.sh \"/home/user/${options.unix_tool_path}/bin/husk\" >> \"../${options.stageName}_${options.currentTry}.cb.log\" 2>&1
+                    ./build_rpr_cache.sh \"/home/\$USER/${options.unix_tool_path}/bin/husk\" >> \"../${options.stageName}_${options.currentTry}.cb.log\" 2>&1
                 """     
         }
     }
@@ -131,12 +131,12 @@ def executeTestCommand(String osName, String asicName, Map options) {
                                 export RIF_TRACING_ENABLED=1
                                 export RIF_TRACING_PATH=${env.WORKSPACE}/${env.STAGE_NAME}_RIF_Trace
                                 chmod +x run.sh
-                                ./run.sh ${options.testsPackage} \"${options.tests}\" ${options.width} ${options.height} ${options.updateRefs} \"/home/user/${options.unix_tool_path}/bin/husk\" >> \"../${STAGE_NAME}_${options.currentTry}.log\" 2>&1
+                                ./run.sh ${options.testsPackage} \"${options.tests}\" ${options.width} ${options.height} ${options.updateRefs} \"/home/\$USER/${options.unix_tool_path}/bin/husk\" >> \"../${STAGE_NAME}_${options.currentTry}.log\" 2>&1
                             """
                         } else {
                             sh """
                                 chmod +x run.sh
-                                ./run.sh ${options.testsPackage} \"${options.tests}\" ${options.width} ${options.height} ${options.updateRefs} \"/home/user/${options.unix_tool_path}/bin/husk\" >> \"../${STAGE_NAME}_${options.currentTry}.log\" 2>&1
+                                ./run.sh ${options.testsPackage} \"${options.tests}\" ${options.width} ${options.height} ${options.updateRefs} \"/home/\$USER/${options.unix_tool_path}/bin/husk\" >> \"../${STAGE_NAME}_${options.currentTry}.log\" 2>&1
                             """
                         }
                 }
@@ -444,7 +444,7 @@ def executeBuildUnix(String osName, Map options) {
         if (env.HOUDINI_INSTALLATION_PATH) {
             installation_path = "${env.HOUDINI_INSTALLATION_PATH}"
         } else {
-            installation_path = "/home/admin"
+            installation_path = "/home/\$USER"
         }
         if (options.buildType == "Houdini") {
             options.unix_houdini_python3 = options.houdini_python3 ? "-py3" : "-py2"
